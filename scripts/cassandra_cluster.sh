@@ -1,7 +1,5 @@
 #!/bin/bash
 
-SCRIPTDIR=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
-
 CASSANDRA_VERSION="3.9"
 CASSANDRA_CLUSTER_NAME="pregel"
 CASSANDRA_NODE_COUNT=2

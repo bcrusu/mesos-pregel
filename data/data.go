@@ -1,17 +1,5 @@
 package data
 
-import "github.com/bcrusu/pregel/data"
-
-type Parser interface {
-	Next() (edge *data.Edge, success bool)
-}
-
-type Store interface {
-	Write(edge *data.Edge)
-	Connect() error
-	Close()
-}
-
 type Edge struct {
 	FromNode string
 	ToNode   string
@@ -20,4 +8,14 @@ type Edge struct {
 
 func Run() {
 
+}
+
+type Parser interface {
+	Next() (edge *Edge, success bool)
+}
+
+type Store interface {
+	Write(edge *Edge)
+	Connect() error
+	Close()
 }

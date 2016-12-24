@@ -5,8 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"strings"
-
-	"github.com/bcrusu/pregel/data"
 )
 
 var (
@@ -23,8 +21,8 @@ func init() {
 	flag.StringVar(cassandraTableName, "cassandra.table", "", "Cassandra table name")
 }
 
-func NewStore() (data.Store, error) {
-	var store data.Store
+func NewStore() (Store, error) {
+	var store Store
 	var err error
 
 	switch *storeType {
@@ -37,7 +35,7 @@ func NewStore() (data.Store, error) {
 	return store, err
 }
 
-func createCassandraStore() (data.Store, error) {
+func createCassandraStore() (Store, error) {
 	if cassandraHosts == nil || cassandraKeyspace == nil || cassandraTableName == nil {
 		return nil, errors.New("invalid CassandraStore arguments")
 	}

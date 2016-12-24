@@ -3,7 +3,7 @@ package stores
 import (
 	"fmt"
 
-	"github.com/bcrusu/pregel/data"
+	"github.com/bcrusu/pregel/data/graph"
 	"github.com/gocql/gocql"
 )
 
@@ -56,7 +56,7 @@ func (store *CassandraStore) Close() {
 	}
 }
 
-func (store *CassandraStore) Write(edge *data.Edge) {
+func (store *CassandraStore) Write(edge *graph.Edge) {
 	//TODO
 }
 

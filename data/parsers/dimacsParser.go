@@ -43,8 +43,12 @@ func getScanner(reader io.Reader) *bufio.Scanner {
 }
 
 func parseEdge(text string) (edge *graph.Edge, success bool) {
+	if text[0] != 'a' {
+		return nil, false
+	}
+
 	splits := strings.Split(text, " ")
-	if len(splits) != 4 || splits[0] != "a" {
+	if len(splits) != 4 {
 		return nil, false
 	}
 

@@ -42,7 +42,7 @@ func run() error {
 	}
 
 	if err = store.Connect(); err != nil {
-		return nil
+		return err
 	}
 	defer store.Close()
 

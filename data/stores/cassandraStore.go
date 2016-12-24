@@ -25,20 +25,19 @@ func NewCassandraStore(hosts []string, keyspace string, tableName string) *Cassa
 
 func (store *CassandraStore) Connect() error {
 	cluster := gocql.NewCluster(store.hosts...)
-	cluster.Keyspace = store.keyspace
 	cluster.Consistency = gocql.Quorum
 
-	session, err := store.cluster.CreateSession()
+	session, err := cluster.CreateSession()
 	if err != nil {
 		return err
 	}
 
-	if err = store.ensureKeyspace(); err != nil {
+	if err = ensureKeyspace(session, store.keyspace); err != nil {
 		session.Close()
 		return err
 	}
 
-	if err = store.ensureTable(); err != nil {
+	if err = ensureTable(session, store.keyspace, store.tableName); err != nil {
 		session.Close()
 		return err
 	}
@@ -57,25 +56,26 @@ func (store *CassandraStore) Close() {
 }
 
 func (store *CassandraStore) Write(edge *graph.Edge) {
+	//log.Println(edge.FromNode)
 	//TODO
 }
 
-func (store *CassandraStore) ensureTable() error {
-	tableExists, err := store.tableExists()
+func ensureTable(session *gocql.Session, keyspace string, tableName string) error {
+	tableExists, err := tableExists(session, keyspace, tableName)
 	if err != nil {
 		return err
 	}
 
 	if tableExists {
-		return fmt.Errorf("cannot use existing table '%s.%s'", store.keyspace, store.tableName)
+		return fmt.Errorf("cannot use existing table '%s.%s'", keyspace, tableName)
 	}
 
-	cql := fmt.Sprintf("CREATE TABLE %s.%s(fromnode text, tonode text, weight int, PRIMARY KEY(fromnode));", store.keyspace, store.tableName)
-	return execCql(store.session, cql)
+	cql := fmt.Sprintf("CREATE TABLE \"%s\".\"%s\"(\"fromNode\" text, \"toNode\" text, \"weight\" int, PRIMARY KEY(\"fromNode\"));", keyspace, tableName)
+	return execCql(session, cql, true)
 }
 
-func (store *CassandraStore) tableExists() (bool, error) {
-	query := store.session.Query("SELECT count(1) FROM system_schema.tables WHERE keyspace_name=? and table_name=?;", store.keyspace, store.tableName)
+func tableExists(session *gocql.Session, keyspace string, tableName string) (bool, error) {
+	query := session.Query("SELECT count(1) FROM system_schema.tables WHERE keyspace_name=? and table_name=?;", keyspace, tableName)
 
 	var count int
 	if err := query.Scan(&count); err != nil {
@@ -85,15 +85,19 @@ func (store *CassandraStore) tableExists() (bool, error) {
 	return count == 1, nil
 }
 
-func (store *CassandraStore) ensureKeyspace() error {
-	cql := fmt.Sprintf("CREATE KEYSPACE IF NOT EXISTS %s WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };", store.keyspace)
-	return execCql(store.session, cql)
+func ensureKeyspace(session *gocql.Session, keyspace string) error {
+	cql := fmt.Sprintf("CREATE KEYSPACE IF NOT EXISTS \"%s\" WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };", keyspace)
+	return execCql(session, cql, false)
 }
 
-func execCql(session *gocql.Session, cql string) error {
+func execCql(session *gocql.Session, cql string, ignoreTimeout bool) error {
 	query := session.Query(cql)
 
 	if err := query.Exec(); err != nil {
+		if ignoreTimeout && err.Error() == gocql.ErrTimeoutNoResponse.Error() {
+			return nil
+		}
+
 		return err
 	}
 

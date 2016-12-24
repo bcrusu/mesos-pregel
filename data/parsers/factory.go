@@ -7,22 +7,22 @@ import (
 )
 
 var (
-	parserType *string
+	parserType string
 )
 
 func init() {
-	flag.StringVar(parserType, "parser", "dimacs", "Parser type. Available stores values: dimacs")
+	flag.StringVar(&parserType, "parser", "dimacs", "Parser type. Available parsers: dimacs")
 }
 
 func NewParser(reader io.Reader) (Parser, error) {
 	var parser Parser
 	var err error
 
-	switch *parserType {
+	switch parserType {
 	case "dimacs":
 		parser = NewDimacsParser(reader)
 	default:
-		err = fmt.Errorf("Invalid parser type '%s'", *parserType)
+		err = fmt.Errorf("Invalid parser type '%s'", parserType)
 	}
 
 	return parser, err

@@ -1,4 +1,4 @@
-package data
+package main
 
 import (
 	"flag"
@@ -6,17 +6,20 @@ import (
 	"os"
 
 	"github.com/bcrusu/pregel/data/parsers"
+	"github.com/bcrusu/pregel/data/stores"
 )
 
 var (
-	inputFilePath *string
+	inputFilePath string
 )
 
 func init() {
-	flag.StringVar(inputFilePath, "filePath", "", "Input file path")
+	flag.StringVar(&inputFilePath, "filePath", "", "Input file path")
 }
 
 func main() {
+	flag.Parse()
+
 	log.Println("Running...")
 
 	if err := run(); err != nil {
@@ -27,18 +30,21 @@ func main() {
 }
 
 func run() error {
-	flag.Parse()
-
-	inputFile, err := os.Open(*inputFilePath)
+	inputFile, err := os.Open(inputFilePath)
 	if err != nil {
 		return err
 	}
+	defer inputFile.Close()
 
-	// TODO:
-	// var store stores.Store
-	// if store, err = stores.NewStore(); err != nil {
-	// 	return err
-	// }
+	var store stores.Store
+	if store, err = stores.NewStore(); err != nil {
+		return err
+	}
+
+	if err = store.Connect(); err != nil {
+		return nil
+	}
+	defer store.Close()
 
 	var parser parsers.Parser
 	if parser, err = parsers.NewParser(inputFile); err != nil {
@@ -51,7 +57,7 @@ func run() error {
 			return nil
 		}
 
-		log.Println(edge.FromNode)
+		store.Write(edge)
 	}
 
 	return nil

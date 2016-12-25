@@ -5,16 +5,19 @@ import (
 	"log"
 	"os"
 
+	"github.com/bcrusu/pregel/data/graph"
 	"github.com/bcrusu/pregel/data/parsers"
 	"github.com/bcrusu/pregel/data/stores"
 )
 
 var (
 	inputFilePath string
+	batchSize     int
 )
 
 func init() {
 	flag.StringVar(&inputFilePath, "filePath", "", "Input file path")
+	flag.IntVar(&batchSize, "batchSize", 1000, "Insert batch size")
 }
 
 func main() {
@@ -51,13 +54,29 @@ func run() error {
 		return err
 	}
 
+	return loadData(parser, store)
+}
+
+func loadData(parser parsers.Parser, store stores.Store) error {
+	batch := make([]*graph.Edge, 0, batchSize)
 	for true {
-		edge, success := parser.Next()
-		if !success {
-			return nil
+		edge := parser.Next()
+		if edge != nil {
+			batch = append(batch, edge)
 		}
 
-		store.Write(edge)
+		// if batch is full OR done parsing
+		if len(batch) == cap(batch) || edge == nil {
+			if err := store.Write(batch); err != nil {
+				return err
+			}
+
+			batch = batch[:0]
+		}
+
+		if edge == nil {
+			break
+		}
 	}
 
 	return nil

@@ -55,9 +55,16 @@ func (store *CassandraStore) Close() {
 	}
 }
 
-func (store *CassandraStore) Write(edge *graph.Edge) {
-	//log.Println(edge.FromNode)
+func (store *CassandraStore) Write(edge []*graph.Edge) error {
 	//TODO
+	// cql := fmt.Sprintf("INSERT INTO \"%s\".\"%s\" (\"fromNode\", \"toNode\", \"weight\") VALUES(?, ?, ?);", store.keyspace, store.tableName)
+	// query := store.session.Query(cql, edge.FromNode, edge.ToNode, edge.Weight)
+
+	// if err := query.Exec(); err != nil {
+	// 	return err
+	// }
+
+	return nil
 }
 
 func ensureTable(session *gocql.Session, keyspace string, tableName string) error {

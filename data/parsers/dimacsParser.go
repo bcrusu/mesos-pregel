@@ -19,16 +19,16 @@ func NewDimacsParser(reader io.Reader) *DimacsParser {
 	return result
 }
 
-func (parser *DimacsParser) Next() (edge *graph.Edge, success bool) {
+func (parser *DimacsParser) Next() *graph.Edge {
 	for true {
 		success := parser.lineScanner.Scan()
 		if !success {
-			return nil, false
+			return nil
 		}
 
 		edge, success := parseEdge(parser.lineScanner.Text())
 		if success {
-			return edge, true
+			return edge
 		}
 	}
 

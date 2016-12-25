@@ -28,6 +28,8 @@ func NewStore() (Store, error) {
 	switch storeType {
 	case "cassandra":
 		store, err = createCassandraStore()
+	case "null":
+		store, err = NewNullStore(), nil
 	default:
 		store, err = nil, fmt.Errorf("Invalid store type '%s'", storeType)
 	}

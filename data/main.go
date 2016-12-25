@@ -17,7 +17,7 @@ var (
 
 func init() {
 	flag.StringVar(&inputFilePath, "filePath", "", "Input file path")
-	flag.IntVar(&batchSize, "batchSize", 1000, "Insert batch size")
+	flag.IntVar(&batchSize, "batchSize", 1500, "Insert batch size")
 }
 
 func main() {
@@ -59,6 +59,8 @@ func run() error {
 
 func loadData(parser parsers.Parser, store stores.Store) error {
 	batch := make([]*graph.Edge, 0, batchSize)
+	batchNo := 0
+
 	for true {
 		edge := parser.Next()
 		if edge != nil {
@@ -67,6 +69,9 @@ func loadData(parser parsers.Parser, store stores.Store) error {
 
 		// if batch is full OR done parsing
 		if len(batch) == cap(batch) || edge == nil {
+			batchNo++
+			log.Printf("Writing batch %d containing %d items", batchNo, len(batch))
+
 			if err := store.Write(batch); err != nil {
 				return err
 			}

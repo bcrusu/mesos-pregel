@@ -2,6 +2,7 @@ package stores
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/bcrusu/pregel/data/graph"
 	"github.com/gocql/gocql"
@@ -25,7 +26,7 @@ func NewCassandraStore(hosts []string, keyspace string, tableName string) *Cassa
 
 func (store *CassandraStore) Connect() error {
 	cluster := gocql.NewCluster(store.hosts...)
-	cluster.Consistency = gocql.Quorum
+	cluster.Timeout = 3 * time.Second
 
 	session, err := cluster.CreateSession()
 	if err != nil {
@@ -55,16 +56,20 @@ func (store *CassandraStore) Close() {
 	}
 }
 
-func (store *CassandraStore) Write(edge []*graph.Edge) error {
-	//TODO
-	// cql := fmt.Sprintf("INSERT INTO \"%s\".\"%s\" (\"fromNode\", \"toNode\", \"weight\") VALUES(?, ?, ?);", store.keyspace, store.tableName)
-	// query := store.session.Query(cql, edge.FromNode, edge.ToNode, edge.Weight)
+func (store *CassandraStore) Write(edges []*graph.Edge) error {
+	batch := store.session.NewBatch(gocql.UnloggedBatch)
+	batch.Cons = gocql.One
 
-	// if err := query.Exec(); err != nil {
-	// 	return err
-	// }
+	cql := fmt.Sprintf("INSERT INTO \"%s\".\"%s\" (\"fromNode\", \"toNode\", \"weight\") VALUES(?, ?, ?);", store.keyspace, store.tableName)
 
-	return nil
+	for _, edge := range edges {
+		var entry gocql.BatchEntry
+		entry.Stmt = cql
+		entry.Args = []interface{}{edge.FromNode, edge.ToNode, edge.Weight}
+		batch.Entries = append(batch.Entries, entry)
+	}
+
+	return store.session.ExecuteBatch(batch)
 }
 
 func ensureTable(session *gocql.Session, keyspace string, tableName string) error {
@@ -77,12 +82,12 @@ func ensureTable(session *gocql.Session, keyspace string, tableName string) erro
 		return fmt.Errorf("cannot use existing table '%s.%s'", keyspace, tableName)
 	}
 
-	cql := fmt.Sprintf("CREATE TABLE \"%s\".\"%s\"(\"fromNode\" text, \"toNode\" text, \"weight\" int, PRIMARY KEY(\"fromNode\"));", keyspace, tableName)
-	return execCql(session, cql, true)
+	cql := fmt.Sprintf("CREATE TABLE \"%s\".\"%s\"(\"fromNode\" text, \"toNode\" text, \"weight\" int, PRIMARY KEY(\"fromNode\", \"toNode\"));", keyspace, tableName)
+	return execCql(session, cql)
 }
 
 func tableExists(session *gocql.Session, keyspace string, tableName string) (bool, error) {
-	query := session.Query("SELECT count(1) FROM system_schema.tables WHERE keyspace_name=? and table_name=?;", keyspace, tableName)
+	query := session.Query("SELECT count(1) FROM system_schema.tables WHERE keyspace_name=? and table_name=?;", keyspace, tableName).Consistency(gocql.Quorum)
 
 	var count int
 	if err := query.Scan(&count); err != nil {
@@ -94,17 +99,13 @@ func tableExists(session *gocql.Session, keyspace string, tableName string) (boo
 
 func ensureKeyspace(session *gocql.Session, keyspace string) error {
 	cql := fmt.Sprintf("CREATE KEYSPACE IF NOT EXISTS \"%s\" WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };", keyspace)
-	return execCql(session, cql, false)
+	return execCql(session, cql)
 }
 
-func execCql(session *gocql.Session, cql string, ignoreTimeout bool) error {
-	query := session.Query(cql)
+func execCql(session *gocql.Session, cql string) error {
+	query := session.Query(cql).Consistency(gocql.All)
 
 	if err := query.Exec(); err != nil {
-		if ignoreTimeout && err.Error() == gocql.ErrTimeoutNoResponse.Error() {
-			return nil
-		}
-
 		return err
 	}
 

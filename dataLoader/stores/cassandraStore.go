@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bcrusu/pregel/data/graph"
+	"github.com/bcrusu/pregel"
 	"github.com/gocql/gocql"
 )
 
@@ -56,16 +56,16 @@ func (store *CassandraStore) Close() {
 	}
 }
 
-func (store *CassandraStore) Write(edges []*graph.Edge) error {
+func (store *CassandraStore) Write(edges []*pregel.Edge) error {
 	batch := store.session.NewBatch(gocql.UnloggedBatch)
 	batch.Cons = gocql.One
 
-	cql := fmt.Sprintf("INSERT INTO \"%s\".\"%s\" (\"fromNode\", \"toNode\", \"weight\") VALUES(?, ?, ?);", store.keyspace, store.tableName)
+	cql := fmt.Sprintf("INSERT INTO \"%s\".\"%s\" (\"from\", \"to\", \"weight\") VALUES(?, ?, ?);", store.keyspace, store.tableName)
 
 	for _, edge := range edges {
 		var entry gocql.BatchEntry
 		entry.Stmt = cql
-		entry.Args = []interface{}{edge.FromNode, edge.ToNode, edge.Weight}
+		entry.Args = []interface{}{edge.From, edge.To, edge.Weight}
 		batch.Entries = append(batch.Entries, entry)
 	}
 
@@ -82,7 +82,7 @@ func ensureTable(session *gocql.Session, keyspace string, tableName string) erro
 		return fmt.Errorf("cannot use existing table '%s.%s'", keyspace, tableName)
 	}
 
-	cql := fmt.Sprintf("CREATE TABLE \"%s\".\"%s\"(\"fromNode\" text, \"toNode\" text, \"weight\" int, PRIMARY KEY(\"fromNode\", \"toNode\"));", keyspace, tableName)
+	cql := fmt.Sprintf("CREATE TABLE \"%s\".\"%s\"(\"from\" text, \"to\" text, \"weight\" int, PRIMARY KEY(\"from\", \"to\"));", keyspace, tableName)
 	return execCql(session, cql)
 }
 

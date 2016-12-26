@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bcrusu/pregel/data/graph"
+	"github.com/bcrusu/pregel"
 )
 
 type DimacsParser struct {
@@ -19,7 +19,7 @@ func NewDimacsParser(reader io.Reader) *DimacsParser {
 	return result
 }
 
-func (parser *DimacsParser) Next() *graph.Edge {
+func (parser *DimacsParser) Next() *pregel.Edge {
 	for true {
 		success := parser.lineScanner.Scan()
 		if !success {
@@ -42,7 +42,7 @@ func getScanner(reader io.Reader) *bufio.Scanner {
 	return scanner
 }
 
-func parseEdge(text string) (edge *graph.Edge, success bool) {
+func parseEdge(text string) (edge *pregel.Edge, success bool) {
 	if text[0] != 'a' {
 		return nil, false
 	}
@@ -57,9 +57,9 @@ func parseEdge(text string) (edge *graph.Edge, success bool) {
 		return nil, false
 	}
 
-	result := new(graph.Edge)
-	result.FromNode = splits[1]
-	result.ToNode = splits[2]
+	result := new(pregel.Edge)
+	result.From = splits[1]
+	result.To = splits[2]
 	result.Weight = weight
 
 	return result, true

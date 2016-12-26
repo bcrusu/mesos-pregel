@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/bcrusu/pregel/data/graph"
-	"github.com/bcrusu/pregel/data/parsers"
-	"github.com/bcrusu/pregel/data/stores"
+	"github.com/bcrusu/pregel"
+	"github.com/bcrusu/pregel/dataLoader/parsers"
+	"github.com/bcrusu/pregel/dataLoader/stores"
 )
 
 var (
@@ -58,7 +58,7 @@ func run() error {
 }
 
 func loadData(parser parsers.Parser, store stores.Store) error {
-	batch := make([]*graph.Edge, 0, batchSize)
+	batch := make([]*pregel.Edge, 0, batchSize)
 	batchNo := 0
 
 	for true {

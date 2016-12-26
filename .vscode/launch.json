@@ -2,14 +2,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch",
+            "name": "DataLoader",
             "type": "go",
             "request": "launch",
             "mode": "debug",
             "remotePath": "",
             "port": 2345,
             "host": "127.0.0.1",
-            "program": "${workspaceRoot}",
+            "program": "${workspaceRoot}/dataLoader",
             "env": {},
             "args": ["-store=cassandra", "-cassandra.table=usaRoads", "-cassandra.table=nyRoads", "-filePath=/home/bcrusu/Downloads/USA-road-d.NY.gr"],
             "showLog": true

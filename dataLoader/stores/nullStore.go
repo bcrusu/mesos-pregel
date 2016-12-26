@@ -1,6 +1,6 @@
 package stores
 
-import "github.com/bcrusu/pregel/data/graph"
+import "github.com/bcrusu/pregel"
 
 type NullStore struct {
 }
@@ -16,6 +16,6 @@ func (store *NullStore) Connect() error {
 func (store *NullStore) Close() {
 }
 
-func (store *NullStore) Write(edge []*graph.Edge) error {
+func (store *NullStore) Write(edge []*pregel.Edge) error {
 	return nil
 }

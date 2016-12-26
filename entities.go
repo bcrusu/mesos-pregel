@@ -10,3 +10,8 @@ type Edge struct {
 	To     string
 	Weight int
 }
+
+type Message interface {
+	Combine(other Message) Message
+	Serialize() []byte
+}

@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package shortestPath;
+
+message ShortestPathMessage {
+    int64 pathLength = 1;
+}

@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package stores;
+
+message CassandraParams {
+    repeated string hosts = 1;
+    string keyspace = 2;
+    string tableName = 3;
+}
+
+message CassandraTokenRange {
+    int64 start = 1;
+    int64 end = 2;
+}

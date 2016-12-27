@@ -2,7 +2,7 @@ package algorithms
 
 import "fmt"
 
-func NewAlgorithm(name string, initState []byte) (Algorithm, error) {
+func NewAlgorithm(name string, data []byte) (Algorithm, error) {
 	var algorithm Algorithm
 	var err error
 

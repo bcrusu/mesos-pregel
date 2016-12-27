@@ -3,6 +3,8 @@ package executor
 import (
 	"fmt"
 
+	"github.com/bcrusu/pregel/protos"
+	"github.com/gogo/protobuf/proto"
 	log "github.com/golang/glog"
 	exec "github.com/mesos/mesos-go/executor"
 	mesos "github.com/mesos/mesos-go/mesosproto"
@@ -53,12 +55,16 @@ func (this *PregelExecutor) Error(driver exec.ExecutorDriver, err string) {
 func (this *PregelExecutor) processLaunchTask(driver exec.ExecutorDriver, taskInfo *mesos.TaskInfo) {
 	fmt.Println("Launching task", taskInfo.GetName())
 
-	if err := sendStatusUpdate(driver, taskInfo.GetTaskId(), mesos.TaskState_TASK_RUNNING); err != nil {
+	if err := sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_RUNNING); err != nil {
 		log.Errorf("error sending status update: %s", err)
 		return
 	}
 
-	taskInfo.Data
+	data := new(protos.ExecutorTaskData)
+	if err := proto.Unmarshal(taskInfo.Data, data); err != nil {
+		log.Errorf("Failed to unmarshal message: %v", err)
+		return
+	}
 
 	//TODO
 }

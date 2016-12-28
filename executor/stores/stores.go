@@ -12,12 +12,10 @@ type Store interface {
 	LoadVertices() ([]*pregel.Vertex, error)
 	LoadEdges() ([]*pregel.Edge, error)
 
-	LoadVertexOperations(jobID string) ([]*pregel.VertexOperation, error)
-	LoadVertexOperationsForSuperstep(jobID string, superstep int) ([]*pregel.VertexOperation, error)
+	LoadVertexOperations(jobID string, superstep int) ([]*pregel.VertexOperation, error)
 	SaveVertexOperations(operations []*pregel.VertexOperation) error
 
-	LoadEdgeOperations(jobID string) ([]*pregel.EdgeOperation, error)
-	LoadEdgeOperationsForSuperstep(jobID string, superstep int) ([]*pregel.EdgeOperation, error)
+	LoadEdgeOperations(jobID string, superstep int) ([]*pregel.EdgeOperation, error)
 	SaveEdgeOperations(operations []*pregel.EdgeOperation) error
 
 	Connect() error

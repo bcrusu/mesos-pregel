@@ -10,6 +10,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	vertexOperationsTableName = "vertexOperations"
+	edgeOperationsTableName   = "edgeOperations"
+)
+
 type CassandraStore struct {
 	params  protos.CassandraStoreParams
 	cluster *gocql.ClusterConfig
@@ -29,6 +34,10 @@ func (store *CassandraStore) Connect() error {
 		return err
 	}
 
+	if err := ensureOperationsTables(session, store.params.Keyspace); err != nil {
+		return err
+	}
+
 	store.cluster = cluster
 	store.session = session
 	return nil
@@ -43,60 +52,84 @@ func (store *CassandraStore) Close() {
 }
 
 func (store *CassandraStore) LoadVertices() ([]*pregel.Vertex, error) {
-	cql := fmt.Sprintf("SELECT id, value FROM %s WHERE token(id) >= ? AND token(id) <= ?;", store.fullVerticesTableName())
-	tokenRange := store.params.TokenRange
-	iter := store.session.Query(cql, tokenRange.Start, tokenRange.End).Iter()
+	cql := fmt.Sprintf(`SELECT id, value FROM %s WHERE token(id) >= ? AND token(id) <= ?;`, store.fullTableName(store.params.VerticesTable))
+	params := []interface{}{store.params.TokenRange.Start, store.params.TokenRange.End}
 
-	result := make([]*pregel.Vertex, 0, 1000)
-
-	var id string
-	var value []byte
-	for iter.Scan(&id, &value) {
-		vertex := &pregel.Vertex{ID: id, Value: value}
-		result = append(result, vertex)
+	createScanDest := func() []interface{} {
+		return []interface{}{new(string), new([]byte)}
 	}
 
-	if err := iter.Close(); err != nil {
-		return nil, errors.Wrap(err, "failed to load graph vertices")
+	createEntityFunc := func(dest []interface{}) interface{} {
+		return &pregel.Vertex{ID: dest[0].(string), Value: dest[1].([]byte)}
+	}
+
+	entities, err := store.executeSelect(cql, params, createScanDest, createEntityFunc)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*pregel.Vertex, 0, len(entities))
+	for i, e := range entities {
+		result[i] = e.(*pregel.Vertex)
 	}
 
 	return result, nil
 }
 
 func (store *CassandraStore) LoadEdges() ([]*pregel.Edge, error) {
-	cql := fmt.Sprintf("SELECT \"from\", \"to\", weight FROM %s WHERE token(\"from\") >= ? AND token(\"from\") <= ?;", store.fullEdgesTableName())
-	tokenRange := store.params.TokenRange
-	iter := store.session.Query(cql, tokenRange.Start, tokenRange.End).Iter()
+	cql := fmt.Sprintf(`SELECT "from", "to", weight FROM %s WHERE token("from") >= ? AND token("from") <= ?;`, store.fullTableName(store.params.EdgesTable))
+	params := []interface{}{store.params.TokenRange.Start, store.params.TokenRange.End}
 
-	result := make([]*pregel.Edge, 0, 1000)
-
-	var from string
-	var to string
-	var weight int
-	for iter.Scan(&from, &to, &weight) {
-		edge := &pregel.Edge{From: from, To: to, Weight: weight}
-		result = append(result, edge)
+	createScanDest := func() []interface{} {
+		return []interface{}{new(string), new(string), new(int)}
 	}
 
-	if err := iter.Close(); err != nil {
-		return nil, errors.Wrap(err, "failed to load graph edges")
+	createEntityFunc := func(dest []interface{}) interface{} {
+		return &pregel.Edge{From: dest[0].(string), To: dest[1].(string), Weight: dest[2].(int)}
+	}
+
+	entities, err := store.executeSelect(cql, params, createScanDest, createEntityFunc)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*pregel.Edge, 0, len(entities))
+	for i, e := range entities {
+		result[i] = e.(*pregel.Edge)
 	}
 
 	return result, nil
 }
 
-func (store *CassandraStore) LoadVertexOperations(jobID string) ([]*pregel.VertexOperation, error) {
-	//TODO
-	return nil, nil
-}
+func (store *CassandraStore) LoadVertexOperations(jobID string, superstep int) ([]*pregel.VertexOperation, error) {
+	cql := fmt.Sprintf(`SELECT id, job_id, superstep, performed_by, type, value FROM %s WHERE token(id) >= ? AND token(id) <= ? AND job_id=? AND superstep=?;`,
+		store.fullTableName(vertexOperationsTableName))
+	params := []interface{}{store.params.TokenRange.Start, store.params.TokenRange.End, jobID, superstep}
 
-func (store *CassandraStore) LoadVertexOperationsForSuperstep(jobID string, superstep int) ([]*pregel.VertexOperation, error) {
-	//TODO
-	return nil, nil
+	createScanDest := func() []interface{} {
+		return []interface{}{new(string), new(string), new(int), new(string), new(pregel.VertexOperationType), new([]byte)}
+	}
+
+	createEntityFunc := func(dest []interface{}) interface{} {
+		return &pregel.VertexOperation{ID: dest[0].(string), JobID: dest[1].(string), Superstep: dest[2].(int),
+			PerformedBy: dest[3].(string), Type: dest[4].(pregel.VertexOperationType), Value: dest[5].([]byte)}
+	}
+
+	entities, err := store.executeSelect(cql, params, createScanDest, createEntityFunc)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*pregel.VertexOperation, 0, len(entities))
+	for i, e := range entities {
+		result[i] = e.(*pregel.VertexOperation)
+	}
+
+	return result, nil
 }
 
 func (store *CassandraStore) SaveVertexOperations(operations []*pregel.VertexOperation) error {
-	cql := fmt.Sprintf("INSERT INTO %s (id, \"jobId\", superstep, \"performedBy\", type, value) VALUES(?, ?, ?, ?, ?, ?);", store.fullTableName("vertexOperations"))
+	cql := fmt.Sprintf(`INSERT INTO %s (id, job_id, superstep, performed_by, type, value) VALUES(?, ?, ?, ?, ?, ?);`, store.fullTableName(vertexOperationsTableName))
 
 	items := make([]interface{}, len(operations))
 	for i, v := range operations {
@@ -116,17 +149,35 @@ func (store *CassandraStore) SaveVertexOperations(operations []*pregel.VertexOpe
 	return store.executeBatches(batches)
 }
 
-func (store *CassandraStore) LoadEdgeOperations(jobID string) ([]*pregel.EdgeOperation, error) {
-	//TODO
-	return nil, nil
-}
-func (store *CassandraStore) LoadEdgeOperationsForSuperstep(jobID string, superstep int) ([]*pregel.EdgeOperation, error) {
-	//TODO
-	return nil, nil
+func (store *CassandraStore) LoadEdgeOperations(jobID string, superstep int) ([]*pregel.EdgeOperation, error) {
+	cql := fmt.Sprintf(`SELECT "from", "to", job_id, superstep, performed_by, type, value FROM %s WHERE token("from") >= ? AND token("from") <= ? AND job_id=? AND superstep=?;`,
+		store.fullTableName(edgeOperationsTableName))
+	params := []interface{}{store.params.TokenRange.Start, store.params.TokenRange.End, jobID, superstep}
+
+	createScanDest := func() []interface{} {
+		return []interface{}{new(string), new(string), new(string), new(int), new(string), new(pregel.EdgeOperationType), new([]byte)}
+	}
+
+	createEntityFunc := func(dest []interface{}) interface{} {
+		return &pregel.EdgeOperation{From: dest[0].(string), To: dest[1].(string), JobID: dest[2].(string), Superstep: dest[3].(int),
+			PerformedBy: dest[4].(string), Type: dest[5].(pregel.EdgeOperationType), Value: dest[6].([]byte)}
+	}
+
+	entities, err := store.executeSelect(cql, params, createScanDest, createEntityFunc)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*pregel.EdgeOperation, 0, len(entities))
+	for i, e := range entities {
+		result[i] = e.(*pregel.EdgeOperation)
+	}
+
+	return result, nil
 }
 
 func (store *CassandraStore) SaveEdgeOperations(operations []*pregel.EdgeOperation) error {
-	cql := fmt.Sprintf("INSERT INTO %s (\"from\", \"to\", \"jobId\", superstep, \"performedBy\", type, value) VALUES(?, ?, ?, ?, ?, ?, ?);", store.fullTableName("edgeOperations"))
+	cql := fmt.Sprintf(`INSERT INTO %s ("from", "to", job_id, superstep, performed_by, type, value) VALUES(?, ?, ?, ?, ?, ?, ?);`, store.fullTableName(edgeOperationsTableName))
 
 	items := make([]interface{}, len(operations))
 	for i, v := range operations {
@@ -146,16 +197,33 @@ func (store *CassandraStore) SaveEdgeOperations(operations []*pregel.EdgeOperati
 	return store.executeBatches(batches)
 }
 
-func (store *CassandraStore) fullVerticesTableName() string {
-	return store.fullTableName(store.params.VerticesTable)
-}
-
-func (store *CassandraStore) fullEdgesTableName() string {
-	return store.fullTableName(store.params.EdgesTable)
-}
-
 func (store *CassandraStore) fullTableName(table string) string {
-	return fmt.Sprintf("\"%s\".\"%s\"", store.params.Keyspace, table)
+	return fullTableName(store.params.Keyspace, table)
+}
+
+func fullTableName(keyspace string, table string) string {
+	return fmt.Sprintf(`"%s"."%s"`, keyspace, table)
+}
+
+type createScanDestFunc func() []interface{}
+type createEntityFunc func(dest []interface{}) interface{}
+
+func (store *CassandraStore) executeSelect(cql string, params interface{}, createScanDest createScanDestFunc, createEntity createEntityFunc) ([]interface{}, error) {
+	iter := store.session.Query(cql, params).Iter()
+
+	result := make([]interface{}, 0, 1000)
+
+	dest := createScanDest()
+	for iter.Scan(dest) {
+		entity := createEntity(dest)
+		result = append(result, entity)
+	}
+
+	if err := iter.Close(); err != nil {
+		return nil, errors.Wrap(err, "failed to execute select query")
+	}
+
+	return result, nil
 }
 
 type itemSizeFunc func(interface{}) int
@@ -195,6 +263,18 @@ func (store *CassandraStore) executeBatches(batches []*gocql.Batch) error {
 		if err := store.session.ExecuteBatch(batch); err != nil {
 			return errors.Wrapf(err, "failed to execute batch no. %d of %d", i+1, len(batches))
 		}
+	}
+
+	return nil
+}
+
+func ensureOperationsTables(session *gocql.Session, keyspace string) error {
+	cql := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, job_id text, superstep int, performed_by text, type int, value blob, PRIMARY KEY((id), job_id, superstep, performed_by));
+CREATE TABLE IF NOT EXISTS %s("from" text, "to" text, job_id text, superstep int, performed_by text, type int, value blob, PRIMARY KEY(("from"), "to", job_id, superstep, performed_by));`,
+		fullTableName(keyspace, vertexOperationsTableName), fullTableName(keyspace, edgeOperationsTableName))
+
+	if err := session.Query(cql).Exec(); err != nil {
+		return errors.Wrap(err, "error creating vertex/edge operations tables")
 	}
 
 	return nil

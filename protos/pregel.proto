@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package protos;
+
+enum StoreType {
+    Cassandra = 0;
+}
+
+enum AlgorithmType {
+    ShortestPath = 0;
+}
+
+message ExecutorTaskData {
+    string jobId = 1;
+    int32 superstep = 2;
+
+    StoreType storeType = 3;
+    bytes storeParams = 4;
+
+    AlgorithmType algorithmType = 5;
+    bytes algorithmParams = 6;
+
+    bytes processRange = 7;
+}
+
+// Stores:
+
+message CassandraStoreParams {
+    repeated string hosts = 1;
+    string keyspace = 2;    
+    string verticesTable = 3;
+    string edgesTable = 4;
+    TokenRange tokenRange = 5;
+    BatchOptions batchOptions = 6;
+
+    message TokenRange {
+        int64 start = 1;
+        int64 end = 2;
+    }   
+
+    message BatchOptions {
+        int32 MaxSize = 1;
+        int32 MaxBytes = 2;
+    }
+}
+
+// Algorithms:
+
+message ShortestPathAlgorithParams {
+    string from = 1;
+    string to = 2;
+}
+
+message ShortestPathMessage {
+    int64 pathLength = 1;
+}

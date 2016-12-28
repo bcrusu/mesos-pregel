@@ -5,11 +5,7 @@ if [ -z "$GOPATH" ]; then
 	exit 1
 fi
 
-PROTOS_BASE_PATH="${GOPATH}/src/github.com/bcrusu/pregel/protos"
-
-ProtoDirs=("${PROTOS_BASE_PATH}"
-           "${PROTOS_BASE_PATH}/algorithms"
-		   "${PROTOS_BASE_PATH}/stores")
+ProtoDirs=("${GOPATH}/src/github.com/bcrusu/pregel/protos")
 
 for protoDir in ${ProtoDirs[@]}; do
 	PROTO_PATH=${protoDir}

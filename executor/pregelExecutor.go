@@ -3,6 +3,7 @@ package executor
 import (
 	"fmt"
 
+	"github.com/bcrusu/pregel/executor/algorithms"
 	"github.com/bcrusu/pregel/protos"
 	"github.com/gogo/protobuf/proto"
 	log "github.com/golang/glog"
@@ -63,6 +64,12 @@ func (this *PregelExecutor) processLaunchTask(driver exec.ExecutorDriver, taskIn
 	data := new(protos.ExecutorTaskData)
 	if err := proto.Unmarshal(taskInfo.Data, data); err != nil {
 		log.Errorf("Failed to unmarshal message: %v", err)
+		return
+	}
+
+	_, err := algorithms.NewAlgorithm(data.AlgorithmType, data.AlgorithmParams)
+	if err != nil {
+		log.Errorf("Failed to initialize algorithm type: %v. Error: %v", data.AlgorithmType, err)
 		return
 	}
 

@@ -10,7 +10,7 @@ enum AlgorithmType {
     ShortestPath = 0;
 }
 
-message ExecutorTaskData {
+message PregelTaskParams {
     string jobId = 1;
     int32 superstep = 2;
 
@@ -20,7 +20,7 @@ message ExecutorTaskData {
     AlgorithmType algorithmType = 5;
     bytes algorithmParams = 6;
 
-    bytes processRange = 7;
+    bytes entityRange = 7;
 }
 
 // Stores:
@@ -30,19 +30,18 @@ message CassandraStoreParams {
     string keyspace = 2;    
     string verticesTable = 3;
     string edgesTable = 4;
-    TokenRange tokenRange = 5;
-    BatchOptions batchOptions = 6;
-
-    message TokenRange {
-        int64 start = 1;
-        int64 end = 2;
-    }   
+    BatchOptions batchOptions = 5;
 
     message BatchOptions {
         int32 MaxSize = 1;
         int32 MaxBytes = 2;
     }
 }
+
+message CassandraEntityRange {
+    int64 startToken = 1;
+    int64 endToken = 2;
+}   
 
 // Algorithms:
 

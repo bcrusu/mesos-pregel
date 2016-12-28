@@ -16,13 +16,14 @@ const (
 )
 
 type CassandraStore struct {
-	params  protos.CassandraStoreParams
-	cluster *gocql.ClusterConfig
-	session *gocql.Session
+	params      protos.CassandraStoreParams
+	entityRange protos.CassandraEntityRange
+	cluster     *gocql.ClusterConfig
+	session     *gocql.Session
 }
 
-func NewCassandraStore(params protos.CassandraStoreParams) Store {
-	return &CassandraStore{params: params}
+func NewCassandraStore(params protos.CassandraStoreParams, entityRange protos.CassandraEntityRange) Store {
+	return &CassandraStore{params: params, entityRange: entityRange}
 }
 
 func (store *CassandraStore) Connect() error {
@@ -53,7 +54,7 @@ func (store *CassandraStore) Close() {
 
 func (store *CassandraStore) LoadVertices() ([]*pregel.Vertex, error) {
 	cql := fmt.Sprintf(`SELECT id, value FROM %s WHERE token(id) >= ? AND token(id) <= ?;`, store.fullTableName(store.params.VerticesTable))
-	params := []interface{}{store.params.TokenRange.Start, store.params.TokenRange.End}
+	params := []interface{}{store.entityRange.StartToken, store.entityRange.EndToken}
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new([]byte)}
@@ -78,7 +79,7 @@ func (store *CassandraStore) LoadVertices() ([]*pregel.Vertex, error) {
 
 func (store *CassandraStore) LoadEdges() ([]*pregel.Edge, error) {
 	cql := fmt.Sprintf(`SELECT "from", "to", weight FROM %s WHERE token("from") >= ? AND token("from") <= ?;`, store.fullTableName(store.params.EdgesTable))
-	params := []interface{}{store.params.TokenRange.Start, store.params.TokenRange.End}
+	params := []interface{}{store.entityRange.StartToken, store.entityRange.EndToken}
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new(string), new(int)}
@@ -104,7 +105,7 @@ func (store *CassandraStore) LoadEdges() ([]*pregel.Edge, error) {
 func (store *CassandraStore) LoadVertexOperations(jobID string, superstep int) ([]*pregel.VertexOperation, error) {
 	cql := fmt.Sprintf(`SELECT id, job_id, superstep, performed_by, type, value FROM %s WHERE token(id) >= ? AND token(id) <= ? AND job_id=? AND superstep=?;`,
 		store.fullTableName(vertexOperationsTableName))
-	params := []interface{}{store.params.TokenRange.Start, store.params.TokenRange.End, jobID, superstep}
+	params := []interface{}{store.entityRange.StartToken, store.entityRange.EndToken, jobID, superstep}
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new(string), new(int), new(string), new(pregel.VertexOperationType), new([]byte)}
@@ -152,7 +153,7 @@ func (store *CassandraStore) SaveVertexOperations(operations []*pregel.VertexOpe
 func (store *CassandraStore) LoadEdgeOperations(jobID string, superstep int) ([]*pregel.EdgeOperation, error) {
 	cql := fmt.Sprintf(`SELECT "from", "to", job_id, superstep, performed_by, type, value FROM %s WHERE token("from") >= ? AND token("from") <= ? AND job_id=? AND superstep=?;`,
 		store.fullTableName(edgeOperationsTableName))
-	params := []interface{}{store.params.TokenRange.Start, store.params.TokenRange.End, jobID, superstep}
+	params := []interface{}{store.entityRange.StartToken, store.entityRange.EndToken, jobID, superstep}
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new(string), new(string), new(int), new(string), new(pregel.EdgeOperationType), new([]byte)}

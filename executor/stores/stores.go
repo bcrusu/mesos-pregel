@@ -22,7 +22,7 @@ type Store interface {
 	Close()
 }
 
-func NewStore(storeType protos.StoreType, params []byte) (Store, error) {
+func NewStore(storeType protos.StoreType, params []byte, entityRange []byte) (Store, error) {
 	switch storeType {
 	case protos.StoreType_Cassandra:
 		paramsMsg := new(protos.CassandraStoreParams)
@@ -30,7 +30,12 @@ func NewStore(storeType protos.StoreType, params []byte) (Store, error) {
 			return nil, err
 		}
 
-		return NewCassandraStore(*paramsMsg), nil
+		entityRangeMsg := new(protos.CassandraEntityRange)
+		if err := proto.Unmarshal(entityRange, entityRangeMsg); err != nil {
+			return nil, err
+		}
+
+		return NewCassandraStore(*paramsMsg, *entityRangeMsg), nil
 	default:
 		return nil, fmt.Errorf("Invalid store type '%s'", storeType)
 	}

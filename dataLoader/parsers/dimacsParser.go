@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/bcrusu/pregel"
+	"github.com/bcrusu/pregel/encoding"
+	"github.com/bcrusu/pregel/protos"
 )
 
 type DimacsParser struct {
@@ -20,7 +22,7 @@ func NewDimacsParser(reader io.Reader) *DimacsParser {
 }
 
 func (parser *DimacsParser) Next() *pregel.Edge {
-	for true {
+	for {
 		success := parser.lineScanner.Scan()
 		if !success {
 			return nil
@@ -31,8 +33,6 @@ func (parser *DimacsParser) Next() *pregel.Edge {
 			return edge
 		}
 	}
-
-	panic("unreachable")
 }
 
 func getScanner(reader io.Reader) *bufio.Scanner {
@@ -52,7 +52,7 @@ func parseEdge(text string) (edge *pregel.Edge, success bool) {
 		return nil, false
 	}
 
-	weight, err := strconv.Atoi(splits[3])
+	value, err := strconv.Atoi(splits[3])
 	if err != nil {
 		return nil, false
 	}
@@ -60,7 +60,12 @@ func parseEdge(text string) (edge *pregel.Edge, success bool) {
 	result := new(pregel.Edge)
 	result.From = splits[1]
 	result.To = splits[2]
-	result.Weight = weight
+	result.Value = marshalValue(value)
 
 	return result, true
+}
+
+func marshalValue(value int) []byte {
+	bytes, _ := encoding.ProtobufMarshaler(&protos.Int32Value{Value: int32(value)})
+	return bytes
 }

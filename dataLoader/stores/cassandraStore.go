@@ -60,12 +60,12 @@ func (store *CassandraStore) Write(edges []*pregel.Edge) error {
 	batch := store.session.NewBatch(gocql.UnloggedBatch)
 	batch.Cons = gocql.One
 
-	cql := fmt.Sprintf("INSERT INTO \"%s\".\"%s\" (\"from\", \"to\", \"weight\") VALUES(?, ?, ?);", store.keyspace, store.tableName)
+	cql := fmt.Sprintf(`INSERT INTO "%s"."%s" ("from", "to", value) VALUES(?, ?, ?);`, store.keyspace, store.tableName)
 
 	for _, edge := range edges {
 		var entry gocql.BatchEntry
 		entry.Stmt = cql
-		entry.Args = []interface{}{edge.From, edge.To, edge.Weight}
+		entry.Args = []interface{}{edge.From, edge.To, edge.Value}
 		batch.Entries = append(batch.Entries, entry)
 	}
 
@@ -82,12 +82,12 @@ func ensureTable(session *gocql.Session, keyspace string, tableName string) erro
 		return fmt.Errorf("cannot use existing table '%s.%s'", keyspace, tableName)
 	}
 
-	cql := fmt.Sprintf("CREATE TABLE \"%s\".\"%s\"(\"from\" text, \"to\" text, \"weight\" int, PRIMARY KEY(\"from\", \"to\"));", keyspace, tableName)
+	cql := fmt.Sprintf(`CREATE TABLE "%s"."%s"("from" text, "to" text, value blob, PRIMARY KEY("from", "to"));`, keyspace, tableName)
 	return execCql(session, cql)
 }
 
 func tableExists(session *gocql.Session, keyspace string, tableName string) (bool, error) {
-	query := session.Query("SELECT count(1) FROM system_schema.tables WHERE keyspace_name=? and table_name=?;", keyspace, tableName).Consistency(gocql.Quorum)
+	query := session.Query(`SELECT count(1) FROM system_schema.tables WHERE keyspace_name=? and table_name=?;`, keyspace, tableName).Consistency(gocql.Quorum)
 
 	var count int
 	if err := query.Scan(&count); err != nil {
@@ -98,7 +98,7 @@ func tableExists(session *gocql.Session, keyspace string, tableName string) (boo
 }
 
 func ensureKeyspace(session *gocql.Session, keyspace string) error {
-	cql := fmt.Sprintf("CREATE KEYSPACE IF NOT EXISTS \"%s\" WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };", keyspace)
+	cql := fmt.Sprintf(`CREATE KEYSPACE IF NOT EXISTS "%s" WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };`, keyspace)
 	return execCql(session, cql)
 }
 

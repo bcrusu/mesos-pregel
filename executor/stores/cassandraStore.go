@@ -86,15 +86,15 @@ func (store *CassandraStore) LoadEdges() ([]*pregel.Edge, error) {
 		return nil, nil
 	}
 
-	cql := fmt.Sprintf(`SELECT "from", "to", weight FROM %s WHERE token("from") >= ? AND token("from") <= ?;`, store.fullTableName(store.params.EdgesTable))
+	cql := fmt.Sprintf(`SELECT "from", "to", value FROM %s WHERE token("from") >= ? AND token("from") <= ?;`, store.fullTableName(store.params.EdgesTable))
 	params := []interface{}{store.entityRange.StartToken, store.entityRange.EndToken}
 
 	createScanDest := func() []interface{} {
-		return []interface{}{new(string), new(string), new(int)}
+		return []interface{}{new(string), new(string), new([]byte)}
 	}
 
 	createEntityFunc := func(dest []interface{}) interface{} {
-		return &pregel.Edge{From: dest[0].(string), To: dest[1].(string), Weight: dest[2].(int)}
+		return &pregel.Edge{From: dest[0].(string), To: dest[1].(string), Value: dest[2].([]byte)}
 	}
 
 	entities, err := store.executeSelect(cql, params, createScanDest, createEntityFunc)

@@ -6,9 +6,9 @@ type Vertex struct {
 }
 
 type Edge struct {
-	From   string
-	To     string
-	Weight int //TODO: rename to 'Value' & change type
+	From  string
+	To    string
+	Value []byte
 }
 
 type VertexOperationType int

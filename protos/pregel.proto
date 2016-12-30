@@ -53,3 +53,9 @@ message ShortestPathAlgorithParams {
 message ShortestPathMessage {
     int64 pathLength = 1;
 }
+
+// Vertex/Edge values
+
+message Int32Value {
+    int32 value = 1;
+}

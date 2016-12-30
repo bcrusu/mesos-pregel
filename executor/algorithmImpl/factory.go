@@ -1,17 +1,14 @@
-package algorithms
+package algorithmImpl
 
 import (
 	"fmt"
 
+	"github.com/bcrusu/pregel/executor/algorithm"
 	"github.com/bcrusu/pregel/protos"
 	"github.com/gogo/protobuf/proto"
 )
 
-type Algorithm interface {
-	Combine(first proto.Message, second proto.Message) (proto.Message, error)
-}
-
-func NewAlgorithm(algorithmType protos.AlgorithmType, params []byte) (Algorithm, error) {
+func NewAlgorithm(algorithmType protos.AlgorithmType, params []byte) (algorithm.Algorithm, error) {
 	switch algorithmType {
 	case protos.AlgorithmType_ShortestPath:
 		paramsMsg := new(protos.ShortestPathAlgorithParams)

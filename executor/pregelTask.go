@@ -1,15 +1,16 @@
-package executor
+package main
 
 import (
 	"sync"
 
-	"github.com/bcrusu/pregel/executor/algorithms"
+	"github.com/bcrusu/pregel/executor/algorithmImpl"
 	"github.com/bcrusu/pregel/executor/stores"
 	"github.com/bcrusu/pregel/protos"
+	"github.com/bcrusu/pregel/scheduler/algorithms"
 	"github.com/pkg/errors"
 )
 
-type PregelTask struct {
+type pregelTask struct {
 	params           protos.PregelTaskParams
 	store            stores.Store
 	algorithm        algorithms.Algorithm
@@ -23,7 +24,7 @@ func NewPregelTask(params protos.PregelTaskParams) (*PregelTask, error) {
 		return nil, errors.Wrapf(err, "failed to initialize store: %v", params.StoreType)
 	}
 
-	algorithm, err := algorithms.NewAlgorithm(params.AlgorithmType, params.AlgorithmParams)
+	algorithm, err := algorithmImpl.NewAlgorithm(params.AlgorithmType, params.AlgorithmParams)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to initialize algorithm: %v", params.AlgorithmType)
 	}
@@ -40,6 +41,16 @@ func (task *PregelTask) ExecSuperstep() error {
 }
 
 func (task *PregelTask) loadEntities() error {
+	_, err := task.store.LoadVertices()
+	if err != nil {
+		return err
+	}
+
+	_, err = task.store.LoadEdges()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

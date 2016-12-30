@@ -16,13 +16,14 @@ type EdgeOperationType int
 
 const (
 	VertexAdded           VertexOperationType = 0
-	VertexDeleted         VertexOperationType = 1
-	VertexMessageReceived VertexOperationType = 2
+	VertexRemoved         VertexOperationType = 1
+	VertexValueChanged    VertexOperationType = 2
+	VertexMessageReceived VertexOperationType = 3
 )
 
 const (
 	EdgeAdded        EdgeOperationType = 0
-	EdgeDeleted      EdgeOperationType = 1
+	EdgeRemoved      EdgeOperationType = 1
 	EdgeValueChanged EdgeOperationType = 2
 )
 

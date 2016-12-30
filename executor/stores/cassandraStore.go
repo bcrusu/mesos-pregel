@@ -54,7 +54,7 @@ func (store *CassandraStore) Close() {
 
 func (store *CassandraStore) LoadVertices() ([]*pregel.Vertex, error) {
 	if len(store.params.VerticesTable) == 0 {
-		return nil, nil
+		return make([]*pregel.Vertex, 0), nil
 	}
 
 	cql := fmt.Sprintf(`SELECT id, value FROM %s WHERE token(id) >= ? AND token(id) <= ?;`, store.fullTableName(store.params.VerticesTable))
@@ -83,7 +83,7 @@ func (store *CassandraStore) LoadVertices() ([]*pregel.Vertex, error) {
 
 func (store *CassandraStore) LoadEdges() ([]*pregel.Edge, error) {
 	if len(store.params.EdgesTable) == 0 {
-		return nil, nil
+		return make([]*pregel.Edge, 0), nil
 	}
 
 	cql := fmt.Sprintf(`SELECT "from", "to", value FROM %s WHERE token("from") >= ? AND token("from") <= ?;`, store.fullTableName(store.params.EdgesTable))

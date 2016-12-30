@@ -30,11 +30,6 @@ type PregelOperations struct {
 	changedEdgeValuesMutex   sync.Mutex
 }
 
-type edge struct {
-	from string
-	to   string
-}
-
 func NewPregelOperations(performedBy string, algorithm algorithm.Algorithm) *PregelOperations {
 	result := &PregelOperations{performedBy: performedBy, algorithm: algorithm}
 	result.addedVertices = make(map[string]interface{})

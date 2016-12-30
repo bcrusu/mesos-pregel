@@ -1,8 +1,8 @@
 package encoding
 
 type Encoder struct {
-	Marshaler   Marshaler
-	Unmarshaler Unmarshaler
+	Marshal   Marshaler
+	Unmarshal Unmarshaler
 }
 
 type Unmarshaler func([]byte) (interface{}, error)

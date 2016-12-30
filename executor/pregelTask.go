@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type pregelTask struct {
+type PregelTask struct {
 	params           protos.PregelTaskParams
 	store            stores.Store
 	algorithm        algorithms.Algorithm

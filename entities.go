@@ -15,16 +15,19 @@ type VertexOperationType int
 type EdgeOperationType int
 
 const (
-	VertexAdded           VertexOperationType = 0
-	VertexRemoved         VertexOperationType = 1
-	VertexValueChanged    VertexOperationType = 2
-	VertexMessageReceived VertexOperationType = 3
+	_ VertexOperationType = iota
+	VertexAdded
+	VertexRemoved
+	VertexValueChanged
+	VertexMessageReceived
+	VertexHalted
 )
 
 const (
-	EdgeAdded        EdgeOperationType = 0
-	EdgeRemoved      EdgeOperationType = 1
-	EdgeValueChanged EdgeOperationType = 2
+	_ EdgeOperationType = iota
+	EdgeAdded
+	EdgeRemoved
+	EdgeValueChanged
 )
 
 type VertexOperation struct {

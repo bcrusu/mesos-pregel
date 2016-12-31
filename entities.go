@@ -19,8 +19,6 @@ const (
 	VertexAdded
 	VertexRemoved
 	VertexValueChanged
-	VertexMessageReceived
-	VertexHalted
 )
 
 const (
@@ -29,6 +27,20 @@ const (
 	EdgeRemoved
 	EdgeValueChanged
 )
+
+type VertexMessage struct {
+	From      string
+	To        string
+	JobID     string
+	Superstep int
+	Value     []byte
+}
+
+type VertexHalted struct {
+	ID        string
+	JobID     string
+	Superstep int
+}
 
 type VertexOperation struct {
 	ID          string

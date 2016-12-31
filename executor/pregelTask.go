@@ -6,29 +6,21 @@ import (
 	"github.com/bcrusu/pregel"
 	"github.com/bcrusu/pregel/executor/algorithm"
 	"github.com/bcrusu/pregel/executor/algorithmImpl"
+	"github.com/bcrusu/pregel/executor/graph"
 	"github.com/bcrusu/pregel/executor/stores"
 	"github.com/bcrusu/pregel/protos"
 	"github.com/pkg/errors"
 )
 
 type PregelTask struct {
-	params           protos.PregelTaskParams
-	store            stores.Store
-	algorithm        algorithm.Algorithm
-	mutex            sync.Mutex
+	jobID     string
+	store     stores.Store
+	algorithm algorithm.Algorithm
+	mutex     sync.Mutex
+
 	currentSuperstep int
-
-	vertices verticesMap
-	edges    edgesMap
+	graph            *graph.Graph
 }
-
-type edge struct {
-	from string
-	to   string
-}
-
-type verticesMap map[string]interface{}
-type edgesMap map[edge]interface{}
 
 func NewPregelTask(params protos.PregelTaskParams) (*PregelTask, error) {
 	store, err := stores.NewStore(params.StoreType, params.StoreParams, params.EntityRange)
@@ -41,93 +33,170 @@ func NewPregelTask(params protos.PregelTaskParams) (*PregelTask, error) {
 		return nil, errors.Wrapf(err, "failed to initialize algorithm: %v", params.AlgorithmType)
 	}
 
-	return &PregelTask{params: params, store: store, algorithm: algorithm}, nil
+	return &PregelTask{jobID: params.JobId, store: store, algorithm: algorithm}, nil
 }
 
-func (task *PregelTask) NextSuperstep() error {
+func (task *PregelTask) ExecSuperstep(superstep int) error {
 	task.mutex.Lock()
 	defer task.mutex.Unlock()
+
+	if task.currentSuperstep == superstep {
+		return nil
+	}
+
+	prevSuperstep := superstep - 1
+
+	if err := task.loadSuperstep(prevSuperstep); err != nil {
+		return err
+	}
+
+	messages, err := task.loadVertexMessages(prevSuperstep)
+	if err != nil {
+		return err
+	}
+
+	halted, err := task.loadHaltedVertices(prevSuperstep)
+	if err != nil {
+		return err
+	}
+
+	for _, id := range task.graph.Vertices() {
+		operations := NewPregelOperations(id, task.algorithm)
+		vertexContext := algorithm.NewVertexContext(id, superstep, value, operations)
+
+		// if edges, contains := task.edges[id]; contains {
+
+		// }
+	}
 
 	//TODO
 	return nil
 }
 
-func (task *PregelTask) loadEntities() error {
+func (task *PregelTask) loadSuperstep(superstep int) error {
+	if superstep < task.currentSuperstep {
+		return errors.Errorf("cannot load past superstep - current superstep: %d; asked to load %d", task.currentSuperstep, superstep)
+	}
+
+	if task.graph == nil {
+		if err := task.loadGraph(); err != nil {
+			return err
+		}
+	}
+
+	if task.currentSuperstep < superstep {
+		if err := task.fastForwardToSuperstep(superstep); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (task *PregelTask) loadGraph() error {
+	// load vertices
 	vertices, err := task.store.LoadVertices()
 	if err != nil {
 		return errors.Wrap(err, "failed to load graph vertices")
 	}
 
-	v := make(map[string]interface{}, len(vertices))
+	graph := graph.NewGraph(len(vertices))
+
 	for _, vertex := range vertices {
 		value, err := task.algorithm.VertexValueEncoder().Unmarshal(vertex.Value)
 		if err != nil {
 			return errors.Wrapf(err, "unmarshal failed - vertex: %s", vertex.ID)
 		}
 
-		v[vertex.ID] = value
+		graph.SetVertexValue(vertex.ID, value)
 	}
 
+	// load edges
 	edges, err := task.store.LoadEdges()
 	if err != nil {
 		return errors.Wrap(err, "failed to load graph edges")
 	}
 
-	e := make(map[edge]interface{}, len(edges))
-	for _, edgeEntity := range edges {
-		key := edge{edgeEntity.From, edgeEntity.To}
-		value, err := task.algorithm.VertexValueEncoder().Unmarshal(edgeEntity.Value)
+	for _, edge := range edges {
+		value, err := task.algorithm.VertexValueEncoder().Unmarshal(edge.Value)
 		if err != nil {
-			return errors.Wrapf(err, "unmarshal failed - edge: %+v", key)
+			return errors.Wrapf(err, "unmarshal failed - edge: from=%s to=%s", edge.From, edge.To)
 		}
 
-		//TODO: handle missing vertices
-
-		e[key] = value
+		graph.SetEdgeValue(edge.From, edge.To, value)
 	}
 
-	task.vertices = v
-	task.edges = e
+	task.graph = graph
 	return nil
 }
 
-func (task *PregelTask) fastForwardToSuperstep(toSuperstep int) (verticesMap, edgesMap, error) {
-	// shallow-copy the original vertices & edges before applying the diffs
-	v := make(map[string]interface{}, len(task.vertices))
-	for key, value := range task.vertices {
-		v[key] = value
-	}
-
-	e := make(map[edge]interface{}, len(task.edges))
-	for key, value := range task.edges {
-		e[key] = value
-	}
+func (task *PregelTask) fastForwardToSuperstep(toSuperstep int) error {
+	graph := task.graph.Clone()
 
 	// apply the superstep diffs
 	for superstep := task.currentSuperstep + 1; superstep <= toSuperstep; superstep++ {
-		vertexOps, err := task.store.LoadVertexOperations(task.params.JobId, superstep)
+		vertexOps, err := task.store.LoadVertexOperations(task.jobID, superstep)
 		if err != nil {
-			return nil, nil, errors.Wrapf(err, "failed to load vertex operations for superstep %d", superstep)
+			return errors.Wrapf(err, "failed to load vertex operations for superstep %d", superstep)
 		}
 
-		if err := applyVertexOperations(v, vertexOps, task.algorithm); err != nil {
-			return nil, nil, err
+		if err = applyVertexOperations(graph, vertexOps, task.algorithm); err != nil {
+			return err
 		}
 
-		edgeOps, err := task.store.LoadEdgeOperations(task.params.JobId, superstep)
+		edgeOps, err := task.store.LoadEdgeOperations(task.jobID, superstep)
 		if err != nil {
-			return nil, nil, errors.Wrapf(err, "failed to load edge operations for superstep %d", superstep)
+			return errors.Wrapf(err, "failed to load edge operations for superstep %d", superstep)
 		}
 
-		if err := applyEdgeOperations(e, edgeOps, task.algorithm); err != nil {
-			return nil, nil, err
+		if err := applyEdgeOperations(graph, edgeOps, task.algorithm); err != nil {
+			return err
 		}
 	}
 
-	return v, e, nil
+	task.graph = graph
+	task.currentSuperstep = toSuperstep
+	return nil
 }
 
-func applyVertexOperations(vertices verticesMap, operations []*pregel.VertexOperation, algorithm algorithm.Algorithm) error {
+func (task *PregelTask) loadVertexMessages(superstep int) (map[string]interface{}, error) {
+	messages, err := task.store.LoadVertexMessages(task.jobID, superstep)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]interface{}, len(messages))
+	for _, message := range messages {
+		value, err := task.algorithm.VertexMessageEncoder().Unmarshal(message.Value)
+		if err != nil {
+			return nil, errors.Wrapf(err, "unmarshal failed - vertex message from %s to %s", message.From, message.To)
+		}
+
+		if value1, contains := result[message.To]; contains {
+			value = task.algorithm.VertexMessageCombiner()(value1, value)
+		}
+
+		result[message.To] = value
+	}
+
+	return result, nil
+}
+
+func (task *PregelTask) loadHaltedVertices(superstep int) (map[string]bool, error) {
+	halted, err := task.store.LoadHaltedVertices(task.jobID, superstep)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]bool, len(halted))
+	for _, id := range halted {
+		result[id] = true
+	}
+
+	return result, nil
+}
+
+func applyVertexOperations(graph *graph.Graph, operations []*pregel.VertexOperation, algorithm algorithm.Algorithm) error {
 	for _, operation := range operations {
 		vertexID := operation.ID
 
@@ -138,20 +207,20 @@ func applyVertexOperations(vertices verticesMap, operations []*pregel.VertexOper
 				return errors.Wrapf(err, "unmarshal failed - vertex: %s", vertexID)
 			}
 
-			if value1, contains := vertices[vertexID]; contains {
-				if value, err = algorithm.Handlers().HandleDuplicateVertexValue(vertexID, value1, value); err != nil {
+			if prevValue, ok := graph.VertexValue(vertexID); ok {
+				if value, err = algorithm.Handlers().HandleDuplicateVertexValue(vertexID, prevValue, value); err != nil {
 					return err
 				}
 			}
 
-			vertices[vertexID] = value
+			graph.SetVertexValue(vertexID, value)
 		case pregel.VertexRemoved:
-			if _, contains := vertices[vertexID]; !contains {
+			if _, ok := graph.VertexValue(vertexID); !ok {
 				if err := algorithm.Handlers().HandleMissingVertex(vertexID); err != nil {
 					return err
 				}
 			} else {
-				delete(vertices, vertexID)
+				graph.RemoveVertex(vertexID)
 			}
 		default:
 			return errors.Errorf("invalid vertex operation type %v", operation.Type)
@@ -161,31 +230,32 @@ func applyVertexOperations(vertices verticesMap, operations []*pregel.VertexOper
 	return nil
 }
 
-func applyEdgeOperations(edges edgesMap, operations []*pregel.EdgeOperation, algorithm algorithm.Algorithm) error {
+func applyEdgeOperations(graph *graph.Graph, operations []*pregel.EdgeOperation, algorithm algorithm.Algorithm) error {
 	for _, operation := range operations {
-		key := edge{operation.From, operation.To}
+		from := operation.From
+		to := operation.To
 
 		switch operation.Type {
 		case pregel.EdgeAdded, pregel.EdgeValueChanged:
 			value, err := algorithm.EdgeValueEncoder().Unmarshal(operation.Value)
 			if err != nil {
-				return errors.Wrapf(err, "unmarshal failed - edge: %+v", key)
+				return errors.Wrapf(err, "unmarshal failed - edge from %s to %s", from, to)
 			}
 
-			if value1, contains := edges[key]; contains {
-				if value, err = algorithm.Handlers().HandleDuplicateEdgeValue(key.from, key.to, value1, value); err != nil {
+			if prevValue, ok := graph.EdgeValue(from, to); ok {
+				if value, err = algorithm.Handlers().HandleDuplicateEdgeValue(from, to, prevValue, value); err != nil {
 					return err
 				}
 			}
 
-			edges[key] = value
+			graph.SetEdgeValue(from, to, value)
 		case pregel.EdgeRemoved:
-			if _, contains := edges[key]; !contains {
-				if err := algorithm.Handlers().HandleMissingEdge(key.from, key.to); err != nil {
+			if _, ok := graph.EdgeValue(from, to); !ok {
+				if err := algorithm.Handlers().HandleMissingEdge(from, to); err != nil {
 					return err
 				}
 			} else {
-				delete(edges, key)
+				graph.RemoveEdge(from, to)
 			}
 		default:
 			return errors.Errorf("invalid edge operation type %v", operation.Type)

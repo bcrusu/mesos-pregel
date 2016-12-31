@@ -76,7 +76,7 @@ func (executor *PregelExecutor) processLaunchTask(driver exec.ExecutorDriver, ta
 		return
 	}
 
-	err = task.ExecSuperstep()
+	err = task.ExecSuperstep(int(taskParams.Superstep))
 	if err != nil {
 		log.Errorf("Failed to execute superstep %d for job %s. Error %v", taskParams.Superstep, taskParams.JobId, err)
 		sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_FAILED)

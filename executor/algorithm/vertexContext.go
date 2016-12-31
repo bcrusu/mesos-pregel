@@ -41,7 +41,7 @@ func (c *VertexContext) SendMessageTo(to string, message interface{}) {
 }
 
 func (c *VertexContext) VoteToHalt() {
-	c.op.VoteToHalt()
+	c.op.VoteToHalt(c.id)
 }
 
 func (c *VertexContext) AddEdge(from string, to string, value interface{}) {

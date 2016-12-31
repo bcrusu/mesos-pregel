@@ -29,7 +29,6 @@ const (
 )
 
 type VertexMessage struct {
-	From      string
 	To        string
 	JobID     string
 	Superstep int
@@ -43,20 +42,18 @@ type VertexHalted struct {
 }
 
 type VertexOperation struct {
-	ID          string
-	JobID       string
-	Superstep   int
-	PerformedBy string
-	Type        VertexOperationType
-	Value       []byte
+	ID        string
+	JobID     string
+	Superstep int
+	Type      VertexOperationType
+	Value     []byte
 }
 
 type EdgeOperation struct {
-	From        string
-	To          string
-	JobID       string
-	Superstep   int
-	PerformedBy string
-	Type        EdgeOperationType
-	Value       []byte
+	From      string
+	To        string
+	JobID     string
+	Superstep int
+	Type      EdgeOperationType
+	Value     []byte
 }

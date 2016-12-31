@@ -60,17 +60,25 @@ func (task *PregelTask) ExecSuperstep(superstep int) error {
 		return err
 	}
 
-	for _, id := range task.graph.Vertices() {
-		operations := NewPregelOperations(id, task.algorithm)
-		vertexContext := algorithm.NewVertexContext(id, superstep, value, operations)
+	task.processMessages(messages, halted)
+
+	//TODO
+	return nil
+}
+
+func (task *PregelTask) processMessages(messages map[string]interface{}, halted map[string]bool) {
+	operations := NewPregelOperations(task.algorithm)
+
+	graph := task.graph
+	for _, id := range graph.Vertices() {
+
+		vertexValue, _ := graph.VertexValue(id)
+		vertexContext := algorithm.NewVertexContext(id, superstep, vertexValue, operations)
 
 		// if edges, contains := task.edges[id]; contains {
 
 		// }
 	}
-
-	//TODO
-	return nil
 }
 
 func (task *PregelTask) loadSuperstep(superstep int) error {
@@ -169,7 +177,7 @@ func (task *PregelTask) loadVertexMessages(superstep int) (map[string]interface{
 	for _, message := range messages {
 		value, err := task.algorithm.VertexMessageEncoder().Unmarshal(message.Value)
 		if err != nil {
-			return nil, errors.Wrapf(err, "unmarshal failed - vertex message from %s to %s", message.From, message.To)
+			return nil, errors.Wrapf(err, "unmarshal failed - vertex message to %s", message.To)
 		}
 
 		if value1, contains := result[message.To]; contains {

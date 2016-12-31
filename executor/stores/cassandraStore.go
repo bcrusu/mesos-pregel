@@ -113,16 +113,16 @@ func (store *CassandraStore) LoadEdges() ([]*pregel.Edge, error) {
 }
 
 func (store *CassandraStore) LoadVertexMessages(jobID string, superstep int) ([]*pregel.VertexMessage, error) {
-	cql := fmt.Sprintf(`SELECT "to", "from", value FROM %s WHERE token(id) >= ? AND token(id) <= ? AND job_id=? AND superstep=?;`,
+	cql := fmt.Sprintf(`SELECT "to", value FROM %s WHERE token(id) >= ? AND token(id) <= ? AND job_id=? AND superstep=?;`,
 		store.fullTableName(vertexMessagesTableName))
 	params := []interface{}{store.entityRange.StartToken, store.entityRange.EndToken, jobID, superstep}
 
 	createScanDest := func() []interface{} {
-		return []interface{}{new(string), new(string), new([]byte)}
+		return []interface{}{new(string), new([]byte)}
 	}
 
 	createEntityFunc := func(dest []interface{}) interface{} {
-		return &pregel.VertexMessage{To: dest[0].(string), From: dest[1].(string), Value: dest[2].([]byte), JobID: jobID, Superstep: superstep}
+		return &pregel.VertexMessage{To: dest[0].(string), Value: dest[1].([]byte), JobID: jobID, Superstep: superstep}
 	}
 
 	entities, err := store.executeSelect(cql, params, createScanDest, createEntityFunc)
@@ -139,7 +139,7 @@ func (store *CassandraStore) LoadVertexMessages(jobID string, superstep int) ([]
 }
 
 func (store *CassandraStore) SaveVertexMessages(messages []*pregel.VertexMessage) error {
-	cql := fmt.Sprintf(`INSERT INTO %s ("to", "from", job_id, superstep, value) VALUES(?, ?, ?, ?, ?);`, store.fullTableName(vertexMessagesTableName))
+	cql := fmt.Sprintf(`INSERT INTO %s ("to", job_id, superstep, unique_id, value) VALUES(?, ?, ?, ?, ?);`, store.fullTableName(vertexMessagesTableName))
 
 	items := make([]interface{}, len(messages))
 	for i, v := range messages {
@@ -147,12 +147,17 @@ func (store *CassandraStore) SaveVertexMessages(messages []*pregel.VertexMessage
 	}
 
 	getItemSize := func(item interface{}) int {
-		return vertexMessageSize(item.(*pregel.VertexMessage))
+		message := item.(*pregel.VertexMessage)
+		result := 20
+		result += len(message.To)
+		result += len(message.JobID)
+		result += len(message.Value)
+		return result
 	}
 
 	getItemArgs := func(item interface{}) []interface{} {
 		msg := item.(*pregel.VertexMessage)
-		return []interface{}{msg.To, msg.From, msg.JobID, msg.Superstep, msg.Value}
+		return []interface{}{msg.To, msg.JobID, msg.Superstep, gocql.TimeUUID(), msg.Value}
 	}
 
 	batches := store.createBatches(cql, items, getItemSize, getItemArgs)
@@ -160,7 +165,7 @@ func (store *CassandraStore) SaveVertexMessages(messages []*pregel.VertexMessage
 }
 
 func (store *CassandraStore) LoadVertexOperations(jobID string, superstep int) ([]*pregel.VertexOperation, error) {
-	cql := fmt.Sprintf(`SELECT id, performed_by, type, value FROM %s WHERE token(id) >= ? AND token(id) <= ? AND job_id=? AND superstep=?;`,
+	cql := fmt.Sprintf(`SELECT id, type, value FROM %s WHERE token(id) >= ? AND token(id) <= ? AND job_id=? AND superstep=?;`,
 		store.fullTableName(vertexOperationsTableName))
 	params := []interface{}{store.entityRange.StartToken, store.entityRange.EndToken, jobID, superstep}
 
@@ -170,7 +175,7 @@ func (store *CassandraStore) LoadVertexOperations(jobID string, superstep int) (
 
 	createEntityFunc := func(dest []interface{}) interface{} {
 		return &pregel.VertexOperation{ID: dest[0].(string), JobID: jobID, Superstep: superstep,
-			PerformedBy: dest[1].(string), Type: dest[1].(pregel.VertexOperationType), Value: dest[3].([]byte)}
+			Type: dest[1].(pregel.VertexOperationType), Value: dest[2].([]byte)}
 	}
 
 	entities, err := store.executeSelect(cql, params, createScanDest, createEntityFunc)
@@ -187,7 +192,7 @@ func (store *CassandraStore) LoadVertexOperations(jobID string, superstep int) (
 }
 
 func (store *CassandraStore) SaveVertexOperations(operations []*pregel.VertexOperation) error {
-	cql := fmt.Sprintf(`INSERT INTO %s (id, job_id, superstep, performed_by, type, value) VALUES(?, ?, ?, ?, ?, ?);`, store.fullTableName(vertexOperationsTableName))
+	cql := fmt.Sprintf(`INSERT INTO %s (id, job_id, superstep, unique_id, type, value) VALUES(?, ?, ?, ?, ?, ?);`, store.fullTableName(vertexOperationsTableName))
 
 	items := make([]interface{}, len(operations))
 	for i, v := range operations {
@@ -195,12 +200,17 @@ func (store *CassandraStore) SaveVertexOperations(operations []*pregel.VertexOpe
 	}
 
 	getItemSize := func(item interface{}) int {
-		return vertexOperationSize(item.(*pregel.VertexOperation))
+		operation := item.(*pregel.VertexOperation)
+		result := 24
+		result += len(operation.ID)
+		result += len(operation.JobID)
+		result += len(operation.Value)
+		return result
 	}
 
 	getItemArgs := func(item interface{}) []interface{} {
 		op := item.(*pregel.VertexOperation)
-		return []interface{}{op.ID, op.JobID, op.Superstep, op.PerformedBy, op.Type, op.Value}
+		return []interface{}{op.ID, op.JobID, op.Superstep, gocql.TimeUUID(), op.Type, op.Value}
 	}
 
 	batches := store.createBatches(cql, items, getItemSize, getItemArgs)
@@ -242,7 +252,11 @@ func (store *CassandraStore) SaveHaltedVertices(halted []*pregel.VertexHalted) e
 	}
 
 	getItemSize := func(item interface{}) int {
-		return vertexHaltedSize(item.(*pregel.VertexHalted))
+		halted := item.(*pregel.VertexHalted)
+		result := 4
+		result += len(halted.ID)
+		result += len(halted.JobID)
+		return result
 	}
 
 	getItemArgs := func(item interface{}) []interface{} {
@@ -255,17 +269,17 @@ func (store *CassandraStore) SaveHaltedVertices(halted []*pregel.VertexHalted) e
 }
 
 func (store *CassandraStore) LoadEdgeOperations(jobID string, superstep int) ([]*pregel.EdgeOperation, error) {
-	cql := fmt.Sprintf(`SELECT "from", "to", performed_by, type, value FROM %s WHERE token("from") >= ? AND token("from") <= ? AND job_id=? AND superstep=?;`,
+	cql := fmt.Sprintf(`SELECT "from", "to", type, value FROM %s WHERE token("from") >= ? AND token("from") <= ? AND job_id=? AND superstep=?;`,
 		store.fullTableName(edgeOperationsTableName))
 	params := []interface{}{store.entityRange.StartToken, store.entityRange.EndToken, jobID, superstep}
 
 	createScanDest := func() []interface{} {
-		return []interface{}{new(string), new(string), new(string), new(pregel.EdgeOperationType), new([]byte)}
+		return []interface{}{new(string), new(string), new(pregel.EdgeOperationType), new([]byte)}
 	}
 
 	createEntityFunc := func(dest []interface{}) interface{} {
 		return &pregel.EdgeOperation{From: dest[0].(string), To: dest[1].(string), JobID: jobID, Superstep: superstep,
-			PerformedBy: dest[2].(string), Type: dest[3].(pregel.EdgeOperationType), Value: dest[4].([]byte)}
+			Type: dest[2].(pregel.EdgeOperationType), Value: dest[3].([]byte)}
 	}
 
 	entities, err := store.executeSelect(cql, params, createScanDest, createEntityFunc)
@@ -282,7 +296,7 @@ func (store *CassandraStore) LoadEdgeOperations(jobID string, superstep int) ([]
 }
 
 func (store *CassandraStore) SaveEdgeOperations(operations []*pregel.EdgeOperation) error {
-	cql := fmt.Sprintf(`INSERT INTO %s ("from", "to", job_id, superstep, performed_by, type, value) VALUES(?, ?, ?, ?, ?, ?, ?);`, store.fullTableName(edgeOperationsTableName))
+	cql := fmt.Sprintf(`INSERT INTO %s ("from", "to", job_id, superstep, unique_id, type, value) VALUES(?, ?, ?, ?, ?, ?, ?);`, store.fullTableName(edgeOperationsTableName))
 
 	items := make([]interface{}, len(operations))
 	for i, v := range operations {
@@ -290,12 +304,19 @@ func (store *CassandraStore) SaveEdgeOperations(operations []*pregel.EdgeOperati
 	}
 
 	getItemSize := func(item interface{}) int {
-		return edgeOperationSize(item.(*pregel.EdgeOperation))
+		operation := item.(*pregel.EdgeOperation)
+
+		result := 24
+		result += len(operation.From)
+		result += len(operation.To)
+		result += len(operation.JobID)
+		result += len(operation.Value)
+		return result
 	}
 
 	getItemArgs := func(item interface{}) []interface{} {
 		op := item.(*pregel.EdgeOperation)
-		return []interface{}{op.From, op.To, op.JobID, op.Superstep, op.PerformedBy, op.Type, op.Value}
+		return []interface{}{op.From, op.To, op.JobID, op.Superstep, gocql.TimeUUID(), op.Type, op.Value}
 	}
 
 	batches := store.createBatches(cql, items, getItemSize, getItemArgs)
@@ -374,10 +395,10 @@ func (store *CassandraStore) executeBatches(batches []*gocql.Batch) error {
 }
 
 func ensureOperationsTables(session *gocql.Session, keyspace string) error {
-	cql := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s("to" text, "from" text, job_id text, superstep int, value blob, PRIMARY KEY(("to"), job_id, superstep, "from"));
-CREATE TABLE IF NOT EXISTS %s(id text, job_id text, superstep int, performed_by text, type int, value blob, PRIMARY KEY((id), job_id, superstep, performed_by));
+	cql := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s("to" text, job_id text, superstep int, unique_id timeuuid, value blob, PRIMARY KEY(("to"), job_id, superstep, unique_id));
+CREATE TABLE IF NOT EXISTS %s(id text, job_id text, superstep int, unique_id timeuuid, type int, value blob, PRIMARY KEY((id), job_id, superstep, unique_id));
 CREATE TABLE IF NOT EXISTS %s(id text, job_id text, superstep int, PRIMARY KEY((id), job_id, superstep));
-CREATE TABLE IF NOT EXISTS %s("from" text, "to" text, job_id text, superstep int, performed_by text, type int, value blob, PRIMARY KEY(("from"), "to", job_id, superstep, performed_by));`,
+CREATE TABLE IF NOT EXISTS %s("from" text, "to" text, job_id text, superstep int, unique_id timeuuid, type int, value blob, PRIMARY KEY(("from"), "to", job_id, superstep, unique_id));`,
 		fullTableName(keyspace, vertexMessagesTableName), fullTableName(keyspace, vertexOperationsTableName),
 		fullTableName(keyspace, haltedVerticesTableName), fullTableName(keyspace, edgeOperationsTableName))
 
@@ -386,39 +407,4 @@ CREATE TABLE IF NOT EXISTS %s("from" text, "to" text, job_id text, superstep int
 	}
 
 	return nil
-}
-
-func vertexHaltedSize(halted *pregel.VertexHalted) int {
-	result := 4
-	result += len(halted.ID)
-	result += len(halted.JobID)
-	return result
-}
-
-func vertexMessageSize(message *pregel.VertexMessage) int {
-	result := 4
-	result += len(message.From)
-	result += len(message.To)
-	result += len(message.JobID)
-	result += len(message.Value)
-	return result
-}
-
-func vertexOperationSize(operation *pregel.VertexOperation) int {
-	result := 8
-	result += len(operation.ID)
-	result += len(operation.JobID)
-	result += len(operation.PerformedBy)
-	result += len(operation.Value)
-	return result
-}
-
-func edgeOperationSize(operation *pregel.EdgeOperation) int {
-	result := 8
-	result += len(operation.From)
-	result += len(operation.To)
-	result += len(operation.JobID)
-	result += len(operation.PerformedBy)
-	result += len(operation.Value)
-	return result
 }

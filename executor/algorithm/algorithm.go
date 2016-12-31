@@ -21,7 +21,7 @@ type Operations interface {
 	SetVertexValue(id string, value interface{})
 	SendVertexMessage(to string, message interface{})
 
-	VoteToHalt()
+	VoteToHalt(id string)
 
 	AddEdge(from string, to string, value interface{})
 	RemoveEdge(from string, to string)

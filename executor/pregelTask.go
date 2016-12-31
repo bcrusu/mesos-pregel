@@ -12,6 +12,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	MaxComputeParallelism = 16
+)
+
 type PregelTask struct {
 	jobID     string
 	store     stores.Store
@@ -60,25 +64,96 @@ func (task *PregelTask) ExecSuperstep(superstep int) error {
 		return err
 	}
 
-	task.processMessages(messages, halted)
+	task.processMessages(superstep, messages, halted)
 
 	//TODO
 	return nil
 }
 
-func (task *PregelTask) processMessages(messages map[string]interface{}, halted map[string]bool) {
-	operations := NewPregelOperations(task.algorithm)
-
-	graph := task.graph
-	for _, id := range graph.Vertices() {
-
-		vertexValue, _ := graph.VertexValue(id)
-		vertexContext := algorithm.NewVertexContext(id, superstep, vertexValue, operations)
-
-		// if edges, contains := task.edges[id]; contains {
-
-		// }
+func (task *PregelTask) processMessages(superstep int, messages map[string]interface{}, haltedVertices map[string]bool) (*pregelOperationsEntities, error) {
+	type queueItem struct {
+		context *algorithm.VertexContext
+		message interface{}
 	}
+
+	type processResult struct {
+		err error
+	}
+
+	queueChan := make(chan *queueItem, MaxComputeParallelism)
+	resultChan := make(chan *processResult, MaxComputeParallelism)
+	stopChan := make(chan bool)
+
+	// start processing routines
+	for i := 0; i < MaxComputeParallelism; i++ {
+		go func() {
+			for {
+				select {
+				case item := <-queueChan:
+					err := task.algorithm.Compute(item.context, item.message)
+					resultChan <- &processResult{err}
+				case <-stopChan:
+					return
+				}
+			}
+		}()
+	}
+	defer func() { stopChan <- true }()
+
+	operations := NewPregelOperations(task.algorithm)
+	processing := 0
+
+	// fill processing queue
+	for _, id := range task.graph.Vertices() {
+		message := messages[id]
+		halted := haltedVertices[id]
+
+		if message == nil && halted {
+			continue
+		}
+
+		context := task.createVertexContext(id, superstep, operations)
+
+		select {
+		case result := <-resultChan:
+			if result.err != nil {
+				return nil, result.err
+			}
+			processing--
+		case queueChan <- &queueItem{context, message}:
+			processing++
+		}
+	}
+
+	// wait for all to finish
+	for result := range resultChan {
+		if result.err != nil {
+			return nil, result.err
+		}
+
+		processing--
+		if processing == 0 {
+			break
+		}
+	}
+
+	return operations.GetEntities(task.jobID, superstep)
+}
+
+func (task *PregelTask) createVertexContext(id string, superstep int, operations *PregelOperations) *algorithm.VertexContext {
+	graph := task.graph
+
+	vertexValue, _ := graph.VertexValue(id)
+	vertexContext := algorithm.NewVertexContext(id, superstep, vertexValue, operations)
+
+	edges := graph.EdgesFrom(id)
+	vertexContext.Edges = make([]*algorithm.EdgeContext, len(edges))
+	for i, to := range edges {
+		edgeValue, _ := graph.EdgeValue(id, to)
+		vertexContext.Edges[i] = algorithm.NewEdgeContext(vertexContext, to, edgeValue)
+	}
+
+	return vertexContext
 }
 
 func (task *PregelTask) loadSuperstep(superstep int) error {

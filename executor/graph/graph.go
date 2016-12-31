@@ -102,8 +102,8 @@ func (g *Graph) Vertices() []string {
 	return result
 }
 
-func (g *Graph) Edges(from string) []string {
-	v, ok := g.vertices[from]
+func (g *Graph) EdgesFrom(id string) []string {
+	v, ok := g.vertices[id]
 	if !ok {
 		return make([]string, 0)
 	}

@@ -2,22 +2,14 @@ syntax = "proto3";
 
 package protos;
 
-enum StoreType {
-    Cassandra = 0;
-}
-
-enum AlgorithmType {
-    ShortestPath = 0;
-}
-
 message PregelTaskParams {
     string jobId = 1;
     int32 superstep = 2;
 
-    StoreType storeType = 3;
+    string store = 3;
     bytes storeParams = 4;
 
-    AlgorithmType algorithmType = 5;
+    string algorithm = 5;
     bytes algorithmParams = 6;
 
     bytes entityRange = 7;

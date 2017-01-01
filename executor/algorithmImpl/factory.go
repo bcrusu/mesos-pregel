@@ -8,9 +8,9 @@ import (
 	"github.com/gogo/protobuf/proto"
 )
 
-func NewAlgorithm(algorithmType protos.AlgorithmType, params []byte) (algorithm.Algorithm, error) {
+func NewAlgorithm(algorithmType string, params []byte) (algorithm.Algorithm, error) {
 	switch algorithmType {
-	case protos.AlgorithmType_ShortestPath:
+	case "shortest_path":
 		paramsMsg := new(protos.ShortestPathAlgorithParams)
 		if err := proto.Unmarshal(params, paramsMsg); err != nil {
 			return nil, err

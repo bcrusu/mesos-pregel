@@ -28,9 +28,9 @@ type Store interface {
 	Close()
 }
 
-func NewStore(storeType protos.StoreType, params []byte, entityRange []byte) (Store, error) {
+func NewStore(storeType string, params []byte, entityRange []byte) (Store, error) {
 	switch storeType {
-	case protos.StoreType_Cassandra:
+	case "cassandra":
 		paramsMsg := new(protos.CassandraStoreParams)
 		if err := proto.Unmarshal(params, paramsMsg); err != nil {
 			return nil, err

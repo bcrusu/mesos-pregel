@@ -23,14 +23,14 @@ type PregelTask struct {
 }
 
 func NewPregelTask(params protos.PregelTaskParams) (*PregelTask, error) {
-	store, err := store.NewStore(params.StoreType, params.StoreParams, params.EntityRange)
+	store, err := store.NewStore(params.Store, params.StoreParams, params.EntityRange)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to initialize store: %v", params.StoreType)
+		return nil, errors.Wrapf(err, "failed to initialize store: %v", params.Store)
 	}
 
-	algorithm, err := algorithmImpl.NewAlgorithm(params.AlgorithmType, params.AlgorithmParams)
+	algorithm, err := algorithmImpl.NewAlgorithm(params.Algorithm, params.AlgorithmParams)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to initialize algorithm: %v", params.AlgorithmType)
+		return nil, errors.Wrapf(err, "failed to initialize algorithm: %v", params.Algorithm)
 	}
 
 	return &PregelTask{jobID: params.JobId, store: store, algorithm: algorithm}, nil

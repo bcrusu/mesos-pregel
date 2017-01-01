@@ -3,9 +3,9 @@ package messagesProcessor
 import (
 	"sync"
 
-	"github.com/bcrusu/pregel"
-	"github.com/bcrusu/pregel/executor/algorithm"
-	"github.com/bcrusu/pregel/executor/graph"
+	"github.com/bcrusu/mesos-pregel"
+	"github.com/bcrusu/mesos-pregel/executor/algorithm"
+	"github.com/bcrusu/mesos-pregel/executor/graph"
 )
 
 const (

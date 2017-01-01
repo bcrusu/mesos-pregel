@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bcrusu/pregel"
-	"github.com/bcrusu/pregel/encoding"
-	"github.com/bcrusu/pregel/protos"
+	"github.com/bcrusu/mesos-pregel"
+	"github.com/bcrusu/mesos-pregel/encoding"
+	"github.com/bcrusu/mesos-pregel/protos"
 )
 
 type DimacsParser struct {

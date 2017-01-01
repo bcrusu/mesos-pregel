@@ -1,7 +1,7 @@
 package encoding
 
 import (
-	"github.com/bcrusu/pregel/protos"
+	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 )

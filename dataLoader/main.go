@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/bcrusu/pregel"
-	"github.com/bcrusu/pregel/dataLoader/parsers"
-	"github.com/bcrusu/pregel/dataLoader/stores"
+	"github.com/bcrusu/mesos-pregel"
+	"github.com/bcrusu/mesos-pregel/dataLoader/parsers"
+	"github.com/bcrusu/mesos-pregel/dataLoader/stores"
 )
 
 var (

@@ -1,6 +1,6 @@
 package algorithm
 
-import "github.com/bcrusu/pregel/encoding"
+import "github.com/bcrusu/mesos-pregel/encoding"
 
 type Algorithm interface {
 	Compute(context *VertexContext, message interface{}) error

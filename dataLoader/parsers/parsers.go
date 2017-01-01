@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/bcrusu/pregel"
+	"github.com/bcrusu/mesos-pregel"
 )
 
 type Parser interface {

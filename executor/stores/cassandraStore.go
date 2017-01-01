@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bcrusu/pregel"
-	"github.com/bcrusu/pregel/protos"
+	"github.com/bcrusu/mesos-pregel"
+	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/gocql/gocql"
 	"github.com/pkg/errors"
 )

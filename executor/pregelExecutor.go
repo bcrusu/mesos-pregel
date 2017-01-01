@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bcrusu/pregel/protos"
+	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/gogo/protobuf/proto"
 	log "github.com/golang/glog"
 	exec "github.com/mesos/mesos-go/executor"

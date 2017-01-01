@@ -3,12 +3,12 @@ package main
 import (
 	"sync"
 
-	"github.com/bcrusu/pregel/executor/algorithm"
-	"github.com/bcrusu/pregel/executor/algorithmImpl"
-	"github.com/bcrusu/pregel/executor/graph"
-	"github.com/bcrusu/pregel/executor/messagesProcessor"
-	"github.com/bcrusu/pregel/executor/stores"
-	"github.com/bcrusu/pregel/protos"
+	"github.com/bcrusu/mesos-pregel/executor/algorithm"
+	"github.com/bcrusu/mesos-pregel/executor/algorithmImpl"
+	"github.com/bcrusu/mesos-pregel/executor/graph"
+	"github.com/bcrusu/mesos-pregel/executor/messagesProcessor"
+	"github.com/bcrusu/mesos-pregel/executor/stores"
+	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/pkg/errors"
 )
 

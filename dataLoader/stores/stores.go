@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bcrusu/pregel"
+	"github.com/bcrusu/mesos-pregel"
 )
 
 type Store interface {

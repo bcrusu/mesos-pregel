@@ -3,8 +3,8 @@ package stores
 import (
 	"fmt"
 
-	"github.com/bcrusu/pregel"
-	"github.com/bcrusu/pregel/protos"
+	"github.com/bcrusu/mesos-pregel"
+	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/gogo/protobuf/proto"
 )
 

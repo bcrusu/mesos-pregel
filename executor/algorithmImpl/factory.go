@@ -3,8 +3,8 @@ package algorithmImpl
 import (
 	"fmt"
 
-	"github.com/bcrusu/pregel/executor/algorithm"
-	"github.com/bcrusu/pregel/protos"
+	"github.com/bcrusu/mesos-pregel/executor/algorithm"
+	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/gogo/protobuf/proto"
 )
 

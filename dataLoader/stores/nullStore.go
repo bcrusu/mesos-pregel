@@ -1,6 +1,6 @@
 package stores
 
-import "github.com/bcrusu/pregel"
+import "github.com/bcrusu/mesos-pregel"
 
 type NullStore struct {
 }

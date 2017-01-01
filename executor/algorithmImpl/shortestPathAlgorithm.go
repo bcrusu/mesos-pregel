@@ -39,9 +39,8 @@ func (algo *shortestPathAlgorithm) EdgeValueEncoder() encoding.Encoder {
 	return encoding.NewInt32ValueEncoder()
 }
 
-func (algo *shortestPathAlgorithm) Handlers() algorithm.Handlers {
-	//TODO
-	return nil
+func (algo *shortestPathAlgorithm) Handlers() *algorithm.Handlers {
+	return algorithm.DefaultHandlers()
 }
 
 func combineVertexMessages(firstMsg interface{}, secondMsg interface{}) interface{} {

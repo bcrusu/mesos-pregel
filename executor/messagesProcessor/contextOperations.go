@@ -1,4 +1,4 @@
-package main
+package messagesProcessor
 
 import (
 	"sync"
@@ -8,8 +8,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-type PregelOperations struct {
+type contextOperations struct {
 	algorithm                algorithm.Algorithm
+	errorChan                chan error
 	addedVertices            map[string]interface{}
 	addedVerticesMutex       sync.Mutex
 	removedVertices          map[string]bool
@@ -33,15 +34,8 @@ type edge struct {
 	to   string
 }
 
-type pregelOperationsEntities struct {
-	vertexMessages   []*pregel.VertexMessage
-	vertexOperations []*pregel.VertexOperation
-	haltedVertices   []*pregel.VertexHalted
-	edgeOperations   []*pregel.EdgeOperation
-}
-
-func NewPregelOperations(algorithm algorithm.Algorithm) *PregelOperations {
-	result := &PregelOperations{algorithm: algorithm}
+func newContextOperations(algorithm algorithm.Algorithm, errorChan chan error) *contextOperations {
+	result := &contextOperations{algorithm: algorithm, errorChan: errorChan}
 	result.addedVertices = make(map[string]interface{})
 	result.removedVertices = make(map[string]bool)
 	result.changedVertexValues = make(map[string]interface{})
@@ -53,41 +47,43 @@ func NewPregelOperations(algorithm algorithm.Algorithm) *PregelOperations {
 	return result
 }
 
-func (op *PregelOperations) AddVertex(id string, value interface{}) {
+func (op *contextOperations) AddVertex(id string, value interface{}) {
 	op.addedVerticesMutex.Lock()
 	defer op.addedVerticesMutex.Unlock()
 
 	if value1, contains := op.addedVertices[id]; contains {
 		var err error
-		if value, err = op.algorithm.Handlers().HandleDuplicateVertexValue(id, value1, value); err != nil {
-			//TODO:
+		if value, err = op.algorithm.Handlers().OnDuplicateVertex(id, value1, value); err != nil {
+			op.errorChan <- err
+			return
 		}
 	}
 
 	op.addedVertices[id] = value
 }
 
-func (op *PregelOperations) RemoveVertex(id string) {
+func (op *contextOperations) RemoveVertex(id string) {
 	op.removedVerticesMutex.Lock()
 	defer op.removedVerticesMutex.Unlock()
 	op.removedVertices[id] = true
 }
 
-func (op *PregelOperations) SetVertexValue(id string, value interface{}) {
+func (op *contextOperations) SetVertexValue(id string, value interface{}) {
 	op.changedVertexValuesMutex.Lock()
 	defer op.changedVertexValuesMutex.Unlock()
 
 	if value1, contains := op.changedVertexValues[id]; contains {
 		var err error
-		if value, err = op.algorithm.Handlers().HandleDuplicateVertexValue(id, value1, value); err != nil {
-			//TODO:
+		if value, err = op.algorithm.Handlers().OnDuplicateVertex(id, value1, value); err != nil {
+			op.errorChan <- err
+			return
 		}
 	}
 
 	op.changedVertexValues[id] = value
 }
 
-func (op *PregelOperations) SendVertexMessage(to string, message interface{}) {
+func (op *contextOperations) SendVertexMessage(to string, message interface{}) {
 	op.vertexMessagesMutex.Lock()
 	defer op.vertexMessagesMutex.Unlock()
 
@@ -98,49 +94,51 @@ func (op *PregelOperations) SendVertexMessage(to string, message interface{}) {
 	op.vertexMessages[to] = message
 }
 
-func (op *PregelOperations) VoteToHalt(id string) {
+func (op *contextOperations) VoteToHalt(id string) {
 	op.haltedVerticesMutex.Lock()
 	defer op.haltedVerticesMutex.Unlock()
 	op.haltedVertices[id] = true
 }
 
-func (op *PregelOperations) AddEdge(from string, to string, value interface{}) {
+func (op *contextOperations) AddEdge(from string, to string, value interface{}) {
 	op.addedEdgesMutex.Lock()
 	defer op.addedEdgesMutex.Unlock()
 
 	edge := edge{from, to}
 	if value1, contains := op.addedEdges[edge]; contains {
 		var err error
-		if value, err = op.algorithm.Handlers().HandleDuplicateEdgeValue(from, to, value1, value); err != nil {
-			//TODO:
+		if value, err = op.algorithm.Handlers().OnDuplicateEdge(from, to, value1, value); err != nil {
+			op.errorChan <- err
+			return
 		}
 	}
 
 	op.addedEdges[edge] = value
 }
 
-func (op *PregelOperations) RemoveEdge(from string, to string) {
+func (op *contextOperations) RemoveEdge(from string, to string) {
 	op.removedEdgesMutex.Lock()
 	defer op.removedEdgesMutex.Unlock()
 	op.removedEdges[edge{from, to}] = true
 }
 
-func (op *PregelOperations) SetEdgeValue(from string, to string, value interface{}) {
+func (op *contextOperations) SetEdgeValue(from string, to string, value interface{}) {
 	op.changedEdgeValuesMutex.Lock()
 	defer op.changedEdgeValuesMutex.Unlock()
 
 	edge := edge{from, to}
 	if value1, contains := op.changedEdgeValues[edge]; contains {
 		var err error
-		if value, err = op.algorithm.Handlers().HandleDuplicateEdgeValue(from, to, value1, value); err != nil {
-			//TODO:
+		if value, err = op.algorithm.Handlers().OnDuplicateEdge(from, to, value1, value); err != nil {
+			op.errorChan <- err
+			return
 		}
 	}
 
 	op.changedEdgeValues[edge] = value
 }
 
-func (op *PregelOperations) GetEntities(jobId string, superstep int) (*pregelOperationsEntities, error) {
+func (op *contextOperations) GetProcessResult(jobId string, superstep int) (*ProcessResult, error) {
 	m := make([]*pregel.VertexMessage, 0, len(op.vertexMessages))
 	v := make([]*pregel.VertexOperation, 0, op.getVertexOperationsCount())
 	h := make([]*pregel.VertexHalted, 0, len(op.haltedVertices))
@@ -198,10 +196,10 @@ func (op *PregelOperations) GetEntities(jobId string, superstep int) (*pregelOpe
 		h = append(h, &pregel.VertexHalted{ID: id, JobID: jobId, Superstep: superstep})
 	}
 
-	return &pregelOperationsEntities{m, v, h, e}, nil
+	return &ProcessResult{m, v, h, e}, nil
 }
 
-func (op *PregelOperations) getVertexOperationsCount() int {
+func (op *contextOperations) getVertexOperationsCount() int {
 	result := len(op.addedVertices)
 	result += len(op.removedVertices)
 	result += len(op.changedVertexValues)
@@ -209,7 +207,7 @@ func (op *PregelOperations) getVertexOperationsCount() int {
 	return result
 }
 
-func (op *PregelOperations) getEdgeOperationsCount() int {
+func (op *contextOperations) getEdgeOperationsCount() int {
 	result := len(op.addedEdges)
 	result += len(op.removedEdges)
 	result += len(op.changedEdgeValues)

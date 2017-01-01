@@ -64,6 +64,11 @@ func (g *Graph) VertexValue(id string) (interface{}, bool) {
 	return v.value, true
 }
 
+func (g *Graph) HasVertex(id string) bool {
+	_, ok := g.VertexValue(id)
+	return ok
+}
+
 func (g *Graph) EdgeValue(from string, to string) (interface{}, bool) {
 	v, ok := g.vertices[from]
 	if !ok {
@@ -71,6 +76,11 @@ func (g *Graph) EdgeValue(from string, to string) (interface{}, bool) {
 	}
 
 	return v.edges[to], true
+}
+
+func (g *Graph) HasEdge(from string, to string) bool {
+	_, ok := g.EdgeValue(from, to)
+	return ok
 }
 
 func (g *Graph) Clone() *Graph {

@@ -5,10 +5,10 @@ type VertexContext struct {
 	Edges     []*EdgeContext
 	Value     interface{}
 	Superstep int
-	op        Operations
+	op        ContextOperations
 }
 
-func NewVertexContext(id string, superstep int, value interface{}, operations Operations) *VertexContext {
+func NewVertexContext(id string, superstep int, value interface{}, operations ContextOperations) *VertexContext {
 	return &VertexContext{id: id, Superstep: superstep, Value: value, op: operations}
 }
 

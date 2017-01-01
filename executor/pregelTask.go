@@ -3,17 +3,13 @@ package main
 import (
 	"sync"
 
-	"github.com/bcrusu/pregel"
 	"github.com/bcrusu/pregel/executor/algorithm"
 	"github.com/bcrusu/pregel/executor/algorithmImpl"
 	"github.com/bcrusu/pregel/executor/graph"
+	"github.com/bcrusu/pregel/executor/messagesProcessor"
 	"github.com/bcrusu/pregel/executor/stores"
 	"github.com/bcrusu/pregel/protos"
 	"github.com/pkg/errors"
-)
-
-const (
-	MaxComputeParallelism = 16
 )
 
 type PregelTask struct {
@@ -64,96 +60,18 @@ func (task *PregelTask) ExecSuperstep(superstep int) error {
 		return err
 	}
 
-	task.processMessages(superstep, messages, halted)
+	processor := messagesProcessor.New(task.jobID, superstep, task.graph, task.algorithm)
+	processResult, err := processor.Process(messages, halted)
+	if err != nil {
+		return err
+	}
 
-	//TODO
+	err = task.saveResult(processResult)
+	if err != nil {
+		return err
+	}
+
 	return nil
-}
-
-func (task *PregelTask) processMessages(superstep int, messages map[string]interface{}, haltedVertices map[string]bool) (*pregelOperationsEntities, error) {
-	type queueItem struct {
-		context *algorithm.VertexContext
-		message interface{}
-	}
-
-	type processResult struct {
-		err error
-	}
-
-	queueChan := make(chan *queueItem, MaxComputeParallelism)
-	resultChan := make(chan *processResult, MaxComputeParallelism)
-	stopChan := make(chan bool)
-
-	// start processing routines
-	for i := 0; i < MaxComputeParallelism; i++ {
-		go func() {
-			for {
-				select {
-				case item := <-queueChan:
-					err := task.algorithm.Compute(item.context, item.message)
-					resultChan <- &processResult{err}
-				case <-stopChan:
-					return
-				}
-			}
-		}()
-	}
-	defer func() { stopChan <- true }()
-
-	operations := NewPregelOperations(task.algorithm)
-	processing := 0
-
-	// fill processing queue
-	for _, id := range task.graph.Vertices() {
-		message := messages[id]
-		halted := haltedVertices[id]
-
-		if message == nil && halted {
-			continue
-		}
-
-		context := task.createVertexContext(id, superstep, operations)
-
-		select {
-		case result := <-resultChan:
-			if result.err != nil {
-				return nil, result.err
-			}
-			processing--
-		case queueChan <- &queueItem{context, message}:
-			processing++
-		}
-	}
-
-	// wait for all to finish
-	for result := range resultChan {
-		if result.err != nil {
-			return nil, result.err
-		}
-
-		processing--
-		if processing == 0 {
-			break
-		}
-	}
-
-	return operations.GetEntities(task.jobID, superstep)
-}
-
-func (task *PregelTask) createVertexContext(id string, superstep int, operations *PregelOperations) *algorithm.VertexContext {
-	graph := task.graph
-
-	vertexValue, _ := graph.VertexValue(id)
-	vertexContext := algorithm.NewVertexContext(id, superstep, vertexValue, operations)
-
-	edges := graph.EdgesFrom(id)
-	vertexContext.Edges = make([]*algorithm.EdgeContext, len(edges))
-	for i, to := range edges {
-		edgeValue, _ := graph.EdgeValue(id, to)
-		vertexContext.Edges[i] = algorithm.NewEdgeContext(vertexContext, to, edgeValue)
-	}
-
-	return vertexContext
 }
 
 func (task *PregelTask) loadSuperstep(superstep int) error {
@@ -223,16 +141,12 @@ func (task *PregelTask) fastForwardToSuperstep(toSuperstep int) error {
 			return errors.Wrapf(err, "failed to load vertex operations for superstep %d", superstep)
 		}
 
-		if err = applyVertexOperations(graph, vertexOps, task.algorithm); err != nil {
-			return err
-		}
-
 		edgeOps, err := task.store.LoadEdgeOperations(task.jobID, superstep)
 		if err != nil {
 			return errors.Wrapf(err, "failed to load edge operations for superstep %d", superstep)
 		}
 
-		if err := applyEdgeOperations(graph, edgeOps, task.algorithm); err != nil {
+		if err = applyGraphOperations(graph, vertexOps, edgeOps, task.algorithm); err != nil {
 			return err
 		}
 	}
@@ -279,71 +193,7 @@ func (task *PregelTask) loadHaltedVertices(superstep int) (map[string]bool, erro
 	return result, nil
 }
 
-func applyVertexOperations(graph *graph.Graph, operations []*pregel.VertexOperation, algorithm algorithm.Algorithm) error {
-	for _, operation := range operations {
-		vertexID := operation.ID
-
-		switch operation.Type {
-		case pregel.VertexAdded, pregel.VertexValueChanged:
-			value, err := algorithm.VertexValueEncoder().Unmarshal(operation.Value)
-			if err != nil {
-				return errors.Wrapf(err, "unmarshal failed - vertex: %s", vertexID)
-			}
-
-			if prevValue, ok := graph.VertexValue(vertexID); ok {
-				if value, err = algorithm.Handlers().HandleDuplicateVertexValue(vertexID, prevValue, value); err != nil {
-					return err
-				}
-			}
-
-			graph.SetVertexValue(vertexID, value)
-		case pregel.VertexRemoved:
-			if _, ok := graph.VertexValue(vertexID); !ok {
-				if err := algorithm.Handlers().HandleMissingVertex(vertexID); err != nil {
-					return err
-				}
-			} else {
-				graph.RemoveVertex(vertexID)
-			}
-		default:
-			return errors.Errorf("invalid vertex operation type %v", operation.Type)
-		}
-	}
-
-	return nil
-}
-
-func applyEdgeOperations(graph *graph.Graph, operations []*pregel.EdgeOperation, algorithm algorithm.Algorithm) error {
-	for _, operation := range operations {
-		from := operation.From
-		to := operation.To
-
-		switch operation.Type {
-		case pregel.EdgeAdded, pregel.EdgeValueChanged:
-			value, err := algorithm.EdgeValueEncoder().Unmarshal(operation.Value)
-			if err != nil {
-				return errors.Wrapf(err, "unmarshal failed - edge from %s to %s", from, to)
-			}
-
-			if prevValue, ok := graph.EdgeValue(from, to); ok {
-				if value, err = algorithm.Handlers().HandleDuplicateEdgeValue(from, to, prevValue, value); err != nil {
-					return err
-				}
-			}
-
-			graph.SetEdgeValue(from, to, value)
-		case pregel.EdgeRemoved:
-			if _, ok := graph.EdgeValue(from, to); !ok {
-				if err := algorithm.Handlers().HandleMissingEdge(from, to); err != nil {
-					return err
-				}
-			} else {
-				graph.RemoveEdge(from, to)
-			}
-		default:
-			return errors.Errorf("invalid edge operation type %v", operation.Type)
-		}
-	}
-
+func (task *PregelTask) saveResult(result *messagesProcessor.ProcessResult) error {
+	//TODO
 	return nil
 }

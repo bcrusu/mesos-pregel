@@ -10,12 +10,12 @@ type Algorithm interface {
 	VertexValueEncoder() encoding.Encoder
 	EdgeValueEncoder() encoding.Encoder
 
-	Handlers() Handlers
+	Handlers() *Handlers
 }
 
 type VertexMessageCombiner func(first interface{}, second interface{}) interface{}
 
-type Operations interface {
+type ContextOperations interface {
 	AddVertex(id string, value interface{})
 	RemoveVertex(id string)
 	SetVertexValue(id string, value interface{})

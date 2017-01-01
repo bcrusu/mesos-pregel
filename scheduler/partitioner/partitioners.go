@@ -1,4 +1,4 @@
-package partitioners
+package partitioner
 
 type Partitioner interface {
 }

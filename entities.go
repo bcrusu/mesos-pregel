@@ -1,5 +1,14 @@
 package pregel
 
+type Job struct {
+	ID              string
+	superstep       int
+	store           string
+	storeParams     []byte
+	algorithm       string
+	algorithmParams []byte
+}
+
 type Vertex struct {
 	ID    string
 	Value []byte

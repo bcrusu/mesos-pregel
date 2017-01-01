@@ -1,4 +1,4 @@
-package partitioners
+package partitioner
 
 // TODO:
 // https://github.com/datastax/java-driver/blob/3.x/driver-core/src/main/java/com/datastax/driver/core/Metadata.java#L747

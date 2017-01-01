@@ -6,8 +6,8 @@ import (
 	"os"
 
 	"github.com/bcrusu/mesos-pregel"
-	"github.com/bcrusu/mesos-pregel/dataLoader/parsers"
-	"github.com/bcrusu/mesos-pregel/dataLoader/stores"
+	"github.com/bcrusu/mesos-pregel/dataLoader/parser"
+	"github.com/bcrusu/mesos-pregel/dataLoader/store"
 )
 
 var (
@@ -39,8 +39,8 @@ func run() error {
 	}
 	defer inputFile.Close()
 
-	var store stores.Store
-	if store, err = stores.NewStore(); err != nil {
+	var store store.Store
+	if store, err = store.NewStore(); err != nil {
 		return err
 	}
 
@@ -49,15 +49,15 @@ func run() error {
 	}
 	defer store.Close()
 
-	var parser parsers.Parser
-	if parser, err = parsers.NewParser(inputFile); err != nil {
+	var parser parser.Parser
+	if parser, err = parser.NewParser(inputFile); err != nil {
 		return err
 	}
 
 	return loadData(parser, store)
 }
 
-func loadData(parser parsers.Parser, store stores.Store) error {
+func loadData(parser parser.Parser, store store.Store) error {
 	batch := make([]*pregel.Edge, 0, batchSize)
 	batchNo := 0
 

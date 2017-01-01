@@ -1,4 +1,4 @@
-package partitioners
+package partitioner
 
 import (
 	"flag"

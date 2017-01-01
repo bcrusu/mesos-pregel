@@ -1,28 +1,79 @@
-package scheduler
+package main
 
 import (
 	"flag"
-	"log"
+	"os"
+	"time"
+
+	"github.com/gogo/protobuf/proto"
+	"github.com/golang/glog"
+	mesos "github.com/mesos/mesos-go/mesosproto"
+	util "github.com/mesos/mesos-go/mesosutil"
+	sched "github.com/mesos/mesos-go/scheduler"
+	"github.com/pkg/errors"
 )
 
-func init() {
-	flag.StringVar(&inputFilePath, "filePath", "", "Input file path")
-	flag.IntVar(&batchSize, "batchSize", 1500, "Insert batch size")
-}
+const (
+	CPUS_PER_EXECUTOR = 1
+	MEM_PER_EXECUTOR  = 128
+)
+
+var (
+	mesosMaster  = flag.String("mesos.master", "127.0.100.1:5050", "Master address <ip:port>")
+	executorPath = flag.String("executorPath", "./executor", "Path to Pregel executor")
+)
 
 func main() {
 	flag.Parse()
 
-	log.Println("Running...")
+	glog.Info("Running...")
 
 	if err := run(); err != nil {
-		log.Fatalf("Unexpected error: %s", err)
+		glog.Errorf("Unexpected error: %s", err)
+		time.Sleep(2 * time.Second)
+		os.Exit(1)
 	}
 
-	log.Println("Done.")
+	glog.Info("Done.")
 }
 
 func run() error {
-	//TODO
+	executorInfo := getExecutorInfo()
+	config := sched.DriverConfig{
+		Scheduler: NewPregelScheduler(executorInfo),
+		Framework: &mesos.FrameworkInfo{
+			User: proto.String(""),
+			Name: proto.String("Pregel"),
+		},
+		Master: *mesosMaster,
+	}
+
+	driver, err := sched.NewMesosSchedulerDriver(config)
+	if err != nil {
+		return errors.Wrap(err, "unable to create a SchedulerDriver")
+	}
+
+	if status, err := driver.Run(); err != nil {
+		return errors.Wrapf(err, "framework stopped with status %s", status.String())
+	}
+
 	return nil
+}
+
+func getExecutorInfo() *mesos.ExecutorInfo {
+	//TODO: executor cmd & command uri
+	executorCommand := ""
+
+	return &mesos.ExecutorInfo{
+		ExecutorId: util.NewExecutorID("pregel"),
+		Name:       proto.String("Pregel Executor"),
+		Command: &mesos.CommandInfo{
+			Value: proto.String(executorCommand),
+			Uris:  nil,
+		},
+		Resources: []*mesos.Resource{
+			util.NewScalarResource("cpus", CPUS_PER_EXECUTOR),
+			util.NewScalarResource("mem", MEM_PER_EXECUTOR),
+		},
+	}
 }

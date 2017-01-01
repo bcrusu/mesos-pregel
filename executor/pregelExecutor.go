@@ -1,13 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/gogo/protobuf/proto"
-	log "github.com/golang/glog"
+	"github.com/golang/glog"
 	exec "github.com/mesos/mesos-go/executor"
 	mesos "github.com/mesos/mesos-go/mesosproto"
 	"github.com/patrickmn/go-cache"
@@ -26,15 +25,15 @@ func NewPregelExecutor() *PregelExecutor {
 }
 
 func (executor *PregelExecutor) Registered(driver exec.ExecutorDriver, execInfo *mesos.ExecutorInfo, fwinfo *mesos.FrameworkInfo, slaveInfo *mesos.SlaveInfo) {
-	fmt.Println("Registered Executor on slave ", slaveInfo.GetHostname())
+	glog.Infof("registered Executor on slave %s", slaveInfo.GetHostname())
 }
 
 func (executor *PregelExecutor) Reregistered(driver exec.ExecutorDriver, slaveInfo *mesos.SlaveInfo) {
-	fmt.Println("Re-registered Executor on slave ", slaveInfo.GetHostname())
+	glog.Infof("Re-registered Executor on slave %s", slaveInfo.GetHostname())
 }
 
 func (executor *PregelExecutor) Disconnected(driver exec.ExecutorDriver) {
-	fmt.Println("Executor disconnected.")
+	glog.Infof("Executor disconnected.")
 }
 
 func (executor *PregelExecutor) LaunchTask(driver exec.ExecutorDriver, taskInfo *mesos.TaskInfo) {
@@ -42,43 +41,43 @@ func (executor *PregelExecutor) LaunchTask(driver exec.ExecutorDriver, taskInfo 
 }
 
 func (executor *PregelExecutor) KillTask(driver exec.ExecutorDriver, taskID *mesos.TaskID) {
-	fmt.Println("Kill task")
+	glog.Infof("Kill task")
 }
 
 func (executor *PregelExecutor) FrameworkMessage(driver exec.ExecutorDriver, msg string) {
-	fmt.Println("Got framework message: ", msg)
+	glog.Infof("Got framework message: %s", msg)
 }
 
 func (executor *PregelExecutor) Shutdown(driver exec.ExecutorDriver) {
-	fmt.Println("Shutting down the executor")
+	glog.Infof("Shutting down the executor")
 }
 
 func (executor *PregelExecutor) Error(driver exec.ExecutorDriver, err string) {
-	fmt.Println("Got error message:", err)
+	glog.Infof("Got error message: %s", err)
 }
 
 func (executor *PregelExecutor) processLaunchTask(driver exec.ExecutorDriver, taskInfo *mesos.TaskInfo) {
-	log.Infof("Launching task %s", taskInfo.GetName())
+	glog.Infof("Launching task %s", taskInfo.GetName())
 
 	sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_RUNNING)
 
 	taskParams := new(protos.PregelTaskParams)
 	if err := proto.Unmarshal(taskInfo.Data, taskParams); err != nil {
-		log.Errorf("Failed to unmarshal task params: %v", err)
+		glog.Errorf("Failed to unmarshal task params: %v", err)
 		sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_FAILED)
 		return
 	}
 
 	task, err := executor.getPregelTask(*taskParams)
 	if err != nil {
-		log.Errorf("Failed to initialize task: %v", err)
+		glog.Errorf("Failed to initialize task: %v", err)
 		sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_FAILED)
 		return
 	}
 
 	err = task.ExecSuperstep(int(taskParams.Superstep))
 	if err != nil {
-		log.Errorf("Failed to execute superstep %d for job %s. Error %v", taskParams.Superstep, taskParams.JobId, err)
+		glog.Errorf("Failed to execute superstep %d for job %s. Error %v", taskParams.Superstep, taskParams.JobId, err)
 		sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_FAILED)
 		return
 	}
@@ -93,7 +92,7 @@ func sendStatusUpdate(driver exec.ExecutorDriver, taskId *mesos.TaskID, state me
 	}
 
 	if _, err := driver.SendStatusUpdate(status); err != nil {
-		log.Errorf("error sending status update: %s", err)
+		glog.Errorf("error sending status update: %s", err)
 	}
 }
 

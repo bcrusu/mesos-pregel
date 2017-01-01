@@ -56,6 +56,7 @@ func (proc *MessagesProcessor) Process(messages map[string]interface{}, haltedVe
 		case err = <-errorChan:
 			if !stopped {
 				close(stopChan)
+				stopped = true
 			}
 		default:
 			// noop

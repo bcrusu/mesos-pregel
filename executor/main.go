@@ -1,21 +1,22 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"os"
 
+	"github.com/golang/glog"
 	exec "github.com/mesos/mesos-go/executor"
 	"github.com/pkg/errors"
 )
 
 func main() {
-	log.Println("Running...")
+	glog.Info("Running...")
 
 	if err := run(); err != nil {
-		log.Fatalf("Unexpected error: %s", err)
+		glog.Errorf("Unexpected error: %s", err)
+		os.Exit(1)
 	}
 
-	log.Println("Done.")
+	glog.Info("Done.")
 }
 
 func run() error {
@@ -28,15 +29,13 @@ func run() error {
 		return errors.Wrap(err, "unable to create a ExecutorDriver")
 	}
 
-	_, err = driver.Start()
-	if err != nil {
-		return errors.Wrap(err, "unexpected error on driver start")
+	if status, err := driver.Start(); err != nil {
+		return errors.Wrapf(err, "unexpected error on driver start; status %s", status.String())
 	}
 
-	fmt.Println("Executor process has started and running.")
+	glog.Info("executor process has started and running.")
 
-	_, err = driver.Join()
-	if err != nil {
+	if _, err = driver.Join(); err != nil {
 		return errors.Wrap(err, "unexpected error on driver join")
 	}
 

@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package protos;
+
+// Implementation details:
+
+message PregelTaskParams {
+    string jobId = 1;
+    int32 superstep = 2;
+
+    string store = 3;
+    bytes storeParams = 4;
+
+    string algorithm = 5;
+    bytes algorithmParams = 6;
+
+    bytes entityRange = 7;
+}
+
+message ShortestPathMessage {
+    int32 pathLength = 1;
+}
+
+message CassandraEntityRange {
+    int64 startToken = 1;
+    int64 endToken = 2;
+}

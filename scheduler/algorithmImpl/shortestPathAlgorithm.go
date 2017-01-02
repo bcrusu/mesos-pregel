@@ -1,4 +1,4 @@
-package algorithm
+package algorithmImpl
 
 type ShortestPathAlgorithm struct {
 }

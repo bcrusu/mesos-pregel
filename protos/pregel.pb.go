@@ -9,18 +9,23 @@ It is generated from these files:
 	pregel.proto
 
 It has these top-level messages:
-	PregelTaskParams
-	CassandraStoreParams
-	CassandraEntityRange
-	ShortestPathAlgorithParams
-	ShortestPathMessage
-	Int32Value
+	StartJobRequest
+	StartJobReply
+	GetJobStatusRequest
+	GetJobStatusReply
+	GetJobResultRequest
+	GetJobResultReply
 */
 package protos
 
 import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
+
+import (
+	context "golang.org/x/net/context"
+	grpc "google.golang.org/grpc"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -33,263 +38,302 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
-type PregelTaskParams struct {
-	JobId           string `protobuf:"bytes,1,opt,name=jobId,proto3" json:"jobId,omitempty"`
-	Superstep       int32  `protobuf:"varint,2,opt,name=superstep,proto3" json:"superstep,omitempty"`
-	Store           string `protobuf:"bytes,3,opt,name=store,proto3" json:"store,omitempty"`
-	StoreParams     []byte `protobuf:"bytes,4,opt,name=storeParams,proto3" json:"storeParams,omitempty"`
-	Algorithm       string `protobuf:"bytes,5,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
-	AlgorithmParams []byte `protobuf:"bytes,6,opt,name=algorithmParams,proto3" json:"algorithmParams,omitempty"`
-	EntityRange     []byte `protobuf:"bytes,7,opt,name=entityRange,proto3" json:"entityRange,omitempty"`
+type StartJobRequest struct {
+	Label           string `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
+	Store           string `protobuf:"bytes,2,opt,name=store,proto3" json:"store,omitempty"`
+	StoreParams     []byte `protobuf:"bytes,3,opt,name=storeParams,proto3" json:"storeParams,omitempty"`
+	Algorithm       string `protobuf:"bytes,4,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
+	AlgorithmParams []byte `protobuf:"bytes,5,opt,name=algorithmParams,proto3" json:"algorithmParams,omitempty"`
 }
 
-func (m *PregelTaskParams) Reset()                    { *m = PregelTaskParams{} }
-func (m *PregelTaskParams) String() string            { return proto.CompactTextString(m) }
-func (*PregelTaskParams) ProtoMessage()               {}
-func (*PregelTaskParams) Descriptor() ([]byte, []int) { return fileDescriptorPregel, []int{0} }
+func (m *StartJobRequest) Reset()                    { *m = StartJobRequest{} }
+func (m *StartJobRequest) String() string            { return proto.CompactTextString(m) }
+func (*StartJobRequest) ProtoMessage()               {}
+func (*StartJobRequest) Descriptor() ([]byte, []int) { return fileDescriptorPregel, []int{0} }
 
-func (m *PregelTaskParams) GetJobId() string {
+func (m *StartJobRequest) GetLabel() string {
 	if m != nil {
-		return m.JobId
+		return m.Label
 	}
 	return ""
 }
 
-func (m *PregelTaskParams) GetSuperstep() int32 {
-	if m != nil {
-		return m.Superstep
-	}
-	return 0
-}
-
-func (m *PregelTaskParams) GetStore() string {
+func (m *StartJobRequest) GetStore() string {
 	if m != nil {
 		return m.Store
 	}
 	return ""
 }
 
-func (m *PregelTaskParams) GetStoreParams() []byte {
+func (m *StartJobRequest) GetStoreParams() []byte {
 	if m != nil {
 		return m.StoreParams
 	}
 	return nil
 }
 
-func (m *PregelTaskParams) GetAlgorithm() string {
+func (m *StartJobRequest) GetAlgorithm() string {
 	if m != nil {
 		return m.Algorithm
 	}
 	return ""
 }
 
-func (m *PregelTaskParams) GetAlgorithmParams() []byte {
+func (m *StartJobRequest) GetAlgorithmParams() []byte {
 	if m != nil {
 		return m.AlgorithmParams
 	}
 	return nil
 }
 
-func (m *PregelTaskParams) GetEntityRange() []byte {
+type StartJobReply struct {
+	JobId string `protobuf:"bytes,1,opt,name=jobId,proto3" json:"jobId,omitempty"`
+}
+
+func (m *StartJobReply) Reset()                    { *m = StartJobReply{} }
+func (m *StartJobReply) String() string            { return proto.CompactTextString(m) }
+func (*StartJobReply) ProtoMessage()               {}
+func (*StartJobReply) Descriptor() ([]byte, []int) { return fileDescriptorPregel, []int{1} }
+
+func (m *StartJobReply) GetJobId() string {
 	if m != nil {
-		return m.EntityRange
+		return m.JobId
+	}
+	return ""
+}
+
+type GetJobStatusRequest struct {
+	JobId string `protobuf:"bytes,1,opt,name=jobId,proto3" json:"jobId,omitempty"`
+}
+
+func (m *GetJobStatusRequest) Reset()                    { *m = GetJobStatusRequest{} }
+func (m *GetJobStatusRequest) String() string            { return proto.CompactTextString(m) }
+func (*GetJobStatusRequest) ProtoMessage()               {}
+func (*GetJobStatusRequest) Descriptor() ([]byte, []int) { return fileDescriptorPregel, []int{2} }
+
+func (m *GetJobStatusRequest) GetJobId() string {
+	if m != nil {
+		return m.JobId
+	}
+	return ""
+}
+
+type GetJobStatusReply struct {
+}
+
+func (m *GetJobStatusReply) Reset()                    { *m = GetJobStatusReply{} }
+func (m *GetJobStatusReply) String() string            { return proto.CompactTextString(m) }
+func (*GetJobStatusReply) ProtoMessage()               {}
+func (*GetJobStatusReply) Descriptor() ([]byte, []int) { return fileDescriptorPregel, []int{3} }
+
+type GetJobResultRequest struct {
+	JobId string `protobuf:"bytes,1,opt,name=jobId,proto3" json:"jobId,omitempty"`
+}
+
+func (m *GetJobResultRequest) Reset()                    { *m = GetJobResultRequest{} }
+func (m *GetJobResultRequest) String() string            { return proto.CompactTextString(m) }
+func (*GetJobResultRequest) ProtoMessage()               {}
+func (*GetJobResultRequest) Descriptor() ([]byte, []int) { return fileDescriptorPregel, []int{4} }
+
+func (m *GetJobResultRequest) GetJobId() string {
+	if m != nil {
+		return m.JobId
+	}
+	return ""
+}
+
+type GetJobResultReply struct {
+	JobId  string `protobuf:"bytes,1,opt,name=jobId,proto3" json:"jobId,omitempty"`
+	Result []byte `protobuf:"bytes,2,opt,name=result,proto3" json:"result,omitempty"`
+}
+
+func (m *GetJobResultReply) Reset()                    { *m = GetJobResultReply{} }
+func (m *GetJobResultReply) String() string            { return proto.CompactTextString(m) }
+func (*GetJobResultReply) ProtoMessage()               {}
+func (*GetJobResultReply) Descriptor() ([]byte, []int) { return fileDescriptorPregel, []int{5} }
+
+func (m *GetJobResultReply) GetJobId() string {
+	if m != nil {
+		return m.JobId
+	}
+	return ""
+}
+
+func (m *GetJobResultReply) GetResult() []byte {
+	if m != nil {
+		return m.Result
 	}
 	return nil
-}
-
-type CassandraStoreParams struct {
-	Hosts         []string                           `protobuf:"bytes,1,rep,name=hosts" json:"hosts,omitempty"`
-	Keyspace      string                             `protobuf:"bytes,2,opt,name=keyspace,proto3" json:"keyspace,omitempty"`
-	VerticesTable string                             `protobuf:"bytes,3,opt,name=verticesTable,proto3" json:"verticesTable,omitempty"`
-	EdgesTable    string                             `protobuf:"bytes,4,opt,name=edgesTable,proto3" json:"edgesTable,omitempty"`
-	BatchOptions  *CassandraStoreParams_BatchOptions `protobuf:"bytes,5,opt,name=batchOptions" json:"batchOptions,omitempty"`
-}
-
-func (m *CassandraStoreParams) Reset()                    { *m = CassandraStoreParams{} }
-func (m *CassandraStoreParams) String() string            { return proto.CompactTextString(m) }
-func (*CassandraStoreParams) ProtoMessage()               {}
-func (*CassandraStoreParams) Descriptor() ([]byte, []int) { return fileDescriptorPregel, []int{1} }
-
-func (m *CassandraStoreParams) GetHosts() []string {
-	if m != nil {
-		return m.Hosts
-	}
-	return nil
-}
-
-func (m *CassandraStoreParams) GetKeyspace() string {
-	if m != nil {
-		return m.Keyspace
-	}
-	return ""
-}
-
-func (m *CassandraStoreParams) GetVerticesTable() string {
-	if m != nil {
-		return m.VerticesTable
-	}
-	return ""
-}
-
-func (m *CassandraStoreParams) GetEdgesTable() string {
-	if m != nil {
-		return m.EdgesTable
-	}
-	return ""
-}
-
-func (m *CassandraStoreParams) GetBatchOptions() *CassandraStoreParams_BatchOptions {
-	if m != nil {
-		return m.BatchOptions
-	}
-	return nil
-}
-
-type CassandraStoreParams_BatchOptions struct {
-	MaxSize  int32 `protobuf:"varint,1,opt,name=MaxSize,proto3" json:"MaxSize,omitempty"`
-	MaxBytes int32 `protobuf:"varint,2,opt,name=MaxBytes,proto3" json:"MaxBytes,omitempty"`
-}
-
-func (m *CassandraStoreParams_BatchOptions) Reset()         { *m = CassandraStoreParams_BatchOptions{} }
-func (m *CassandraStoreParams_BatchOptions) String() string { return proto.CompactTextString(m) }
-func (*CassandraStoreParams_BatchOptions) ProtoMessage()    {}
-func (*CassandraStoreParams_BatchOptions) Descriptor() ([]byte, []int) {
-	return fileDescriptorPregel, []int{1, 0}
-}
-
-func (m *CassandraStoreParams_BatchOptions) GetMaxSize() int32 {
-	if m != nil {
-		return m.MaxSize
-	}
-	return 0
-}
-
-func (m *CassandraStoreParams_BatchOptions) GetMaxBytes() int32 {
-	if m != nil {
-		return m.MaxBytes
-	}
-	return 0
-}
-
-type CassandraEntityRange struct {
-	StartToken int64 `protobuf:"varint,1,opt,name=startToken,proto3" json:"startToken,omitempty"`
-	EndToken   int64 `protobuf:"varint,2,opt,name=endToken,proto3" json:"endToken,omitempty"`
-}
-
-func (m *CassandraEntityRange) Reset()                    { *m = CassandraEntityRange{} }
-func (m *CassandraEntityRange) String() string            { return proto.CompactTextString(m) }
-func (*CassandraEntityRange) ProtoMessage()               {}
-func (*CassandraEntityRange) Descriptor() ([]byte, []int) { return fileDescriptorPregel, []int{2} }
-
-func (m *CassandraEntityRange) GetStartToken() int64 {
-	if m != nil {
-		return m.StartToken
-	}
-	return 0
-}
-
-func (m *CassandraEntityRange) GetEndToken() int64 {
-	if m != nil {
-		return m.EndToken
-	}
-	return 0
-}
-
-type ShortestPathAlgorithParams struct {
-	From string `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
-	To   string `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
-}
-
-func (m *ShortestPathAlgorithParams) Reset()                    { *m = ShortestPathAlgorithParams{} }
-func (m *ShortestPathAlgorithParams) String() string            { return proto.CompactTextString(m) }
-func (*ShortestPathAlgorithParams) ProtoMessage()               {}
-func (*ShortestPathAlgorithParams) Descriptor() ([]byte, []int) { return fileDescriptorPregel, []int{3} }
-
-func (m *ShortestPathAlgorithParams) GetFrom() string {
-	if m != nil {
-		return m.From
-	}
-	return ""
-}
-
-func (m *ShortestPathAlgorithParams) GetTo() string {
-	if m != nil {
-		return m.To
-	}
-	return ""
-}
-
-type ShortestPathMessage struct {
-	PathLength int32 `protobuf:"varint,1,opt,name=pathLength,proto3" json:"pathLength,omitempty"`
-}
-
-func (m *ShortestPathMessage) Reset()                    { *m = ShortestPathMessage{} }
-func (m *ShortestPathMessage) String() string            { return proto.CompactTextString(m) }
-func (*ShortestPathMessage) ProtoMessage()               {}
-func (*ShortestPathMessage) Descriptor() ([]byte, []int) { return fileDescriptorPregel, []int{4} }
-
-func (m *ShortestPathMessage) GetPathLength() int32 {
-	if m != nil {
-		return m.PathLength
-	}
-	return 0
-}
-
-type Int32Value struct {
-	Value int32 `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
-}
-
-func (m *Int32Value) Reset()                    { *m = Int32Value{} }
-func (m *Int32Value) String() string            { return proto.CompactTextString(m) }
-func (*Int32Value) ProtoMessage()               {}
-func (*Int32Value) Descriptor() ([]byte, []int) { return fileDescriptorPregel, []int{5} }
-
-func (m *Int32Value) GetValue() int32 {
-	if m != nil {
-		return m.Value
-	}
-	return 0
 }
 
 func init() {
-	proto.RegisterType((*PregelTaskParams)(nil), "protos.PregelTaskParams")
-	proto.RegisterType((*CassandraStoreParams)(nil), "protos.CassandraStoreParams")
-	proto.RegisterType((*CassandraStoreParams_BatchOptions)(nil), "protos.CassandraStoreParams.BatchOptions")
-	proto.RegisterType((*CassandraEntityRange)(nil), "protos.CassandraEntityRange")
-	proto.RegisterType((*ShortestPathAlgorithParams)(nil), "protos.ShortestPathAlgorithParams")
-	proto.RegisterType((*ShortestPathMessage)(nil), "protos.ShortestPathMessage")
-	proto.RegisterType((*Int32Value)(nil), "protos.Int32Value")
+	proto.RegisterType((*StartJobRequest)(nil), "protos.StartJobRequest")
+	proto.RegisterType((*StartJobReply)(nil), "protos.StartJobReply")
+	proto.RegisterType((*GetJobStatusRequest)(nil), "protos.GetJobStatusRequest")
+	proto.RegisterType((*GetJobStatusReply)(nil), "protos.GetJobStatusReply")
+	proto.RegisterType((*GetJobResultRequest)(nil), "protos.GetJobResultRequest")
+	proto.RegisterType((*GetJobResultReply)(nil), "protos.GetJobResultReply")
+}
+
+// Reference imports to suppress errors if they are not otherwise used.
+var _ context.Context
+var _ grpc.ClientConn
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the grpc package it is being compiled against.
+const _ = grpc.SupportPackageIsVersion4
+
+// Client API for Pregel service
+
+type PregelClient interface {
+	StartJob(ctx context.Context, in *StartJobRequest, opts ...grpc.CallOption) (*StartJobReply, error)
+	GetJobStatus(ctx context.Context, in *GetJobStatusRequest, opts ...grpc.CallOption) (*GetJobStatusReply, error)
+	GetJobResult(ctx context.Context, in *GetJobResultRequest, opts ...grpc.CallOption) (*GetJobResultReply, error)
+}
+
+type pregelClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewPregelClient(cc *grpc.ClientConn) PregelClient {
+	return &pregelClient{cc}
+}
+
+func (c *pregelClient) StartJob(ctx context.Context, in *StartJobRequest, opts ...grpc.CallOption) (*StartJobReply, error) {
+	out := new(StartJobReply)
+	err := grpc.Invoke(ctx, "/protos.Pregel/StartJob", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pregelClient) GetJobStatus(ctx context.Context, in *GetJobStatusRequest, opts ...grpc.CallOption) (*GetJobStatusReply, error) {
+	out := new(GetJobStatusReply)
+	err := grpc.Invoke(ctx, "/protos.Pregel/GetJobStatus", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pregelClient) GetJobResult(ctx context.Context, in *GetJobResultRequest, opts ...grpc.CallOption) (*GetJobResultReply, error) {
+	out := new(GetJobResultReply)
+	err := grpc.Invoke(ctx, "/protos.Pregel/GetJobResult", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// Server API for Pregel service
+
+type PregelServer interface {
+	StartJob(context.Context, *StartJobRequest) (*StartJobReply, error)
+	GetJobStatus(context.Context, *GetJobStatusRequest) (*GetJobStatusReply, error)
+	GetJobResult(context.Context, *GetJobResultRequest) (*GetJobResultReply, error)
+}
+
+func RegisterPregelServer(s *grpc.Server, srv PregelServer) {
+	s.RegisterService(&_Pregel_serviceDesc, srv)
+}
+
+func _Pregel_StartJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartJobRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PregelServer).StartJob(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/protos.Pregel/StartJob",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PregelServer).StartJob(ctx, req.(*StartJobRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Pregel_GetJobStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetJobStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PregelServer).GetJobStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/protos.Pregel/GetJobStatus",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PregelServer).GetJobStatus(ctx, req.(*GetJobStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Pregel_GetJobResult_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetJobResultRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PregelServer).GetJobResult(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/protos.Pregel/GetJobResult",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PregelServer).GetJobResult(ctx, req.(*GetJobResultRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _Pregel_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "protos.Pregel",
+	HandlerType: (*PregelServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "StartJob",
+			Handler:    _Pregel_StartJob_Handler,
+		},
+		{
+			MethodName: "GetJobStatus",
+			Handler:    _Pregel_GetJobStatus_Handler,
+		},
+		{
+			MethodName: "GetJobResult",
+			Handler:    _Pregel_GetJobResult_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "pregel.proto",
 }
 
 func init() { proto.RegisterFile("pregel.proto", fileDescriptorPregel) }
 
 var fileDescriptorPregel = []byte{
-	// 431 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x6c, 0x53, 0x41, 0x8f, 0xd3, 0x4c,
-	0x0c, 0x55, 0xd2, 0x66, 0xf7, 0xab, 0xb7, 0x1f, 0xa0, 0xa1, 0x87, 0xa8, 0x42, 0x28, 0x8a, 0x38,
-	0x94, 0x4b, 0x0f, 0xbb, 0xe2, 0x0e, 0x0b, 0x1c, 0x56, 0xa2, 0xa2, 0x4a, 0x2b, 0xee, 0x6e, 0x6b,
-	0x92, 0xd0, 0x36, 0x13, 0x8d, 0xbd, 0xab, 0x2d, 0x7f, 0x87, 0x3f, 0xc7, 0xcf, 0x40, 0x33, 0x93,
-	0xb6, 0xb3, 0x88, 0x53, 0xfd, 0x9e, 0xed, 0x37, 0x7e, 0x76, 0x03, 0xc3, 0xd6, 0x50, 0x49, 0xbb,
-	0x69, 0x6b, 0xb4, 0x68, 0x75, 0xe1, 0x7e, 0x38, 0xff, 0x1d, 0xc1, 0x8b, 0xb9, 0x4b, 0x2c, 0x91,
-	0xb7, 0x73, 0x34, 0xb8, 0x67, 0x35, 0x82, 0xe4, 0x87, 0x5e, 0xdd, 0x6d, 0xd2, 0x28, 0x8b, 0x26,
-	0x83, 0xc2, 0x03, 0xf5, 0x0a, 0x06, 0x7c, 0xdf, 0x92, 0x61, 0xa1, 0x36, 0x8d, 0xb3, 0x68, 0x92,
-	0x14, 0x67, 0xc2, 0xf6, 0xb0, 0x68, 0x43, 0x69, 0xcf, 0xf7, 0x38, 0xa0, 0x32, 0xb8, 0x72, 0x81,
-	0x17, 0x4e, 0xfb, 0x59, 0x34, 0x19, 0x16, 0x21, 0x65, 0x55, 0x71, 0x57, 0x6a, 0x53, 0x4b, 0xb5,
-	0x4f, 0x13, 0xd7, 0x7b, 0x26, 0xd4, 0x04, 0x9e, 0x9f, 0x40, 0xa7, 0x71, 0xe1, 0x34, 0xfe, 0xa6,
-	0xed, 0x4b, 0xd4, 0x48, 0x2d, 0x87, 0x02, 0x9b, 0x92, 0xd2, 0x4b, 0xff, 0x52, 0x40, 0xe5, 0xbf,
-	0x62, 0x18, 0x7d, 0x44, 0x66, 0x6c, 0x36, 0x06, 0x17, 0xc1, 0x08, 0x23, 0x48, 0x2a, 0xcd, 0xc2,
-	0x69, 0x94, 0xf5, 0xec, 0xe8, 0x0e, 0xa8, 0x31, 0xfc, 0xb7, 0xa5, 0x03, 0xb7, 0xb8, 0x26, 0xe7,
-	0x76, 0x50, 0x9c, 0xb0, 0x7a, 0x03, 0xff, 0x3f, 0x90, 0x91, 0x7a, 0x4d, 0xbc, 0xc4, 0xd5, 0xee,
-	0x68, 0xfa, 0x29, 0xa9, 0x5e, 0x03, 0xd0, 0xa6, 0x3c, 0x96, 0xf4, 0x5d, 0x49, 0xc0, 0xa8, 0x19,
-	0x0c, 0x57, 0x28, 0xeb, 0xea, 0x6b, 0x2b, 0xb5, 0x6e, 0xd8, 0xb9, 0xbf, 0xba, 0x7e, 0xeb, 0x2f,
-	0xc4, 0xd3, 0x7f, 0xcd, 0x3a, 0xbd, 0x0d, 0x1a, 0x8a, 0x27, 0xed, 0xe3, 0x4f, 0x30, 0x0c, 0xb3,
-	0x2a, 0x85, 0xcb, 0x19, 0x3e, 0x2e, 0xea, 0x9f, 0xe4, 0xee, 0x98, 0x14, 0x47, 0x68, 0xad, 0xcd,
-	0xf0, 0xf1, 0xf6, 0x20, 0xc4, 0xdd, 0x21, 0x4f, 0x38, 0x2f, 0x82, 0x25, 0x7d, 0x3e, 0x6f, 0xcf,
-	0x9a, 0x61, 0x41, 0x23, 0x4b, 0xbd, 0xa5, 0xc6, 0x09, 0xf6, 0x8a, 0x80, 0xb1, 0x9a, 0xd4, 0x6c,
-	0x7c, 0x36, 0x76, 0xd9, 0x13, 0xce, 0xdf, 0xc3, 0x78, 0x51, 0x69, 0x23, 0xc4, 0x32, 0x47, 0xa9,
-	0x3e, 0x74, 0xa7, 0xeb, 0xd6, 0xaf, 0xa0, 0xff, 0xdd, 0xe8, 0x7d, 0xf7, 0x67, 0x73, 0xb1, 0x7a,
-	0x06, 0xb1, 0xe8, 0x6e, 0xed, 0xb1, 0xe8, 0xfc, 0x1d, 0xbc, 0x0c, 0x15, 0x66, 0xc4, 0x8c, 0x7e,
-	0xa8, 0x16, 0xa5, 0xfa, 0x42, 0x4d, 0x29, 0x55, 0xe7, 0x32, 0x60, 0xf2, 0x1c, 0xe0, 0xae, 0x91,
-	0x9b, 0xeb, 0x6f, 0xb8, 0xbb, 0x27, 0x7b, 0xe7, 0x07, 0x1b, 0x74, 0x85, 0x1e, 0xac, 0xfc, 0x97,
-	0x70, 0xf3, 0x27, 0x00, 0x00, 0xff, 0xff, 0xb6, 0x57, 0x6d, 0xa7, 0x20, 0x03, 0x00, 0x00,
+	// 289 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x7c, 0x52, 0xcb, 0x4e, 0xc3, 0x30,
+	0x10, 0x6c, 0x80, 0x46, 0x74, 0x09, 0xaa, 0xd8, 0xf2, 0x08, 0x85, 0x43, 0x14, 0x09, 0x29, 0x12,
+	0x52, 0x0f, 0x70, 0xe5, 0xc2, 0x89, 0xc7, 0xa9, 0x72, 0xbf, 0xc0, 0x11, 0x56, 0x01, 0xb9, 0x72,
+	0xb0, 0x9d, 0x43, 0xbf, 0x88, 0x7f, 0xe2, 0x6b, 0x50, 0xd6, 0x35, 0x49, 0x4d, 0xe0, 0x94, 0xcc,
+	0xec, 0x64, 0x34, 0x3b, 0x1b, 0x48, 0x2a, 0x2d, 0x96, 0x42, 0xce, 0x2a, 0xad, 0xac, 0xc2, 0x98,
+	0x1e, 0x26, 0xff, 0x8c, 0x60, 0xbc, 0xb0, 0x5c, 0xdb, 0x67, 0x55, 0x32, 0xf1, 0x51, 0x0b, 0x63,
+	0xf1, 0x18, 0x86, 0x92, 0x97, 0x42, 0xa6, 0x51, 0x16, 0x15, 0x23, 0xe6, 0x40, 0xc3, 0x1a, 0xab,
+	0xb4, 0x48, 0x77, 0x1c, 0x4b, 0x00, 0x33, 0x38, 0xa0, 0x97, 0x39, 0xd7, 0x7c, 0x65, 0xd2, 0xdd,
+	0x2c, 0x2a, 0x12, 0xd6, 0xa5, 0xf0, 0x12, 0x46, 0x5c, 0x2e, 0x95, 0x7e, 0xb3, 0xaf, 0xab, 0x74,
+	0x8f, 0xbe, 0x6d, 0x09, 0x2c, 0x60, 0xfc, 0x03, 0x36, 0x1e, 0x43, 0xf2, 0x08, 0xe9, 0xfc, 0x0a,
+	0x0e, 0xdb, 0xa0, 0x95, 0x5c, 0x37, 0x81, 0xde, 0x55, 0xf9, 0xf4, 0xe2, 0x63, 0x12, 0xc8, 0xaf,
+	0x61, 0xf2, 0x20, 0x1a, 0xd1, 0xc2, 0x72, 0x5b, 0x9b, 0xce, 0x4e, 0x3d, 0xe2, 0x09, 0x1c, 0x6d,
+	0x8b, 0x2b, 0xb9, 0x6e, 0x1d, 0x98, 0x30, 0xb5, 0xb4, 0xff, 0x3b, 0xdc, 0x7b, 0x07, 0x2f, 0xfe,
+	0x33, 0x19, 0x9e, 0x42, 0xac, 0x49, 0x44, 0x0d, 0x26, 0x6c, 0x83, 0x6e, 0xbe, 0x22, 0x88, 0xe7,
+	0x74, 0x1b, 0xbc, 0x83, 0x7d, 0xbf, 0x23, 0x9e, 0xb9, 0x4b, 0x99, 0x59, 0x70, 0x9e, 0xe9, 0xc9,
+	0xef, 0x41, 0x13, 0x7b, 0x80, 0x8f, 0x90, 0x74, 0xb7, 0xc1, 0x0b, 0x2f, 0xec, 0x29, 0x64, 0x7a,
+	0xde, 0x3f, 0x0c, 0x9c, 0xdc, 0x56, 0xa1, 0xd3, 0x56, 0x31, 0xa1, 0x53, 0xa7, 0x88, 0x7c, 0x50,
+	0xba, 0xff, 0xec, 0xf6, 0x3b, 0x00, 0x00, 0xff, 0xff, 0x4b, 0xe1, 0x61, 0x22, 0x7e, 0x02, 0x00,
+	0x00,
 }

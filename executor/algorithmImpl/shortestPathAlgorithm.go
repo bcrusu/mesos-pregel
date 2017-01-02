@@ -8,10 +8,10 @@ import (
 )
 
 type shortestPathAlgorithm struct {
-	params protos.ShortestPathAlgorithParams
+	params protos.ShortestPathAlgorithmParams
 }
 
-func NewShortestPathAlgorithm(params protos.ShortestPathAlgorithParams) algorithm.Algorithm {
+func NewShortestPathAlgorithm(params protos.ShortestPathAlgorithmParams) algorithm.Algorithm {
 	return &shortestPathAlgorithm{params}
 }
 

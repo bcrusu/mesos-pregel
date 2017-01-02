@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package protos;
+
+message CassandraStoreParams {
+    repeated string hosts = 1;
+    string keyspace = 2;    
+    string verticesTable = 3;
+    string edgesTable = 4;
+    BatchOptions batchOptions = 5;
+
+    message BatchOptions {
+        int32 MaxSize = 1;
+        int32 MaxBytes = 2;
+    }
+}
+
+// Vertex/Edge values
+
+message Int32Value {
+    int32 value = 1;
+}

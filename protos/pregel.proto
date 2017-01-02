@@ -2,52 +2,39 @@ syntax = "proto3";
 
 package protos;
 
-message PregelTaskParams {
+service Pregel {
+  rpc StartJob (StartJobRequest) returns (StartJobReply) {}
+  rpc GetJobStatus (GetJobStatusRequest) returns (GetJobStatusReply) {}
+  rpc GetJobResult  (GetJobResultRequest) returns (GetJobResultReply) {}
+}
+
+message StartJobRequest {
+    string label = 1;
+
+    string store = 2;
+    bytes storeParams = 3;
+
+    string algorithm = 4;
+    bytes algorithmParams = 5;
+}
+
+message StartJobReply {
     string jobId = 1;
-    int32 superstep = 2;
-
-    string store = 3;
-    bytes storeParams = 4;
-
-    string algorithm = 5;
-    bytes algorithmParams = 6;
-
-    bytes entityRange = 7;
 }
 
-// Stores:
-
-message CassandraStoreParams {
-    repeated string hosts = 1;
-    string keyspace = 2;    
-    string verticesTable = 3;
-    string edgesTable = 4;
-    BatchOptions batchOptions = 5;
-
-    message BatchOptions {
-        int32 MaxSize = 1;
-        int32 MaxBytes = 2;
-    }
+message GetJobStatusRequest {
+    string jobId = 1;
 }
 
-message CassandraEntityRange {
-    int64 startToken = 1;
-    int64 endToken = 2;
-}   
-
-// Algorithms:
-
-message ShortestPathAlgorithParams {
-    string from = 1;
-    string to = 2;
+message GetJobStatusReply {
+    // TODO
 }
 
-message ShortestPathMessage {
-    int32 pathLength = 1;
+message GetJobResultRequest {
+    string jobId = 1;
 }
 
-// Vertex/Edge values
-
-message Int32Value {
-    int32 value = 1;
+message GetJobResultReply {
+    string jobId = 1;
+    bytes result = 2;
 }

@@ -15,6 +15,6 @@ for protoDir in ${ProtoDirs[@]}; do
 	protos=(${protoDir}/*.proto)
 	for proto in "${protos[@]}"; do 
 		# echo ${proto}
-		protoc --proto_path=${PROTO_PATH} --gogo_out=${protoDir} ${proto}
+		protoc --proto_path=${PROTO_PATH} --gogo_out=plugins=grpc:${protoDir} ${proto}
 	done	
 done

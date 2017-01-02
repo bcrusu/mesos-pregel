@@ -9,17 +9,17 @@ import (
 )
 
 type Store interface {
-	LoadJob(id string) (*pregel.Job, error)
-	LoadAllJobs() ([]*pregel.Job, error)
+	LoadJobs() ([]*pregel.Job, error)
 	SaveJob(*pregel.Job) error
 
 	Connect() error
+	Init() error
 	Close()
 }
 
-func NewStore(storeType protos.StoreType, params []byte) (Store, error) {
-	switch storeType {
-	case protos.StoreType_Cassandra:
+func NewStore(store string, params []byte) (Store, error) {
+	switch store {
+	case "cassandra":
 		paramsMsg := new(protos.CassandraStoreParams)
 		if err := proto.Unmarshal(params, paramsMsg); err != nil {
 			return nil, err
@@ -28,6 +28,6 @@ func NewStore(storeType protos.StoreType, params []byte) (Store, error) {
 		//return NewCassandraStore(*paramsMsg, *entityRangeMsg), nil
 		return nil, nil
 	default:
-		return nil, fmt.Errorf("Invalid store type '%s'", storeType)
+		return nil, fmt.Errorf("Invalid store type '%s'", store)
 	}
 }

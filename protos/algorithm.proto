@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package protos;
+
+message ShortestPathAlgorithmParams {
+    string from = 1;
+    string to = 2;
+}
+
+message ShortestPathAlgorithmResult {
+    int32 pathLength = 1;
+}

@@ -11,7 +11,7 @@ import (
 func NewAlgorithm(algorithmType string, params []byte) (algorithm.Algorithm, error) {
 	switch algorithmType {
 	case "shortest_path":
-		paramsMsg := new(protos.ShortestPathAlgorithParams)
+		paramsMsg := new(protos.ShortestPathAlgorithmParams)
 		if err := proto.Unmarshal(params, paramsMsg); err != nil {
 			return nil, err
 		}

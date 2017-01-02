@@ -2,11 +2,12 @@ package pregel
 
 type Job struct {
 	ID              string
-	superstep       int
-	store           string
-	storeParams     []byte
-	algorithm       string
-	algorithmParams []byte
+	Status          JobStatus
+	Superstep       int
+	Store           string
+	StoreParams     []byte
+	Algorithm       string
+	AlgorithmParams []byte
 }
 
 type Vertex struct {
@@ -20,8 +21,16 @@ type Edge struct {
 	Value []byte
 }
 
+type JobStatus int
 type VertexOperationType int
 type EdgeOperationType int
+
+const (
+	_ JobStatus = iota
+	JobRunning
+	JobCompleted
+	JobFailed
+)
 
 const (
 	_ VertexOperationType = iota

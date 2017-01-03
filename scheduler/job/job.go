@@ -3,6 +3,6 @@ package main
 type Job struct {
 }
 
-func New() *Job {
+func NewJob() *Job {
 	return &Job{}
 }

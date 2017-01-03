@@ -16,6 +16,8 @@ message StartJobRequest {
 
     string algorithm = 4;
     bytes algorithmParams = 5;
+
+    int32 verticesPerTask = 6;
 }
 
 message StartJobReply {

@@ -1,18 +1,19 @@
 package main
 
 import (
+	"github.com/bcrusu/mesos-pregel/store"
 	"github.com/golang/glog"
 	mesos "github.com/mesos/mesos-go/mesosproto"
 	sched "github.com/mesos/mesos-go/scheduler"
 )
 
 type PregelScheduler struct {
-	executorInfo  *mesos.ExecutorInfo
-	tasksLaunched int
+	executorInfo *mesos.ExecutorInfo
+	jobStore     store.JobStore
 }
 
-func NewPregelScheduler(executorInfo *mesos.ExecutorInfo) *PregelScheduler {
-	return &PregelScheduler{executorInfo: executorInfo}
+func NewPregelScheduler(executorInfo *mesos.ExecutorInfo, jobStore store.JobStore) *PregelScheduler {
+	return &PregelScheduler{executorInfo: executorInfo, jobStore: jobStore}
 }
 
 func (this *PregelScheduler) Registered(driver sched.SchedulerDriver, frameworkId *mesos.FrameworkID, masterInfo *mesos.MasterInfo) {

@@ -21,7 +21,7 @@ func GetFullTableName(keyspace string, table string) string {
 type CreateScanDestFunc func() []interface{}
 type CreateEntityFunc func(dest []interface{}) interface{}
 
-func ExecuteSelect(session *gocql.Session, cql string, params interface{}, createScanDest CreateScanDestFunc, createEntity CreateEntityFunc) ([]interface{}, error) {
+func ExecuteSelect(session *gocql.Session, cql string, createScanDest CreateScanDestFunc, createEntity CreateEntityFunc, params ...interface{}) ([]interface{}, error) {
 	iter := session.Query(cql, params).Iter()
 
 	result := make([]interface{}, 0, 1000)

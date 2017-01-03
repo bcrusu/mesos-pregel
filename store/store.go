@@ -2,7 +2,21 @@ package store
 
 import "github.com/bcrusu/mesos-pregel"
 
-type Store interface {
+type JobStore interface {
+	LoadJobs() ([]*pregel.Job, error)
+	SaveJob(*pregel.Job) error
+
+	LoadJobResult(jobID string) ([]byte, error)
+	SaveJobResult(jobID string, value []byte) error
+
+	Connect() error
+	Init() error
+	Close()
+}
+
+type GraphStore interface {
+	GetVertexRanges(verticesPerRange int) ([]*VertexRange, error)
+
 	LoadVertices() ([]*pregel.Vertex, error)
 	LoadEdges() ([]*pregel.Edge, error)
 
@@ -19,5 +33,11 @@ type Store interface {
 	SaveEdgeOperations(operations []*pregel.EdgeOperation) error
 
 	Connect() error
+	Init() error
 	Close()
+}
+
+type VertexRange struct {
+	PreferredHosts []string
+	Range          []interface{}
 }

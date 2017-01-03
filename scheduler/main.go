@@ -12,9 +12,9 @@ import (
 	sched "github.com/mesos/mesos-go/scheduler"
 	"github.com/pkg/errors"
 
-	// register default store & algorithm implementations
-	_ "github.com/bcrusu/mesos-pregel/scheduler/algorithmImpl"
-	_ "github.com/bcrusu/mesos-pregel/scheduler/storeImpl"
+	_ "github.com/bcrusu/mesos-pregel/cassandra"               // register Cassandra store
+	_ "github.com/bcrusu/mesos-pregel/scheduler/algorithmImpl" // register default algorithms
+	"github.com/bcrusu/mesos-pregel/store"
 )
 
 const (
@@ -42,9 +42,14 @@ func main() {
 }
 
 func run() error {
+	jobStore, err := getJobStore()
+	if err != nil {
+		return err
+	}
+
 	executorInfo := getExecutorInfo()
 	config := sched.DriverConfig{
-		Scheduler: NewPregelScheduler(executorInfo),
+		Scheduler: NewPregelScheduler(executorInfo, jobStore),
 		Framework: &mesos.FrameworkInfo{
 			User: proto.String(""),
 			Name: proto.String("Pregel"),
@@ -80,4 +85,11 @@ func getExecutorInfo() *mesos.ExecutorInfo {
 			util.NewScalarResource("mem", MEM_PER_EXECUTOR),
 		},
 	}
+}
+
+func getJobStore() (store.JobStore, error) {
+	//TODO
+	// hosts := strings.Split(*CassandraHosts, ",")
+	// params := &protos.CassandraStoreParams{Hosts: hosts, *CassandraKeyspace}
+	return nil, nil
 }

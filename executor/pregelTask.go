@@ -6,14 +6,14 @@ import (
 	"github.com/bcrusu/mesos-pregel/executor/algorithm"
 	"github.com/bcrusu/mesos-pregel/executor/graph"
 	"github.com/bcrusu/mesos-pregel/executor/messagesProcessor"
-	"github.com/bcrusu/mesos-pregel/executor/store"
 	"github.com/bcrusu/mesos-pregel/protos"
+	"github.com/bcrusu/mesos-pregel/store"
 	"github.com/pkg/errors"
 )
 
 type PregelTask struct {
 	jobID     string
-	store     store.Store
+	store     store.GraphStore
 	algorithm algorithm.Algorithm
 	mutex     sync.Mutex
 
@@ -22,7 +22,7 @@ type PregelTask struct {
 }
 
 func NewPregelTask(params protos.PregelTaskParams) (*PregelTask, error) {
-	store, err := store.NewStore(params.Store, params.StoreParams, params.EntityRange)
+	store, err := store.New(params.Store, params.StoreParams, params.EntityRange)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to initialize store: %v", params.Store)
 	}

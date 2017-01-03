@@ -1,6 +1,9 @@
 package jobManager
 
-import "github.com/bcrusu/mesos-pregel/protos"
+import (
+	"github.com/bcrusu/mesos-pregel/protos"
+	"github.com/bcrusu/mesos-pregel/scheduler/store"
+)
 
 type JobManager struct {
 }
@@ -10,8 +13,8 @@ func New() *JobManager {
 }
 
 func (manager *JobManager) StartJob(request *protos.StartJobRequest) *protos.StartJobReply {
-	//TODO
-	return nil
+	store, err := store.NewJobStore()
+	request.Store
 }
 
 func (manager *JobManager) GetJobStatus(request *protos.GetJobStatusRequest) *protos.GetJobStatusReply {

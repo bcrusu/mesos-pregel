@@ -8,6 +8,8 @@ type Job struct {
 	StoreParams     []byte
 	Algorithm       string
 	AlgorithmParams []byte
+	VerticesPerTask int
+	//TODO: creation Date
 }
 
 type Vertex struct {

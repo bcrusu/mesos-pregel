@@ -21,7 +21,7 @@ type cassandraJobStore struct {
 	session  *gocql.Session
 }
 
-func NewCassandraJobStore(hosts []string, keyspace string) store.JobStore {
+func NewJobStore(hosts []string, keyspace string) store.JobStore {
 	return &cassandraJobStore{hosts: hosts, keyspace: keyspace}
 }
 
@@ -81,18 +81,28 @@ func (store *cassandraJobStore) LoadJobs() ([]*pregel.Job, error) {
 }
 
 func (store *cassandraJobStore) SaveJob(job *pregel.Job) error {
-	//TODO
-	return nil
+	cql := fmt.Sprintf(`INSERT INTO %s (id, status, superstep, store, store_params, algorithm, algorithm_params, vertices_per_task) VALUES(?, ?, ?, ?, ?, ?, ?, ?);`, store.fullTableName(jobsTableName))
+	args := []interface{}{job.ID, job.Status, job.Superstep, job.Store, job.StoreParams, job.Algorithm, job.AlgorithmParams, job.VerticesPerTask}
+	query := store.session.Query(cql, args...)
+
+	return query.Exec()
 }
 
 func (store *cassandraJobStore) LoadJobResult(jobID string) ([]byte, error) {
-	//TODO
-	return nil, nil
+	cql := fmt.Sprintf(`SELECT result FROM %s WHERE id = ?;`, store.fullTableName(jobsTableName))
+
+	var result []byte
+	err := ExecuteScalar(store.session, cql, &result, jobID)
+
+	return result, err
 }
 
 func (store *cassandraJobStore) SaveJobResult(jobID string, value []byte) error {
-	//TODO
-	return nil
+	cql := fmt.Sprintf(`UPDATE %s SET result = ? WHERE id = ?;`, store.fullTableName(jobsTableName))
+	args := []interface{}{value, jobID}
+	query := store.session.Query(cql, args...)
+
+	return query.Exec()
 }
 
 func (store *cassandraJobStore) fullTableName(table string) string {

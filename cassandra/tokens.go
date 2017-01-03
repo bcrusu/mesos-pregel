@@ -59,7 +59,7 @@ func NewPartitioner(name string) (Partitioner, error) {
 }
 
 func BuildTokenRanges(hosts []string, keyspace string) ([]*TokenRange, Partitioner, error) {
-	// use pinned session to query the system.local and system.peers tables
+	// use pinned session to query the system.local and system.peers tables on the same connection
 	session, err := openPinnedSession(hosts)
 	if err != nil {
 		return nil, nil, err
@@ -91,8 +91,6 @@ func BuildTokenRanges(hosts []string, keyspace string) ([]*TokenRange, Partition
 			tokenRanges = append(tokenRanges, tokenRange)
 		}
 	}
-
-	//TODO: split ranges
 
 	return tokenRanges, partitioner, nil
 }

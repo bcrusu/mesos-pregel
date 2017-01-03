@@ -2,29 +2,25 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/bcrusu/mesos-pregel/cassandra"
+	_ "github.com/bcrusu/mesos-pregel/scheduler/algorithmImpl" // register default algorithms
+	"github.com/bcrusu/mesos-pregel/store"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
 	mesos "github.com/mesos/mesos-go/mesosproto"
 	util "github.com/mesos/mesos-go/mesosutil"
 	sched "github.com/mesos/mesos-go/scheduler"
 	"github.com/pkg/errors"
-
-	_ "github.com/bcrusu/mesos-pregel/cassandra"               // register Cassandra store
-	_ "github.com/bcrusu/mesos-pregel/scheduler/algorithmImpl" // register default algorithms
-	"github.com/bcrusu/mesos-pregel/store"
 )
 
 const (
 	CPUS_PER_EXECUTOR = 1
 	MEM_PER_EXECUTOR  = 128
-)
-
-var (
-	mesosMaster  = flag.String("mesos.master", "127.0.100.1:5050", "Master address <ip:port>")
-	executorPath = flag.String("executorPath", "./executor", "Path to Pregel executor")
 )
 
 func main() {
@@ -47,6 +43,21 @@ func run() error {
 		return err
 	}
 
+	err = jobStore.Connect()
+	if err != nil {
+		return err
+	}
+	defer jobStore.Close()
+
+	err = jobStore.Init()
+	if err != nil {
+		return err
+	}
+
+	return runDriver(jobStore)
+}
+
+func runDriver(jobStore store.JobStore) error {
 	executorInfo := getExecutorInfo()
 	config := sched.DriverConfig{
 		Scheduler: NewPregelScheduler(executorInfo, jobStore),
@@ -54,7 +65,7 @@ func run() error {
 			User: proto.String(""),
 			Name: proto.String("Pregel"),
 		},
-		Master: *mesosMaster,
+		Master: *MesosMaster,
 	}
 
 	driver, err := sched.NewMesosSchedulerDriver(config)
@@ -88,8 +99,11 @@ func getExecutorInfo() *mesos.ExecutorInfo {
 }
 
 func getJobStore() (store.JobStore, error) {
-	//TODO
-	// hosts := strings.Split(*CassandraHosts, ",")
-	// params := &protos.CassandraStoreParams{Hosts: hosts, *CassandraKeyspace}
-	return nil, nil
+	switch *JobStore {
+	case "cassandra":
+		hosts := strings.Split(*CassandraHosts, ",")
+		return cassandra.NewJobStore(hosts, *CassandraKeyspace), nil
+	default:
+		return nil, fmt.Errorf("unknown job store '%s'", *JobStore)
+	}
 }

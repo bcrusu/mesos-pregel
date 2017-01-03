@@ -11,6 +11,10 @@ import (
 	util "github.com/mesos/mesos-go/mesosutil"
 	sched "github.com/mesos/mesos-go/scheduler"
 	"github.com/pkg/errors"
+
+	// register default store & algorithm implementations
+	_ "github.com/bcrusu/mesos-pregel/executor/algorithmImpl"
+	_ "github.com/bcrusu/mesos-pregel/executor/storeImpl"
 )
 
 const (

@@ -5,9 +5,12 @@ import (
 	"time"
 
 	"github.com/bcrusu/mesos-pregel"
+	"github.com/bcrusu/mesos-pregel/common/cassandra"
+	"github.com/bcrusu/mesos-pregel/encoding"
+	"github.com/bcrusu/mesos-pregel/executor/store"
 	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/gocql/gocql"
-	"github.com/pkg/errors"
+	"github.com/gogo/protobuf/proto"
 )
 
 const (
@@ -18,14 +21,15 @@ const (
 )
 
 type CassandraStore struct {
-	params      protos.CassandraStoreParams
-	entityRange protos.CassandraEntityRange
-	cluster     *gocql.ClusterConfig
-	session     *gocql.Session
+	params           protos.CassandraStoreParams
+	tokenRangeParams []interface{}
+	cluster          *gocql.ClusterConfig
+	session          *gocql.Session
+	batchExecutor    *cassandra.BatchExecutor
 }
 
-func NewCassandraStore(params protos.CassandraStoreParams, entityRange protos.CassandraEntityRange) Store {
-	return &CassandraStore{params: params, entityRange: entityRange}
+func NewCassandraStore(params protos.CassandraStoreParams, tokenRange protos.CassandraTokenRange) (Store, error) {
+
 }
 
 func (store *CassandraStore) Connect() error {
@@ -56,7 +60,7 @@ func (store *CassandraStore) LoadVertices() ([]*pregel.Vertex, error) {
 	}
 
 	cql := fmt.Sprintf(`SELECT id, value FROM %s WHERE token(id) >= ? AND token(id) <= ?;`, store.fullTableName(store.params.VerticesTable))
-	params := []interface{}{store.entityRange.StartToken, store.entityRange.EndToken}
+	params := store.tokenRangeParams
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new([]byte)}
@@ -66,7 +70,7 @@ func (store *CassandraStore) LoadVertices() ([]*pregel.Vertex, error) {
 		return &pregel.Vertex{ID: dest[0].(string), Value: dest[1].([]byte)}
 	}
 
-	entities, err := store.executeSelect(cql, params, createScanDest, createEntityFunc)
+	entities, err := cassandra.ExecuteSelect(store.session, cql, params, createScanDest, createEntityFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +89,7 @@ func (store *CassandraStore) LoadEdges() ([]*pregel.Edge, error) {
 	}
 
 	cql := fmt.Sprintf(`SELECT "from", "to", value FROM %s WHERE token("from") >= ? AND token("from") <= ?;`, store.fullTableName(store.params.EdgesTable))
-	params := []interface{}{store.entityRange.StartToken, store.entityRange.EndToken}
+	params := store.tokenRangeParams
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new(string), new([]byte)}
@@ -95,7 +99,7 @@ func (store *CassandraStore) LoadEdges() ([]*pregel.Edge, error) {
 		return &pregel.Edge{From: dest[0].(string), To: dest[1].(string), Value: dest[2].([]byte)}
 	}
 
-	entities, err := store.executeSelect(cql, params, createScanDest, createEntityFunc)
+	entities, err := cassandra.ExecuteSelect(store.session, cql, params, createScanDest, createEntityFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +115,7 @@ func (store *CassandraStore) LoadEdges() ([]*pregel.Edge, error) {
 func (store *CassandraStore) LoadVertexMessages(jobID string, superstep int) ([]*pregel.VertexMessage, error) {
 	cql := fmt.Sprintf(`SELECT "to", value FROM %s WHERE token(id) >= ? AND token(id) <= ? AND job_id=? AND superstep=?;`,
 		store.fullTableName(vertexMessagesTableName))
-	params := []interface{}{store.entityRange.StartToken, store.entityRange.EndToken, jobID, superstep}
+	params := append(store.tokenRangeParams, jobID, superstep)
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new([]byte)}
@@ -121,7 +125,7 @@ func (store *CassandraStore) LoadVertexMessages(jobID string, superstep int) ([]
 		return &pregel.VertexMessage{To: dest[0].(string), Value: dest[1].([]byte), JobID: jobID, Superstep: superstep}
 	}
 
-	entities, err := store.executeSelect(cql, params, createScanDest, createEntityFunc)
+	entities, err := cassandra.ExecuteSelect(store.session, cql, params, createScanDest, createEntityFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -156,14 +160,13 @@ func (store *CassandraStore) SaveVertexMessages(messages []*pregel.VertexMessage
 		return []interface{}{msg.To, msg.JobID, msg.Superstep, gocql.TimeUUID(), msg.Value}
 	}
 
-	batches := store.createBatches(cql, items, getItemSize, getItemArgs)
-	return store.executeBatches(batches)
+	return store.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
 }
 
 func (store *CassandraStore) LoadVertexOperations(jobID string, superstep int) ([]*pregel.VertexOperation, error) {
 	cql := fmt.Sprintf(`SELECT id, type, value FROM %s WHERE token(id) >= ? AND token(id) <= ? AND job_id=? AND superstep=?;`,
 		store.fullTableName(vertexOperationsTableName))
-	params := []interface{}{store.entityRange.StartToken, store.entityRange.EndToken, jobID, superstep}
+	params := append(store.tokenRangeParams, jobID, superstep)
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new(string), new(pregel.VertexOperationType), new([]byte)}
@@ -174,7 +177,7 @@ func (store *CassandraStore) LoadVertexOperations(jobID string, superstep int) (
 			Type: dest[1].(pregel.VertexOperationType), Value: dest[2].([]byte)}
 	}
 
-	entities, err := store.executeSelect(cql, params, createScanDest, createEntityFunc)
+	entities, err := cassandra.ExecuteSelect(store.session, cql, params, createScanDest, createEntityFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -209,14 +212,13 @@ func (store *CassandraStore) SaveVertexOperations(operations []*pregel.VertexOpe
 		return []interface{}{op.ID, op.JobID, op.Superstep, gocql.TimeUUID(), op.Type, op.Value}
 	}
 
-	batches := store.createBatches(cql, items, getItemSize, getItemArgs)
-	return store.executeBatches(batches)
+	return store.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
 }
 
 func (store *CassandraStore) LoadHaltedVertices(jobID string, superstep int) ([]string, error) {
 	cql := fmt.Sprintf(`SELECT id FROM %s WHERE token(id) >= ? AND token(id) <= ? AND job_id=? AND superstep=?;`,
 		store.fullTableName(haltedVerticesTableName))
-	params := []interface{}{store.entityRange.StartToken, store.entityRange.EndToken, jobID, superstep}
+	params := append(store.tokenRangeParams, jobID, superstep)
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string)}
@@ -226,7 +228,7 @@ func (store *CassandraStore) LoadHaltedVertices(jobID string, superstep int) ([]
 		return dest[0].(string)
 	}
 
-	entities, err := store.executeSelect(cql, params, createScanDest, createEntityFunc)
+	entities, err := cassandra.ExecuteSelect(store.session, cql, params, createScanDest, createEntityFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -260,14 +262,13 @@ func (store *CassandraStore) SaveHaltedVertices(halted []*pregel.VertexHalted) e
 		return []interface{}{h.ID, h.JobID, h.Superstep}
 	}
 
-	batches := store.createBatches(cql, items, getItemSize, getItemArgs)
-	return store.executeBatches(batches)
+	return store.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
 }
 
 func (store *CassandraStore) LoadEdgeOperations(jobID string, superstep int) ([]*pregel.EdgeOperation, error) {
 	cql := fmt.Sprintf(`SELECT "from", "to", type, value FROM %s WHERE token("from") >= ? AND token("from") <= ? AND job_id=? AND superstep=?;`,
 		store.fullTableName(edgeOperationsTableName))
-	params := []interface{}{store.entityRange.StartToken, store.entityRange.EndToken, jobID, superstep}
+	params := append(store.tokenRangeParams, jobID, superstep)
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new(string), new(pregel.EdgeOperationType), new([]byte)}
@@ -278,7 +279,7 @@ func (store *CassandraStore) LoadEdgeOperations(jobID string, superstep int) ([]
 			Type: dest[2].(pregel.EdgeOperationType), Value: dest[3].([]byte)}
 	}
 
-	entities, err := store.executeSelect(cql, params, createScanDest, createEntityFunc)
+	entities, err := cassandra.ExecuteSelect(store.session, cql, params, createScanDest, createEntityFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -315,77 +316,41 @@ func (store *CassandraStore) SaveEdgeOperations(operations []*pregel.EdgeOperati
 		return []interface{}{op.From, op.To, op.JobID, op.Superstep, gocql.TimeUUID(), op.Type, op.Value}
 	}
 
-	batches := store.createBatches(cql, items, getItemSize, getItemArgs)
-	return store.executeBatches(batches)
+	return store.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
 }
 
 func (store *CassandraStore) fullTableName(table string) string {
-	return fullTableName(store.params.Keyspace, table)
+	return cassandra.GetFullTableName(store.params.Keyspace, table)
 }
 
-func fullTableName(keyspace string, table string) string {
-	return fmt.Sprintf(`"%s"."%s"`, keyspace, table)
+func getTokenRangeParams(tokenRange protos.CassandraTokenRange) ([]interface{}, error) {
+	partitioner, err := cassandra.NewPartitioner(tokenRange.Partitioner)
+	if err != nil {
+		return nil, err
+	}
+
+	startToken := partitioner.ParseString(tokenRange.StartToken)
+	endToken := partitioner.ParseString(tokenRange.EndToken)
+
+	return []interface{}{startToken, endToken}, nil
 }
 
-type createScanDestFunc func() []interface{}
-type createEntityFunc func(dest []interface{}) interface{}
+type cassandraStoreFactory struct{}
 
-func (store *CassandraStore) executeSelect(cql string, params interface{}, createScanDest createScanDestFunc, createEntity createEntityFunc) ([]interface{}, error) {
-	iter := store.session.Query(cql, params).Iter()
-
-	result := make([]interface{}, 0, 1000)
-
-	dest := createScanDest()
-	for iter.Scan(dest) {
-		entity := createEntity(dest)
-		result = append(result, entity)
+func (store *cassandraStoreFactory) CreateStore(params interface{}, vertexRange interface{}) (store.Store, error) {
+	tokenRange := vertexRange.(*protos.CassandraTokenRange)
+	tokenRangeParams, err := getTokenRangeParams(tokenRange)
+	if err != nil {
+		return nil, err
 	}
 
-	if err := iter.Close(); err != nil {
-		return nil, errors.Wrap(err, "failed to execute select query")
-	}
-
-	return result, nil
+	return &CassandraStore{params: params.(*protos.CassandraStoreParams), tokenRangeParams: tokenRangeParams}, nil
 }
 
-type itemSizeFunc func(interface{}) int
-type itemArgsFunc func(interface{}) []interface{}
-
-func (store *CassandraStore) createBatches(cql string, items []interface{}, getItemSize itemSizeFunc, getItemArgs itemArgsFunc) []*gocql.Batch {
-	batchMaxSize := int(store.params.BatchOptions.MaxSize)
-	batchMaxBytes := int(store.params.BatchOptions.MaxBytes)
-
-	result := make([]*gocql.Batch, 0, 100)
-
-	currentBatch := store.session.NewBatch(gocql.LoggedBatch)
-	var currentBatchBytes int
-	for _, item := range items {
-		itemBytes := getItemSize(item)
-		if currentBatch.Size() == batchMaxSize || currentBatchBytes+itemBytes >= batchMaxBytes {
-			result = append(result, currentBatch)
-			currentBatch = store.session.NewBatch(gocql.LoggedBatch)
-			currentBatchBytes = 0
-		}
-
-		var entry gocql.BatchEntry
-		entry.Stmt = cql
-		entry.Args = getItemArgs(item)
-		currentBatch.Entries = append(currentBatch.Entries, entry)
-	}
-
-	if currentBatch.Size() > 0 {
-		result = append(result, currentBatch)
-	}
-
-	return result
+func (store *cassandraStoreFactory) ParamsEncoder() encoding.Encoder {
+	return encoding.NewProtobufEncoder(func() proto.Message { return new(protos.CassandraStoreParams) })
 }
 
-func (store *CassandraStore) executeBatches(batches []*gocql.Batch) error {
-	for i, batch := range batches {
-		if err := store.session.ExecuteBatch(batch); err != nil {
-			return errors.Wrapf(err, "failed to execute batch no. %d of %d", i+1, len(batches))
-		}
-	}
-
-	return nil
+func (store *cassandraStoreFactory) VertexRangeEncoder() encoding.Encoder {
+	return encoding.NewProtobufEncoder(func() proto.Message { return new(protos.CassandraTokenRange) })
 }

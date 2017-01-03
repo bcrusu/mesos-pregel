@@ -1,12 +1,6 @@
 package store
 
-import (
-	"fmt"
-
-	"github.com/bcrusu/mesos-pregel"
-	"github.com/bcrusu/mesos-pregel/protos"
-	"github.com/gogo/protobuf/proto"
-)
+import "github.com/bcrusu/mesos-pregel"
 
 type Store interface {
 	LoadVertices() ([]*pregel.Vertex, error)
@@ -26,23 +20,4 @@ type Store interface {
 
 	Connect() error
 	Close()
-}
-
-func NewStore(store string, params []byte, entityRange []byte) (Store, error) {
-	switch store {
-	case "cassandra":
-		paramsMsg := new(protos.CassandraStoreParams)
-		if err := proto.Unmarshal(params, paramsMsg); err != nil {
-			return nil, err
-		}
-
-		entityRangeMsg := new(protos.CassandraEntityRange)
-		if err := proto.Unmarshal(entityRange, entityRangeMsg); err != nil {
-			return nil, err
-		}
-
-		return NewCassandraStore(*paramsMsg, *entityRangeMsg), nil
-	default:
-		return nil, fmt.Errorf("Invalid store type '%s'", store)
-	}
 }

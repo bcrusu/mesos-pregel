@@ -63,10 +63,17 @@ func (store *cassandraStore) Init() error {
 }
 
 func (store *cassandraStore) GetVertexRanges(verticesPerRange int) ([]*store.VertexRange, error) {
-	_, _, err := cassandra.BuildTokenRanges(store.params.Hosts, store.params.Keyspace)
+	partitioner, tokenRanges, err := cassandra.BuildTokenRanges(store.params.Hosts, store.params.Keyspace)
 	if err != nil {
 		return nil, err
 	}
+
+	splitter, err := cassandra.NewTokenRangeSplitter(partitioner)
+	if err != nil {
+		return nil, err
+	}
+
+	tokenRanges = splitter.SplitTokenRanges(tokenRanges, verticesPerRange)
 
 	//TODO:
 	return nil, nil

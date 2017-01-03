@@ -1,33 +1,28 @@
 package store
 
-import (
-	"fmt"
+import "github.com/bcrusu/mesos-pregel"
 
-	"github.com/bcrusu/mesos-pregel"
-	"github.com/bcrusu/mesos-pregel/protos"
-	"github.com/gogo/protobuf/proto"
-)
-
-type Store interface {
+type JobStore interface {
 	LoadJobs() ([]*pregel.Job, error)
 	SaveJob(*pregel.Job) error
+
+	LoadJobResult(jobID string) ([]byte, error)
+	SaveJobResult(jobID string, value []byte) error
 
 	Connect() error
 	Init() error
 	Close()
 }
 
-func NewStore(store string, params []byte) (Store, error) {
-	switch store {
-	case "cassandra":
-		paramsMsg := new(protos.CassandraStoreParams)
-		if err := proto.Unmarshal(params, paramsMsg); err != nil {
-			return nil, err
-		}
+type EntityStore interface {
+	GetVertexRanges(verticesPerRange int) ([]*VertexRange, error)
 
-		//return NewCassandraStore(*paramsMsg, *entityRangeMsg), nil
-		return nil, nil
-	default:
-		return nil, fmt.Errorf("Invalid store type '%s'", store)
-	}
+	Connect() error
+	Init() error
+	Close()
+}
+
+type VertexRange struct {
+	PreferredHosts []string
+	Range          []interface{}
 }

@@ -39,8 +39,8 @@ func run() error {
 	}
 	defer inputFile.Close()
 
-	var store store.Store
-	if store, err = store.NewStore(); err != nil {
+	store, err := store.NewStore()
+	if err != nil {
 		return err
 	}
 
@@ -49,8 +49,8 @@ func run() error {
 	}
 	defer store.Close()
 
-	var parser parser.Parser
-	if parser, err = parser.NewParser(inputFile); err != nil {
+	parser, err := parser.NewParser(inputFile)
+	if err != nil {
 		return err
 	}
 

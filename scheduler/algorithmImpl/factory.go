@@ -1,17 +1,23 @@
 package algorithmImpl
 
-import "fmt"
+import (
+	"fmt"
 
-func NewAlgorithm(name string, initState []byte) (Algorithm, error) {
-	var algorithm Algorithm
-	var err error
+	"github.com/bcrusu/mesos-pregel/protos"
+	"github.com/bcrusu/mesos-pregel/scheduler/algorithm"
+	"github.com/gogo/protobuf/proto"
+)
 
-	switch name {
+func New(algorithm string, params []byte) (algorithm.Algorithm, error) {
+	switch algorithm {
 	case "ShortestPath":
-		algorithm = nil
-	default:
-		err = fmt.Errorf("Invalid algorithm name '%s'", name)
-	}
+		paramsMsg := new(protos.ShortestPathAlgorithmParams)
+		if err := proto.Unmarshal(params, paramsMsg); err != nil {
+			return nil, err
+		}
 
-	return algorithm, err
+		return NewShortestPathAlgorithm(*paramsMsg), nil
+	default:
+		return nil, fmt.Errorf("Invalid algorithm name '%s'", algorithm)
+	}
 }

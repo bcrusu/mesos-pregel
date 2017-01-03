@@ -21,7 +21,8 @@ message ShortestPathMessage {
     int32 pathLength = 1;
 }
 
-message CassandraEntityRange {
-    int64 startToken = 1;
-    int64 endToken = 2;
+message CassandraTokenRange {
+    string partitioner = 1;
+    string startToken = 2;
+    string endToken = 3;
 }

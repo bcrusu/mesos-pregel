@@ -1,14 +1,23 @@
-package store
+package storeImpl
 
 import (
 	"fmt"
 	"time"
 
 	"github.com/bcrusu/mesos-pregel"
+	"github.com/bcrusu/mesos-pregel/common/cassandra"
+	"github.com/bcrusu/mesos-pregel/encoding"
 	"github.com/bcrusu/mesos-pregel/protos"
+	"github.com/bcrusu/mesos-pregel/scheduler/store"
 	"github.com/gocql/gocql"
+	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 )
+
+func init() {
+	store.RegisterJobStore("Cassandra", &jobStoreFactory{})
+	store.RegisterEntityStore("Cassandra", &entityStoreFactory{})
+}
 
 const (
 	vertexMessagesTableName   = "vertexMessages"
@@ -17,19 +26,15 @@ const (
 	edgeOperationsTableName   = "edgeOperations"
 )
 
-type CassandraStore struct {
+type cassandraStore struct {
 	params  protos.CassandraStoreParams
 	cluster *gocql.ClusterConfig
 	session *gocql.Session
 }
 
-func NewCassandraStore(params protos.CassandraStoreParams) Store {
-	return &CassandraStore{params: params}
-}
-
-func (store *CassandraStore) Connect() error {
+func (store *cassandraStore) Connect() error {
 	cluster := gocql.NewCluster(store.params.Hosts...)
-	cluster.Timeout = 3 * time.Second
+	cluster.Timeout = time.Duration(store.params.Timeout)
 
 	session, err := cluster.CreateSession()
 	if err != nil {
@@ -41,7 +46,7 @@ func (store *CassandraStore) Connect() error {
 	return nil
 }
 
-func (store *CassandraStore) Close() {
+func (store *cassandraStore) Close() {
 	if store.session != nil {
 		store.session.Close()
 		store.cluster = nil
@@ -49,7 +54,7 @@ func (store *CassandraStore) Close() {
 	}
 }
 
-func (store *CassandraStore) Init() error {
+func (store *cassandraStore) Init() error {
 	if err := ensureTables(store.session, store.params.Keyspace); err != nil {
 		return err
 	}
@@ -57,17 +62,37 @@ func (store *CassandraStore) Init() error {
 	return nil
 }
 
-func (store *CassandraStore) LoadJobs() ([]*pregel.Job, error) {
+func (store *cassandraStore) GetVertexRanges(verticesPerRange int) ([]*store.VertexRange, error) {
+	_, _, err := cassandra.BuildTokenRanges(store.params.Hosts, store.params.Keyspace)
+	if err != nil {
+		return nil, err
+	}
+
+	//TODO:
+	return nil, nil
+}
+
+func (store *cassandraStore) LoadJobs() ([]*pregel.Job, error) {
 	//TODO
 	return nil, nil
 }
 
-func (store *CassandraStore) SaveJob(*pregel.Job) error {
+func (store *cassandraStore) SaveJob(job *pregel.Job) error {
 	//TODO
 	return nil
 }
 
-func (store *CassandraStore) fullTableName(table string) string {
+func (store *cassandraStore) LoadJobResult(jobID string) ([]byte, error) {
+	//TODO
+	return nil, nil
+}
+
+func (store *cassandraStore) SaveJobResult(jobID string, value []byte) error {
+	//TODO
+	return nil
+}
+
+func (store *cassandraStore) fullTableName(table string) string {
 	return fullTableName(store.params.Keyspace, table)
 }
 
@@ -88,4 +113,26 @@ CREATE TABLE IF NOT EXISTS %s("from" text, "to" text, job_id text, superstep int
 	}
 
 	return nil
+}
+
+// factories
+
+type jobStoreFactory struct{}
+
+func (store *jobStoreFactory) CreateStore(params interface{}) store.JobStore {
+	return &cassandraStore{params: params.(protos.CassandraStoreParams)}
+}
+
+func (store *jobStoreFactory) ParamsEncoder() encoding.Encoder {
+	return encoding.NewProtobufEncoder(func() proto.Message { return new(protos.CassandraStoreParams) })
+}
+
+type entityStoreFactory struct{}
+
+func (store *entityStoreFactory) CreateStore(params interface{}) store.EntityStore {
+	return &cassandraStore{params: params.(protos.CassandraStoreParams)}
+}
+
+func (store *entityStoreFactory) ParamsEncoder() encoding.Encoder {
+	return encoding.NewProtobufEncoder(func() proto.Message { return new(protos.CassandraStoreParams) })
 }

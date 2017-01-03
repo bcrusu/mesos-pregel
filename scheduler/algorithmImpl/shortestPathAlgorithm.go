@@ -11,10 +11,6 @@ type shortestPathAlgorithm struct {
 	params protos.ShortestPathAlgorithmParams
 }
 
-func NewShortestPathAlgorithm(params protos.ShortestPathAlgorithmParams) algorithm.Algorithm {
-	return &shortestPathAlgorithm{params}
-}
-
 func (algo *shortestPathAlgorithm) Init() {
 	//TODO
 }
@@ -26,4 +22,15 @@ func (algo *shortestPathAlgorithm) GetResult() interface{} {
 
 func (algo *shortestPathAlgorithm) ResultEncoder() encoding.Encoder {
 	return encoding.NewProtobufEncoder(func() proto.Message { return new(protos.ShortestPathAlgorithmResult) })
+}
+
+type shortestPathAlgorithmFactory struct {
+}
+
+func (f *shortestPathAlgorithmFactory) Create(params interface{}) (algorithm.Algorithm, error) {
+	return &shortestPathAlgorithm{*params.(*protos.ShortestPathAlgorithmParams)}, nil
+}
+
+func (f *shortestPathAlgorithmFactory) ParamsEncoder() encoding.Encoder {
+	return encoding.NewProtobufEncoder(func() proto.Message { return new(protos.ShortestPathAlgorithmParams) })
 }

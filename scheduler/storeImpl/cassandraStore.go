@@ -14,11 +14,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-func init() {
-	store.RegisterJobStore("Cassandra", &jobStoreFactory{})
-	store.RegisterEntityStore("Cassandra", &entityStoreFactory{})
-}
-
 const (
 	vertexMessagesTableName   = "vertexMessages"
 	vertexOperationsTableName = "vertexOperations"
@@ -63,7 +58,7 @@ func (store *cassandraStore) Init() error {
 }
 
 func (store *cassandraStore) GetVertexRanges(verticesPerRange int) ([]*store.VertexRange, error) {
-	partitioner, tokenRanges, err := cassandra.BuildTokenRanges(store.params.Hosts, store.params.Keyspace)
+	tokenRanges, partitioner, err := cassandra.BuildTokenRanges(store.params.Hosts, store.params.Keyspace)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +68,7 @@ func (store *cassandraStore) GetVertexRanges(verticesPerRange int) ([]*store.Ver
 		return nil, err
 	}
 
-	tokenRanges = splitter.SplitTokenRanges(tokenRanges, verticesPerRange)
+	//tokenRanges = splitter.SplitTokenRanges(tokenRanges, verticesPerRange)
 
 	//TODO:
 	return nil, nil
@@ -124,22 +119,22 @@ CREATE TABLE IF NOT EXISTS %s("from" text, "to" text, job_id text, superstep int
 
 // factories
 
-type jobStoreFactory struct{}
+type cassandraJobStoreFactory struct{}
 
-func (store *jobStoreFactory) CreateStore(params interface{}) store.JobStore {
+func (store *cassandraJobStoreFactory) CreateStore(params interface{}) store.JobStore {
 	return &cassandraStore{params: params.(protos.CassandraStoreParams)}
 }
 
-func (store *jobStoreFactory) ParamsEncoder() encoding.Encoder {
+func (store *cassandraJobStoreFactory) ParamsEncoder() encoding.Encoder {
 	return encoding.NewProtobufEncoder(func() proto.Message { return new(protos.CassandraStoreParams) })
 }
 
-type entityStoreFactory struct{}
+type cassandraEntityStoreFactory struct{}
 
-func (store *entityStoreFactory) CreateStore(params interface{}) store.EntityStore {
+func (store *cassandraEntityStoreFactory) CreateStore(params interface{}) store.EntityStore {
 	return &cassandraStore{params: params.(protos.CassandraStoreParams)}
 }
 
-func (store *entityStoreFactory) ParamsEncoder() encoding.Encoder {
+func (store *cassandraEntityStoreFactory) ParamsEncoder() encoding.Encoder {
 	return encoding.NewProtobufEncoder(func() proto.Message { return new(protos.CassandraStoreParams) })
 }

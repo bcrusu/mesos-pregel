@@ -6,6 +6,10 @@ import (
 	"github.com/golang/glog"
 	exec "github.com/mesos/mesos-go/executor"
 	"github.com/pkg/errors"
+
+	// register default store & algorithm implementations
+	_ "github.com/bcrusu/mesos-pregel/executor/algorithmImpl"
+	_ "github.com/bcrusu/mesos-pregel/executor/storeImpl"
 )
 
 func main() {

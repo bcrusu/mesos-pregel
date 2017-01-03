@@ -1,4 +1,4 @@
-package store
+package storeImpl
 
 import (
 	"fmt"
@@ -26,10 +26,6 @@ type CassandraStore struct {
 	cluster          *gocql.ClusterConfig
 	session          *gocql.Session
 	batchExecutor    *cassandra.BatchExecutor
-}
-
-func NewCassandraStore(params protos.CassandraStoreParams, tokenRange protos.CassandraTokenRange) (Store, error) {
-
 }
 
 func (store *CassandraStore) Connect() error {
@@ -323,7 +319,7 @@ func (store *CassandraStore) fullTableName(table string) string {
 	return cassandra.GetFullTableName(store.params.Keyspace, table)
 }
 
-func getTokenRangeParams(tokenRange protos.CassandraTokenRange) ([]interface{}, error) {
+func getTokenRangeParams(tokenRange *protos.CassandraTokenRange) ([]interface{}, error) {
 	partitioner, err := cassandra.NewPartitioner(tokenRange.Partitioner)
 	if err != nil {
 		return nil, err
@@ -344,7 +340,7 @@ func (store *cassandraStoreFactory) CreateStore(params interface{}, vertexRange 
 		return nil, err
 	}
 
-	return &CassandraStore{params: params.(*protos.CassandraStoreParams), tokenRangeParams: tokenRangeParams}, nil
+	return &CassandraStore{params: *params.(*protos.CassandraStoreParams), tokenRangeParams: tokenRangeParams}, nil
 }
 
 func (store *cassandraStoreFactory) ParamsEncoder() encoding.Encoder {

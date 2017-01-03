@@ -2,11 +2,11 @@
 
 CASSANDRA_VERSION="3.9"
 CASSANDRA_CLUSTER_NAME="pregel"
-CASSANDRA_NODE_COUNT=2
+CASSANDRA_NODE_COUNT=3
 
 create_cluster() {
 	ccm create $CASSANDRA_CLUSTER_NAME -v $CASSANDRA_VERSION
-	ccm populate -I 127.0.100.%d -n $CASSANDRA_NODE_COUNT
+	ccm populate -I 127.0.100.%d --vnodes -n $CASSANDRA_NODE_COUNT
 }
 
 start_cluster() {

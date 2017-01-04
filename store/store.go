@@ -3,11 +3,14 @@ package store
 import "github.com/bcrusu/mesos-pregel"
 
 type JobStore interface {
-	LoadJobs() ([]*pregel.Job, error)
-	SaveJob(*pregel.Job) error
+	LoadAll() ([]*pregel.Job, error)
+	Save(*pregel.Job) error
 
-	LoadJobResult(jobID string) ([]byte, error)
-	SaveJobResult(jobID string, value []byte) error
+	LoadResult(jobID string) ([]byte, error)
+	SaveResult(jobID string, value []byte) error
+
+	LoadCheckpoint(jobID string) ([]byte, error)
+	SaveCheckpoint(jobID string, value []byte) error
 
 	Connect() error
 	Init() error
@@ -39,5 +42,5 @@ type GraphStore interface {
 
 type VertexRange struct {
 	PreferredHosts []string
-	Range          []interface{}
+	Range          []byte
 }

@@ -106,6 +106,7 @@ func (proc *MessagesProcessor) getComputeRequestChan(messages map[string]interfa
 	ch := make(chan *computeRequest)
 
 	go func() {
+	loop:
 		for id := range getUniqueVertices(proc.graph, messages) {
 			message := messages[id]
 			halted := haltedVertices[id]
@@ -125,7 +126,7 @@ func (proc *MessagesProcessor) getComputeRequestChan(messages map[string]interfa
 
 			select {
 			case <-stopChan:
-				break
+				break loop
 			case ch <- &computeRequest{context, message}:
 				//noop
 			}

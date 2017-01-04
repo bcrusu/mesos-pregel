@@ -9,6 +9,7 @@ import (
 
 	"github.com/bcrusu/mesos-pregel/cassandra"
 	_ "github.com/bcrusu/mesos-pregel/scheduler/algorithmImpl" // register default algorithms
+	"github.com/bcrusu/mesos-pregel/scheduler/jobManager"
 	"github.com/bcrusu/mesos-pregel/store"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
@@ -20,7 +21,7 @@ import (
 
 const (
 	CPUS_PER_EXECUTOR = 1
-	MEM_PER_EXECUTOR  = 128
+	MEM_PER_EXECUTOR  = 256
 )
 
 func main() {
@@ -54,13 +55,18 @@ func run() error {
 		return err
 	}
 
-	return runDriver(jobStore)
+	jobManager, err := jobManager.New(jobStore)
+	if err != nil {
+		return err
+	}
+
+	return runDriver(jobManager)
 }
 
-func runDriver(jobStore store.JobStore) error {
+func runDriver(jobManager *jobManager.JobManager) error {
 	executorInfo := getExecutorInfo()
 	config := sched.DriverConfig{
-		Scheduler: NewPregelScheduler(executorInfo, jobStore),
+		Scheduler: NewPregelScheduler(executorInfo, jobManager),
 		Framework: &mesos.FrameworkInfo{
 			User: proto.String(""),
 			Name: proto.String("Pregel"),

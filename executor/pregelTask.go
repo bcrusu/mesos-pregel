@@ -22,7 +22,7 @@ type PregelTask struct {
 }
 
 func NewPregelTask(params protos.PregelTaskParams) (*PregelTask, error) {
-	store, err := store.New(params.Store, params.StoreParams, params.EntityRange)
+	store, err := store.New(params.Store, params.StoreParams, params.VertexRange)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to initialize store: %v", params.Store)
 	}

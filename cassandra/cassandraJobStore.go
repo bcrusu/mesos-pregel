@@ -55,7 +55,7 @@ func (store *cassandraJobStore) Init() error {
 	return nil
 }
 
-func (store *cassandraJobStore) LoadJobs() ([]*pregel.Job, error) {
+func (store *cassandraJobStore) LoadAll() ([]*pregel.Job, error) {
 	cql := fmt.Sprintf(`SELECT id, status, superstep, store, store_params, algorithm, algorithm_params, vertices_per_task FROM %s;`, store.fullTableName(jobsTableName))
 
 	createScanDest := func() []interface{} {
@@ -80,7 +80,7 @@ func (store *cassandraJobStore) LoadJobs() ([]*pregel.Job, error) {
 	return result, nil
 }
 
-func (store *cassandraJobStore) SaveJob(job *pregel.Job) error {
+func (store *cassandraJobStore) Save(job *pregel.Job) error {
 	cql := fmt.Sprintf(`INSERT INTO %s (id, status, superstep, store, store_params, algorithm, algorithm_params, vertices_per_task) VALUES(?, ?, ?, ?, ?, ?, ?, ?);`, store.fullTableName(jobsTableName))
 	args := []interface{}{job.ID, job.Status, job.Superstep, job.Store, job.StoreParams, job.Algorithm, job.AlgorithmParams, job.VerticesPerTask}
 	query := store.session.Query(cql, args...)
@@ -88,7 +88,7 @@ func (store *cassandraJobStore) SaveJob(job *pregel.Job) error {
 	return query.Exec()
 }
 
-func (store *cassandraJobStore) LoadJobResult(jobID string) ([]byte, error) {
+func (store *cassandraJobStore) LoadResult(jobID string) ([]byte, error) {
 	cql := fmt.Sprintf(`SELECT result FROM %s WHERE id = ?;`, store.fullTableName(jobsTableName))
 
 	var result []byte
@@ -97,7 +97,7 @@ func (store *cassandraJobStore) LoadJobResult(jobID string) ([]byte, error) {
 	return result, err
 }
 
-func (store *cassandraJobStore) SaveJobResult(jobID string, value []byte) error {
+func (store *cassandraJobStore) SaveResult(jobID string, value []byte) error {
 	cql := fmt.Sprintf(`UPDATE %s SET result = ? WHERE id = ?;`, store.fullTableName(jobsTableName))
 	args := []interface{}{value, jobID}
 	query := store.session.Query(cql, args...)
@@ -105,12 +105,22 @@ func (store *cassandraJobStore) SaveJobResult(jobID string, value []byte) error 
 	return query.Exec()
 }
 
+func (store *cassandraJobStore) LoadCheckpoint(jobID string) ([]byte, error) {
+	//TODO
+	return nil, nil
+}
+
+func (store *cassandraJobStore) SaveCheckpoint(jobID string, value []byte) error {
+	//TODO
+	return nil
+}
+
 func (store *cassandraJobStore) fullTableName(table string) string {
 	return GetFullTableName(store.keyspace, table)
 }
 
 func (store *cassandraJobStore) ensureTables() error {
-	cql := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, status int, superstep int, store text, store_params blob, algorithm text, algorithm_params blob, vertices_per_task int, result blob, PRIMARY KEY(id));`,
+	cql := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, status int, superstep int, store text, store_params blob, algorithm text, algorithm_params blob, vertices_per_task int, result blob, checkpoint blob, PRIMARY KEY(id));`,
 		store.fullTableName(jobsTableName))
 
 	if err := store.session.Query(cql).Exec(); err != nil {

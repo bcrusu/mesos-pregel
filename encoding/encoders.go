@@ -30,6 +30,7 @@ func NewNullEncoder() Encoder {
 	return Encoder{Marshaler(marshaler), Unmarshaler(unmarshaler)}
 }
 
+//TODO: make private
 func ProtobufMarshaler(message interface{}) ([]byte, error) {
 	if message == nil {
 		return nil, nil

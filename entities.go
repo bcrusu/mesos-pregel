@@ -1,7 +1,11 @@
 package pregel
 
+import "time"
+
 type Job struct {
 	ID              string
+	Label           string    //TODO: persist
+	CreationTime    time.Time //TODO: persist
 	Status          JobStatus
 	Superstep       int
 	Store           string
@@ -9,7 +13,6 @@ type Job struct {
 	Algorithm       string
 	AlgorithmParams []byte
 	VerticesPerTask int
-	//TODO: creation Date
 }
 
 type Vertex struct {
@@ -29,8 +32,10 @@ type EdgeOperationType int
 
 const (
 	_ JobStatus = iota
+	JobCreated
 	JobRunning
 	JobCompleted
+	JobCancelled
 	JobFailed
 )
 

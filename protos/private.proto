@@ -5,16 +5,23 @@ package protos;
 // Implementation details:
 
 message PregelTaskParams {
-    string jobId = 1;
-    int32 superstep = 2;
+    int32 taskId = 1;
+    string jobId = 2;
+    int32 superstep = 3;
 
-    string store = 3;
-    bytes storeParams = 4;
+    string store = 4;
+    bytes storeParams = 5;
 
-    string algorithm = 5;
-    bytes algorithmParams = 6;
+    string algorithm = 6;
+    bytes algorithmParams = 7;
 
-    bytes entityRange = 7;
+    bytes vertexRange = 8;
+}
+
+message PregelTaskStatus {
+    int32 taskId = 1;
+    string jobId = 2;
+    int32 superstep = 3;    
 }
 
 message ShortestPathMessage {
@@ -25,4 +32,15 @@ message CassandraTokenRange {
     string partitioner = 1;
     string startToken = 2;
     string endToken = 3;
+}
+
+message JobCheckpoint {
+    int32 superstep = 1;
+    repeated Task tasks = 2;
+
+    message Task {
+        int32 taskId = 1;
+	    bytes vertexRange = 2;
+        repeated string preferredHosts = 3;
+    }
 }

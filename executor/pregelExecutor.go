@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"sync"
 	"time"
 
@@ -100,7 +101,7 @@ func (executor *PregelExecutor) getPregelTask(params protos.PregelTaskParams) (*
 	executor.mutex.Lock()
 	defer executor.mutex.Unlock()
 
-	cacheKey := "" //TODO
+	cacheKey := params.JobId + ":" + strconv.Itoa(int(params.TaskId))
 
 	if task, found := executor.taskCache.Get(cacheKey); found {
 		return task.(*PregelTask), nil

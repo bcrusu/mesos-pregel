@@ -9,6 +9,7 @@ import (
 
 	"github.com/bcrusu/mesos-pregel/cassandra"
 	_ "github.com/bcrusu/mesos-pregel/scheduler/algorithmImpl" // register default algorithms
+	"github.com/bcrusu/mesos-pregel/scheduler/api"
 	"github.com/bcrusu/mesos-pregel/scheduler/jobManager"
 	"github.com/bcrusu/mesos-pregel/store"
 	"github.com/gogo/protobuf/proto"
@@ -20,8 +21,8 @@ import (
 )
 
 const (
-	CPUS_PER_EXECUTOR = 1
-	MEM_PER_EXECUTOR  = 256
+	defaultExecutorCPU = 1
+	defaultExecutorMEM = 256
 )
 
 func main() {
@@ -56,6 +57,11 @@ func run() error {
 	}
 
 	jobManager, err := jobManager.New(jobStore)
+	if err != nil {
+		return err
+	}
+
+	err = startAPIServer(jobManager)
 	if err != nil {
 		return err
 	}
@@ -98,8 +104,8 @@ func getExecutorInfo() *mesos.ExecutorInfo {
 			Uris:  nil,
 		},
 		Resources: []*mesos.Resource{
-			util.NewScalarResource("cpus", CPUS_PER_EXECUTOR),
-			util.NewScalarResource("mem", MEM_PER_EXECUTOR),
+			util.NewScalarResource("cpus", defaultExecutorCPU),
+			util.NewScalarResource("mem", defaultExecutorMEM),
 		},
 	}
 }
@@ -112,4 +118,9 @@ func getJobStore() (store.JobStore, error) {
 	default:
 		return nil, fmt.Errorf("unknown job store '%s'", *JobStore)
 	}
+}
+
+func startAPIServer(jobManager *jobManager.JobManager) error {
+	server := api.NewAPIServer(jobManager)
+	return server.ServeAsync(*APIPort)
 }

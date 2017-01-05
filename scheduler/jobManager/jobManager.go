@@ -77,8 +77,30 @@ func (manager *JobManager) CreateJob(request *protos.CreateJobRequest) *protos.C
 }
 
 func (manager *JobManager) GetJobStatus(request *protos.JobIdRequest) *protos.GetJobStatusReply {
-	//TODO
-	return nil
+	id := request.JobId
+
+	manager.mutex.RLock()
+	defer manager.mutex.RUnlock()
+
+	job, ok := manager.all[id]
+	if !ok {
+		return &protos.GetJobStatusReply{Status: protos.CallStatus_ERROR_INVALID_JOB}
+	}
+
+	var superstep int
+	var percentDone int
+	if job.Status == pregel.JobRunning {
+		jobTasks := manager.runningJobTasks[id]
+		superstep = jobTasks.currentSuperstep
+		percentDone = jobTasks.getPercentDone()
+	}
+
+	return &protos.GetJobStatusReply{
+		Status:      protos.CallStatus_OK,
+		JobStatus:   toJobStatusProto(job.Status),
+		Superstep:   int32(superstep),
+		PercentDone: int32(percentDone),
+	}
 }
 
 func (manager *JobManager) GetJobResult(request *protos.JobIdRequest) *protos.GetJobResultReply {
@@ -262,4 +284,21 @@ func removeFromQueue(queue []string, jobID string) []string {
 	}
 
 	return append(queue[:*index], queue[*index+1:]...)
+}
+
+func toJobStatusProto(status pregel.JobStatus) protos.JobStatus {
+	switch status {
+	case pregel.JobCreated:
+		return protos.JobStatus_Created
+	case pregel.JobRunning:
+		return protos.JobStatus_Running
+	case pregel.JobCompleted:
+		return protos.JobStatus_Completed
+	case pregel.JobCancelled:
+		return protos.JobStatus_Cancelled
+	case pregel.JobFailed:
+		return protos.JobStatus_Failed
+	default:
+		panic("unknown job status")
+	}
 }

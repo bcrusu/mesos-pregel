@@ -12,6 +12,7 @@ import (
 )
 
 type PregelTask struct {
+	ID        int32
 	jobID     string
 	store     store.GraphStore
 	algorithm algorithm.Algorithm
@@ -32,45 +33,56 @@ func NewPregelTask(params protos.PregelTaskParams) (*PregelTask, error) {
 		return nil, errors.Wrapf(err, "failed to initialize algorithm: %v", params.Algorithm)
 	}
 
-	return &PregelTask{jobID: params.JobId, store: store, algorithm: algorithm}, nil
+	return &PregelTask{
+		ID:        params.TaskId,
+		jobID:     params.JobId,
+		store:     store,
+		algorithm: algorithm}, nil
 }
 
-func (task *PregelTask) ExecSuperstep(superstep int) error {
+func (task *PregelTask) ExecSuperstep(superstep int) (*protos.PregelTaskStatus, error) {
 	task.mutex.Lock()
 	defer task.mutex.Unlock()
 
-	if task.currentSuperstep == superstep {
-		return nil
+	if task.currentSuperstep >= superstep {
+		return nil, errors.Errorf("cannot execute past superstep - current superstep: %d; asked to execute %d", task.currentSuperstep, superstep)
 	}
+
+	if err := task.store.Connect(); err != nil {
+		return nil, err
+	}
+	defer task.store.Close()
 
 	prevSuperstep := superstep - 1
 
 	if err := task.loadSuperstep(prevSuperstep); err != nil {
-		return err
+		return nil, err
 	}
 
 	messages, err := task.loadVertexMessages(prevSuperstep)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	halted, err := task.loadHaltedVertices(prevSuperstep)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	processor := messagesProcessor.New(task.jobID, superstep, task.graph, task.algorithm)
 	processResult, err := processor.Process(messages, halted)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = task.saveResult(processResult)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return &protos.PregelTaskStatus{
+		TaskId: task.ID,
+		JobId:  task.jobID}, nil
 }
 
 func (task *PregelTask) loadSuperstep(superstep int) error {

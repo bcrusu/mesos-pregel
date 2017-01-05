@@ -16,11 +16,12 @@ const (
 
 //TODO: rename
 type jobTasks struct {
-	jobID     string
-	mutex     sync.Mutex
-	completed map[int]*task
-	running   map[int]*task
-	waiting   map[int]*task
+	jobID            string
+	mutex            sync.Mutex
+	currentSuperstep int
+	completed        map[int]*task
+	running          map[int]*task
+	waiting          map[int]*task
 }
 
 type task struct {
@@ -50,11 +51,12 @@ func newJobTasksFromCheckpoint(checkpoint *protos.JobCheckpoint) *jobTasks {
 	return nil
 }
 
-func getCheckpoint() *protos.JobCheckpoint {
+func (jt *jobTasks) getCheckpoint() *protos.JobCheckpoint {
 	//TODO
 	return nil
 }
 
-func getCompletedPercent() int {
+func (jt *jobTasks) getPercentDone() int {
+	//TODO
 	return 0
 }

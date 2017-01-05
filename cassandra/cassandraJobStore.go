@@ -56,15 +56,15 @@ func (store *cassandraJobStore) Init() error {
 }
 
 func (store *cassandraJobStore) LoadAll() ([]*pregel.Job, error) {
-	cql := fmt.Sprintf(`SELECT id, status, superstep, store, store_params, algorithm, algorithm_params, vertices_per_task FROM %s;`, store.fullTableName(jobsTableName))
+	cql := fmt.Sprintf(`SELECT id, status, store, store_params, algorithm, algorithm_params, vertices_per_task FROM %s;`, store.fullTableName(jobsTableName))
 
 	createScanDest := func() []interface{} {
-		return []interface{}{new(string), new(int), new(int), new(string), new([]byte), new(string), new([]byte), new(int)}
+		return []interface{}{new(string), new(int), new(string), new([]byte), new(string), new([]byte), new(int)}
 	}
 
 	createEntityFunc := func(dest []interface{}) interface{} {
-		return &pregel.Job{ID: dest[0].(string), Status: dest[1].(pregel.JobStatus), Superstep: dest[2].(int), Store: dest[3].(string),
-			StoreParams: dest[4].([]byte), Algorithm: dest[5].(string), AlgorithmParams: dest[6].([]byte), VerticesPerTask: dest[7].(int)}
+		return &pregel.Job{ID: dest[0].(string), Status: dest[1].(pregel.JobStatus), Store: dest[2].(string),
+			StoreParams: dest[3].([]byte), Algorithm: dest[4].(string), AlgorithmParams: dest[5].([]byte), VerticesPerTask: dest[6].(int)}
 	}
 
 	entities, err := ExecuteSelect(store.session, cql, createScanDest, createEntityFunc)
@@ -81,8 +81,8 @@ func (store *cassandraJobStore) LoadAll() ([]*pregel.Job, error) {
 }
 
 func (store *cassandraJobStore) Save(job *pregel.Job) error {
-	cql := fmt.Sprintf(`INSERT INTO %s (id, status, superstep, store, store_params, algorithm, algorithm_params, vertices_per_task) VALUES(?, ?, ?, ?, ?, ?, ?, ?);`, store.fullTableName(jobsTableName))
-	args := []interface{}{job.ID, job.Status, job.Superstep, job.Store, job.StoreParams, job.Algorithm, job.AlgorithmParams, job.VerticesPerTask}
+	cql := fmt.Sprintf(`INSERT INTO %s (id, status, store, store_params, algorithm, algorithm_params, vertices_per_task) VALUES(?, ?, ?, ?, ?, ?, ?);`, store.fullTableName(jobsTableName))
+	args := []interface{}{job.ID, job.Status, job.Store, job.StoreParams, job.Algorithm, job.AlgorithmParams, job.VerticesPerTask}
 	query := store.session.Query(cql, args...)
 
 	return query.Exec()
@@ -125,7 +125,8 @@ func (store *cassandraJobStore) fullTableName(table string) string {
 }
 
 func (store *cassandraJobStore) ensureTables() error {
-	cql := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, status int, superstep int, store text, store_params blob, algorithm text, algorithm_params blob, vertices_per_task int, result blob, checkpoint blob, PRIMARY KEY(id));`,
+	cql := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, status int, store text, store_params blob, algorithm text, algorithm_params blob, 
+vertices_per_task int, result blob, checkpoint blob, PRIMARY KEY(id));`,
 		store.fullTableName(jobsTableName))
 
 	if err := store.session.Query(cql).Exec(); err != nil {

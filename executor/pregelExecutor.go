@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bcrusu/mesos-pregel/encoding"
 	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
@@ -13,16 +14,24 @@ import (
 	"github.com/patrickmn/go-cache"
 )
 
+const (
+	taskCacheExpiration      = 10 * time.Minute
+	taskCacheCleanupInterval = 7 * time.Minute
+)
+
 type PregelExecutor struct {
-	mutex     sync.Mutex
-	taskCache *cache.Cache
+	taskParamsEncoder encoding.Encoder
+	taskStatusEncoder encoding.Encoder
+	mutex             sync.Mutex
+	taskCache         *cache.Cache
 }
 
 func NewPregelExecutor() *PregelExecutor {
-	var result = new(PregelExecutor)
-	result.taskCache = cache.New(15*time.Minute, 30*time.Second)
-	result.taskCache.OnEvicted(taskCache_OnEvicted)
-	return result
+	return &PregelExecutor{
+		taskCache:         cache.New(taskCacheExpiration, taskCacheCleanupInterval),
+		taskParamsEncoder: encoding.NewProtobufEncoder(func() proto.Message { return new(protos.PregelTaskParams) }),
+		taskStatusEncoder: encoding.NewProtobufEncoder(func() proto.Message { return new(protos.PregelTaskStatus) }),
+	}
 }
 
 func (executor *PregelExecutor) Registered(driver exec.ExecutorDriver, execInfo *mesos.ExecutorInfo, fwinfo *mesos.FrameworkInfo, slaveInfo *mesos.SlaveInfo) {
@@ -60,36 +69,44 @@ func (executor *PregelExecutor) Error(driver exec.ExecutorDriver, err string) {
 func (executor *PregelExecutor) processLaunchTask(driver exec.ExecutorDriver, taskInfo *mesos.TaskInfo) {
 	glog.Infof("Launching task %s", taskInfo.GetName())
 
-	sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_RUNNING)
+	sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_RUNNING, nil)
 
-	taskParams := new(protos.PregelTaskParams)
-	if err := proto.Unmarshal(taskInfo.Data, taskParams); err != nil {
+	var taskParams *protos.PregelTaskParams
+	if params, err := executor.taskParamsEncoder.Unmarshal(taskInfo.Data); err != nil {
 		glog.Errorf("Failed to unmarshal task params: %v", err)
-		sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_FAILED)
+		sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_FAILED, nil)
 		return
+	} else {
+		taskParams = params.(*protos.PregelTaskParams)
 	}
 
 	task, err := executor.getPregelTask(*taskParams)
 	if err != nil {
-		glog.Errorf("Failed to initialize task: %v", err)
-		sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_FAILED)
+		glog.Errorf("Failed to initialize task: %d", taskParams.TaskId)
+		sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_FAILED, nil)
 		return
 	}
 
-	err = task.ExecSuperstep(int(taskParams.Superstep))
+	taskStatus, err := task.ExecSuperstep(int(taskParams.Superstep))
 	if err != nil {
 		glog.Errorf("Failed to execute superstep %d for job %s. Error %v", taskParams.Superstep, taskParams.JobId, err)
-		sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_FAILED)
+		sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_FAILED, nil)
 		return
 	}
 
-	sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_FINISHED)
+	taskStatusBytes, err := executor.taskStatusEncoder.Marshal(taskStatus)
+	if err != nil {
+		panic("failed to marshal task status")
+	}
+
+	sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_FINISHED, taskStatusBytes)
 }
 
-func sendStatusUpdate(driver exec.ExecutorDriver, taskId *mesos.TaskID, state mesos.TaskState) {
+func sendStatusUpdate(driver exec.ExecutorDriver, taskId *mesos.TaskID, state mesos.TaskState, data []byte) {
 	status := &mesos.TaskStatus{
 		TaskId: taskId,
 		State:  state.Enum(),
+		Data:   data,
 	}
 
 	if _, err := driver.SendStatusUpdate(status); err != nil {
@@ -114,8 +131,4 @@ func (executor *PregelExecutor) getPregelTask(params protos.PregelTaskParams) (*
 
 	executor.taskCache.Set(cacheKey, task, cache.DefaultExpiration)
 	return task, nil
-}
-
-func taskCache_OnEvicted(string, interface{}) {
-	//TODO:
 }

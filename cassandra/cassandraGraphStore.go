@@ -30,7 +30,7 @@ type cassandraGraphStore struct {
 
 func (store *cassandraGraphStore) Connect() error {
 	cluster := gocql.NewCluster(store.params.Hosts...)
-	cluster.Timeout = 3 * time.Second
+	cluster.Timeout = time.Duration(store.params.Timeout)
 
 	session, err := cluster.CreateSession()
 	if err != nil {

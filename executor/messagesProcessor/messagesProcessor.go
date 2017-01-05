@@ -20,10 +20,10 @@ type MessagesProcessor struct {
 }
 
 type ProcessResult struct {
-	vertexMessages   []*pregel.VertexMessage
-	vertexOperations []*pregel.VertexOperation
-	haltedVertices   []*pregel.VertexHalted
-	edgeOperations   []*pregel.EdgeOperation
+	VertexMessages   []*pregel.VertexMessage
+	VertexOperations []*pregel.VertexOperation
+	HaltedVertices   []*pregel.VertexHalted
+	EdgeOperations   []*pregel.EdgeOperation
 }
 
 type computeRequest struct {

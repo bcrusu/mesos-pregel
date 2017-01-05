@@ -21,7 +21,7 @@ message PregelTaskParams {
 message PregelTaskStatus {
     int32 taskId = 1;
     string jobId = 2;
-    int32 superstep = 3;    
+    //TODO(optional): add execution stats (duration, no. of vertices computed/msg sent/etc.)
 }
 
 message ShortestPathMessage {

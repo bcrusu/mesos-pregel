@@ -55,7 +55,6 @@ func (manager *JobManager) CreateJob(request *protos.CreateJobRequest) *protos.C
 		Label:           request.Label,
 		CreationTime:    time.Now(),
 		Status:          pregel.JobCreated,
-		Superstep:       0,
 		Store:           request.Store,
 		StoreParams:     request.StoreParams,
 		Algorithm:       request.Algorithm,
@@ -88,8 +87,42 @@ func (manager *JobManager) GetJobResult(request *protos.JobIdRequest) *protos.Ge
 }
 
 func (manager *JobManager) CancelJob(request *protos.JobIdRequest) *protos.SimpleCallReply {
-	//TODO
-	return nil
+	id := request.JobId
+
+	// verify that the task exists and that it can be cancelled (read lock)
+	manager.mutex.RLock()
+	job, ok := manager.all[id]
+	if !ok || !job.CanCancel() {
+		manager.mutex.RUnlock()
+		return &protos.SimpleCallReply{Status: protos.CallStatus_ERROR_INVALID_JOB}
+	}
+	manager.mutex.RUnlock()
+
+	// update store (no lock)
+	err := manager.jobStore.SetStatus(id, pregel.JobCancelled)
+	if err != nil {
+		return &protos.SimpleCallReply{Status: protos.CallStatus_INTERNAL_ERROR}
+	}
+
+	// update state if job was not changed (write lock)
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
+
+	if job.CanCancel() {
+		switch job.Status {
+		case pregel.JobCreated:
+			manager.waitingQueue = removeFromQueue(manager.waitingQueue, id)
+		case pregel.JobRunning:
+			manager.runningQueue = removeFromQueue(manager.runningQueue, id)
+			delete(manager.runningJobTasks, id)
+
+			//TODO(optional): call Scheduler.KillTask
+		}
+
+		job.Status = pregel.JobCancelled
+	}
+
+	return &protos.SimpleCallReply{Status: protos.CallStatus_OK}
 }
 
 func (manager *JobManager) initFromStore() error {
@@ -212,4 +245,21 @@ func startJob(jobID string) error {
 	// }
 
 	return nil
+}
+
+func removeFromQueue(queue []string, jobID string) []string {
+	var index *int
+	for i, id := range queue {
+		if jobID == id {
+			index = &i
+			break
+		}
+	}
+
+	if index == nil {
+		glog.Warningf("queue does not contain job %s", jobID)
+		return queue
+	}
+
+	return append(queue[:*index], queue[*index+1:]...)
 }

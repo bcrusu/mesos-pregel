@@ -4,7 +4,9 @@ import "github.com/bcrusu/mesos-pregel"
 
 type JobStore interface {
 	LoadAll() ([]*pregel.Job, error)
+
 	Save(*pregel.Job) error
+	SetStatus(jobID string, status pregel.JobStatus) error
 
 	LoadResult(jobID string) ([]byte, error)
 	SaveResult(jobID string, value []byte) error

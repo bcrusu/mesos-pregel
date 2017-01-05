@@ -88,6 +88,11 @@ func (store *cassandraJobStore) Save(job *pregel.Job) error {
 	return query.Exec()
 }
 
+func (store *cassandraJobStore) SetStatus(jobID string, status pregel.JobStatus) error {
+	//TODO
+	return nil
+}
+
 func (store *cassandraJobStore) LoadResult(jobID string) ([]byte, error) {
 	cql := fmt.Sprintf(`SELECT result FROM %s WHERE id = ?;`, store.fullTableName(jobsTableName))
 

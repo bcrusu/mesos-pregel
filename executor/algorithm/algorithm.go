@@ -3,6 +3,8 @@ package algorithm
 import "github.com/bcrusu/mesos-pregel/encoding"
 
 type Algorithm interface {
+	//TODO: InitVertex(value interface{}) (interface{}, error)
+
 	Compute(context *VertexContext, message interface{}) error
 	VertexMessageCombiner() VertexMessageCombiner
 

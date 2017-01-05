@@ -28,11 +28,11 @@ func (algo *shortestPathAlgorithm) VertexMessageEncoder() encoding.Encoder {
 }
 
 func (algo *shortestPathAlgorithm) VertexValueEncoder() encoding.Encoder {
-	return encoding.NewInt32ValueEncoder()
+	return encoding.Int32ValueEncoder()
 }
 
 func (algo *shortestPathAlgorithm) EdgeValueEncoder() encoding.Encoder {
-	return encoding.NewInt32ValueEncoder()
+	return encoding.Int32ValueEncoder()
 }
 
 func (algo *shortestPathAlgorithm) Handlers() *algorithm.Handlers {

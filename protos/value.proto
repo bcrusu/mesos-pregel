@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package protos;
+
+message Int32Value {
+    int32 value = 1;
+}
+
+message Int64Value {
+    int64 value = 1;
+}
+
+message StringValue {
+    string value = 1;
+}
+
+message StringListValue {
+    repeated string value = 1;
+}
+
+message BoolValue {
+    bool value = 1;
+}

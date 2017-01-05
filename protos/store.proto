@@ -15,9 +15,3 @@ message CassandraStoreParams {
         int32 MaxBytes = 2;
     }
 }
-
-// Vertex/Edge values
-
-message Int32Value {
-    int32 value = 1;
-}

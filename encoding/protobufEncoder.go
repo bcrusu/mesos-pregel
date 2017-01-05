@@ -1,7 +1,6 @@
 package encoding
 
 import (
-	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 )
@@ -12,22 +11,6 @@ func NewProtobufEncoder(msgFactory func() proto.Message) Encoder {
 	}
 
 	return Encoder{Marshaler(protobufMarshaler), Unmarshaler(unmarshaler)}
-}
-
-func NewInt32ValueEncoder() Encoder {
-	return NewProtobufEncoder(func() proto.Message { return new(protos.Int32Value) })
-}
-
-func NewNullEncoder() Encoder {
-	marshaler := func(msg interface{}) ([]byte, error) {
-		return nil, nil
-	}
-
-	unmarshaler := func(bytes []byte) (interface{}, error) {
-		return nil, nil
-	}
-
-	return Encoder{Marshaler(marshaler), Unmarshaler(unmarshaler)}
 }
 
 func protobufMarshaler(message interface{}) ([]byte, error) {

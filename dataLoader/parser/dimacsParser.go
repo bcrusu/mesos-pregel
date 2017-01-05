@@ -18,7 +18,7 @@ type DimacsParser struct {
 func NewDimacsParser(reader io.Reader) *DimacsParser {
 	result := new(DimacsParser)
 	result.lineScanner = getScanner(reader)
-	result.valueEncoder = encoding.NewInt32ValueEncoder()
+	result.valueEncoder = encoding.Int32ValueEncoder()
 	return result
 }
 

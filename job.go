@@ -4,8 +4,8 @@ import "time"
 
 type Job struct {
 	ID              string
-	Label           string    //TODO: persist
-	CreationTime    time.Time //TODO: persist
+	Label           string
+	CreationTime    time.Time
 	Status          JobStatus
 	Store           string
 	StoreParams     []byte

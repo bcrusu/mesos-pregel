@@ -69,6 +69,8 @@ func (proc *MessagesProcessor) Process(messages map[string]interface{}, haltedVe
 		return nil, err
 	}
 
+	//TODO: return values: AllHalted, MessageSentCount (that determine the job ending)
+
 	return operations.GetProcessResult(proc.jobID, proc.superstep)
 }
 

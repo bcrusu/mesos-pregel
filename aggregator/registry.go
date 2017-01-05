@@ -19,13 +19,18 @@ func New(name string) (Aggregator, error) {
 	return factory(), nil
 }
 
-func NewFromBytes(name string, bytes []byte) (Aggregator, error) {
+func NewFromMessage(name string, messageBytes []byte) (Aggregator, error) {
 	agg, err := New(name)
 	if err != nil {
 		return nil, err
 	}
 
-	value, err := agg.Encoder().Unmarshal(bytes)
+	message, err := agg.MessageEncoder().Unmarshal(messageBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	value, err := agg.Converter().FromMessage(message)
 	if err != nil {
 		return nil, err
 	}

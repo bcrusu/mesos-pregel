@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/bcrusu/mesos-pregel/aggregator/impl" // register default aggregators
 	"github.com/bcrusu/mesos-pregel/cassandra"
 	_ "github.com/bcrusu/mesos-pregel/scheduler/algorithmImpl" // register default algorithms
 	"github.com/bcrusu/mesos-pregel/scheduler/api"

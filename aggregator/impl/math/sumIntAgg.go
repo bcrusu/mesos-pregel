@@ -22,12 +22,10 @@ func (agg *sumIntAgg) Set(value interface{}) {
 	agg.value += other
 }
 
-func (agg *sumIntAgg) Combine(other aggregator.Aggregator) aggregator.Aggregator {
-	otherAgg := other.(*sumIntAgg)
-	sum := agg.value + otherAgg.value
-	return &sumIntAgg{sum}
+func (agg *sumIntAgg) Converter() aggregator.ValueConverter {
+	return aggregator.BoolValueConverter()
 }
 
-func (agg *sumIntAgg) Encoder() encoding.Encoder {
+func (agg *sumIntAgg) MessageEncoder() encoding.Encoder {
 	return encoding.Int64ValueEncoder()
 }

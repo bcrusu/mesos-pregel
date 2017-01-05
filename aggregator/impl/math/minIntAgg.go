@@ -24,15 +24,10 @@ func (agg *minIntAgg) Set(value interface{}) {
 	}
 }
 
-func (agg *minIntAgg) Combine(other aggregator.Aggregator) aggregator.Aggregator {
-	otherAgg := other.(*minIntAgg)
-	if otherAgg.value < agg.value {
-		return otherAgg
-	}
-
-	return agg
+func (agg *minIntAgg) Converter() aggregator.ValueConverter {
+	return aggregator.BoolValueConverter()
 }
 
-func (agg *minIntAgg) Encoder() encoding.Encoder {
+func (agg *minIntAgg) MessageEncoder() encoding.Encoder {
 	return encoding.Int64ValueEncoder()
 }

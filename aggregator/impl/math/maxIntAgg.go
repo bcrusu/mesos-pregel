@@ -24,15 +24,10 @@ func (agg *maxIntAgg) Set(value interface{}) {
 	}
 }
 
-func (agg *maxIntAgg) Combine(other aggregator.Aggregator) aggregator.Aggregator {
-	otherAgg := other.(*maxIntAgg)
-	if otherAgg.value > agg.value {
-		return otherAgg
-	}
-
-	return agg
+func (agg *maxIntAgg) Converter() aggregator.ValueConverter {
+	return aggregator.BoolValueConverter()
 }
 
-func (agg *maxIntAgg) Encoder() encoding.Encoder {
+func (agg *maxIntAgg) MessageEncoder() encoding.Encoder {
 	return encoding.Int64ValueEncoder()
 }

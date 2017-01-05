@@ -7,6 +7,7 @@ import (
 	exec "github.com/mesos/mesos-go/executor"
 	"github.com/pkg/errors"
 
+	_ "github.com/bcrusu/mesos-pregel/aggregator/impl"        // register default aggregators
 	_ "github.com/bcrusu/mesos-pregel/cassandra"              // register Cassandra store
 	_ "github.com/bcrusu/mesos-pregel/executor/algorithmImpl" // register default algorithms
 )

@@ -22,12 +22,10 @@ func (agg *orAgg) Set(value interface{}) {
 	agg.value = agg.value || other
 }
 
-func (agg *orAgg) Combine(other aggregator.Aggregator) aggregator.Aggregator {
-	otherAgg := other.(*orAgg)
-	value := agg.value || otherAgg.value
-	return &orAgg{value}
+func (agg *orAgg) Converter() aggregator.ValueConverter {
+	return aggregator.BoolValueConverter()
 }
 
-func (agg *orAgg) Encoder() encoding.Encoder {
+func (agg *orAgg) MessageEncoder() encoding.Encoder {
 	return encoding.BoolValueEncoder()
 }

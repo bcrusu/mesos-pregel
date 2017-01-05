@@ -11,7 +11,7 @@ func NewProtobufEncoder(msgFactory func() proto.Message) Encoder {
 		return protobufUnmarshaler(bytes, msgFactory)
 	}
 
-	return Encoder{Marshaler(ProtobufMarshaler), Unmarshaler(unmarshaler)}
+	return Encoder{Marshaler(protobufMarshaler), Unmarshaler(unmarshaler)}
 }
 
 func NewInt32ValueEncoder() Encoder {
@@ -30,8 +30,7 @@ func NewNullEncoder() Encoder {
 	return Encoder{Marshaler(marshaler), Unmarshaler(unmarshaler)}
 }
 
-//TODO: make private
-func ProtobufMarshaler(message interface{}) ([]byte, error) {
+func protobufMarshaler(message interface{}) ([]byte, error) {
 	if message == nil {
 		return nil, nil
 	}

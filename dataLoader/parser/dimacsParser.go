@@ -8,16 +8,17 @@ import (
 
 	"github.com/bcrusu/mesos-pregel"
 	"github.com/bcrusu/mesos-pregel/encoding"
-	"github.com/bcrusu/mesos-pregel/protos"
 )
 
 type DimacsParser struct {
-	lineScanner *bufio.Scanner
+	lineScanner  *bufio.Scanner
+	valueEncoder encoding.Encoder
 }
 
 func NewDimacsParser(reader io.Reader) *DimacsParser {
 	result := new(DimacsParser)
 	result.lineScanner = getScanner(reader)
+	result.valueEncoder = encoding.NewInt32ValueEncoder()
 	return result
 }
 
@@ -28,7 +29,7 @@ func (parser *DimacsParser) Next() *pregel.Edge {
 			return nil
 		}
 
-		edge, success := parseEdge(parser.lineScanner.Text())
+		edge, success := parser.parseEdge(parser.lineScanner.Text())
 		if success {
 			return edge
 		}
@@ -42,7 +43,7 @@ func getScanner(reader io.Reader) *bufio.Scanner {
 	return scanner
 }
 
-func parseEdge(text string) (edge *pregel.Edge, success bool) {
+func (parser *DimacsParser) parseEdge(text string) (edge *pregel.Edge, success bool) {
 	if text[0] != 'a' {
 		return nil, false
 	}
@@ -60,12 +61,12 @@ func parseEdge(text string) (edge *pregel.Edge, success bool) {
 	result := new(pregel.Edge)
 	result.From = splits[1]
 	result.To = splits[2]
-	result.Value = marshalValue(value)
+	result.Value = parser.marshalValue(value)
 
 	return result, true
 }
 
-func marshalValue(value int) []byte {
-	bytes, _ := encoding.ProtobufMarshaler(&protos.Int32Value{Value: int32(value)})
+func (parser *DimacsParser) marshalValue(value int) []byte {
+	bytes, _ := parser.valueEncoder.Marshal(value)
 	return bytes
 }

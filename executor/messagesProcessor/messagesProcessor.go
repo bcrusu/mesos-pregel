@@ -2,6 +2,7 @@ package messagesProcessor
 
 import (
 	"sync"
+	"time"
 
 	"github.com/bcrusu/mesos-pregel"
 	"github.com/bcrusu/mesos-pregel/aggregator"
@@ -22,6 +23,19 @@ type MessagesProcessor struct {
 }
 
 type ProcessResult struct {
+	Stats    *ProcessResultStats
+	Entities *ProcessResultEntities
+}
+
+type ProcessResultStats struct {
+	ComputedCount     int
+	ComputeDuration   time.Duration
+	SentMessagesCount int
+	HaltedCount       int
+	InactiveCount     int
+}
+
+type ProcessResultEntities struct {
 	VertexMessages   []*pregel.VertexMessage
 	VertexOperations []*pregel.VertexOperation
 	HaltedVertices   []*pregel.VertexHalted
@@ -34,6 +48,7 @@ type computeRequest struct {
 }
 
 type computeResult struct {
+	computeDuration time.Duration
 }
 
 func New(jobID string, superstep int, graph *graph.Graph, algorithm algorithm.Algorithm,
@@ -44,17 +59,22 @@ func New(jobID string, superstep int, graph *graph.Graph, algorithm algorithm.Al
 func (proc *MessagesProcessor) Process(messages map[string]interface{}, haltedVertices map[string]bool) (*ProcessResult, error) {
 	stopChan := make(chan struct{})
 	errorChan := make(chan error, MaxComputeParallelism)
+	inactiveChan := make(chan string)
 	operations := newContextOperations(proc.algorithm, errorChan)
 
-	requestChan := proc.getComputeRequestChan(messages, haltedVertices, operations, errorChan, stopChan)
+	requestChan := proc.getComputeRequestChan(messages, haltedVertices, operations, errorChan, inactiveChan, stopChan)
 	resultChan := proc.getComputeResultChan(requestChan, errorChan)
 
-	// process results
+	// process results and gather statistics
 	var err error
 	stopped := false
 
-	for _ = range resultChan {
-		// check for errors
+	var inactiveCount int
+	var computedCount int
+	var computeDuration time.Duration
+
+	for result := range resultChan {
+		// stop on first error
 		select {
 		case err = <-errorChan:
 			if !stopped {
@@ -62,19 +82,38 @@ func (proc *MessagesProcessor) Process(messages map[string]interface{}, haltedVe
 				stopped = true
 			}
 		default:
-			// noop
 		}
 
-		// process result (e.g. gather statistics, etc.)
+		// count inactive
+		select {
+		case <-inactiveChan:
+			inactiveCount++
+		default:
+		}
+
+		computedCount++
+		computeDuration += result.computeDuration
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	//TODO: return values: AllHalted, MessageSentCount (that determine the job ending)
+	entities, err := operations.GetEntities(proc.jobID, proc.superstep)
+	if err != nil {
+		return nil, err
+	}
 
-	return operations.GetProcessResult(proc.jobID, proc.superstep)
+	return &ProcessResult{
+		Stats: &ProcessResultStats{
+			ComputedCount:     computedCount,
+			ComputeDuration:   computeDuration,
+			SentMessagesCount: len(entities.VertexMessages),
+			HaltedCount:       len(entities.HaltedVertices),
+			InactiveCount:     inactiveCount,
+		},
+		Entities: entities,
+	}, nil
 }
 
 func (proc *MessagesProcessor) createVertexContext(id string, operations *contextOperations) *algorithm.VertexContext {
@@ -107,7 +146,8 @@ func getUniqueVertices(graph *graph.Graph, messages map[string]interface{}) map[
 }
 
 func (proc *MessagesProcessor) getComputeRequestChan(messages map[string]interface{}, haltedVertices map[string]bool,
-	operations *contextOperations, errorChan chan error, stopChan chan struct{}) chan *computeRequest {
+	operations *contextOperations, errorChan chan error, inactiveChan chan string,
+	stopChan chan struct{}) chan *computeRequest {
 	ch := make(chan *computeRequest)
 
 	go func() {
@@ -117,6 +157,7 @@ func (proc *MessagesProcessor) getComputeRequestChan(messages map[string]interfa
 			halted := haltedVertices[id]
 
 			if message == nil && halted {
+				inactiveChan <- id
 				continue
 			}
 
@@ -133,7 +174,6 @@ func (proc *MessagesProcessor) getComputeRequestChan(messages map[string]interfa
 			case <-stopChan:
 				break loop
 			case ch <- &computeRequest{context, message}:
-				//noop
 			}
 		}
 
@@ -153,12 +193,14 @@ func (proc *MessagesProcessor) getComputeResultChan(requestChan chan *computeReq
 			defer wg.Done()
 
 			for item := range requestChan {
+				start := time.Now()
 				err := proc.algorithm.Compute(item.context, item.message)
+				elapsed := time.Since(start)
 
 				if err != nil {
 					errorChan <- err
 				} else {
-					ch <- &computeResult{}
+					ch <- &computeResult{computeDuration: elapsed}
 				}
 			}
 		}()

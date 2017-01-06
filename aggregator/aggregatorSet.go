@@ -114,6 +114,13 @@ func (set *AggregatorSet) Remove(id string) error {
 	return nil
 }
 
+func (set *AggregatorSet) Clear() {
+	set.mutex.Lock()
+	defer set.mutex.Unlock()
+
+	set.aggs = make(map[string]Aggregator)
+}
+
 func (set *AggregatorSet) Contains(id string) bool {
 	set.mutex.RLock()
 	defer set.mutex.RUnlock()
@@ -121,7 +128,7 @@ func (set *AggregatorSet) Contains(id string) bool {
 	return ok
 }
 
-func UnionAggregatorSets(first AggregatorSet, second AggregatorSet) (*AggregatorSet, error) {
+func UnionSets(first AggregatorSet, second AggregatorSet) (*AggregatorSet, error) {
 	first.mutex.RLock()
 	defer first.mutex.RUnlock()
 	second.mutex.RLock()

@@ -2,30 +2,45 @@ syntax = "proto3";
 
 package protos;
 
-// Implementation details:
-
-message PregelTaskParams {
+message ExecTaskParams {
     int32 taskId = 1;
     string jobId = 2;
-    int32 superstep = 3;
 
-    string store = 4;
-    bytes storeParams = 5;
+    string store = 3;
+    bytes storeParams = 4;
+    bytes vertexRange = 5;
 
     string algorithm = 6;
     bytes algorithmParams = 7;
 
-    bytes vertexRange = 8;
-    repeated Aggregator aggregators = 9;
+    ExecSuperstepParams superstepParams  = 8;
 }
 
-message PregelTaskStatus {
+message ExecTaskResult {
     int32 taskId = 1;
     string jobId = 2;
-    int32 superstep = 3;
-    repeated Aggregator aggregators = 4;
 
-    //TODO(optional): add execution stats (duration, no. of vertices computed/msg sent/etc.)
+    ExecSuperstepResult superstepResult = 4;
+}
+
+message ExecSuperstepParams {
+    int32 superstep = 1;
+    repeated Aggregator aggregators = 2;
+}
+
+message ExecSuperstepResult {
+    int32 superstep = 1;
+    repeated Aggregator aggregators = 2;
+    Stats stats = 3;
+
+    message Stats {
+        int64 totalDuration = 1;
+        int32 computedCount = 2;
+        int64 computeDuration = 3;
+        int32 sentMessagesCount = 4;
+        int32 haltedCount = 5;
+        int32 inactiveCount = 6;
+    }
 }
 
 message Aggregator {
@@ -34,19 +49,10 @@ message Aggregator {
     bytes value = 3;
 }
 
-message ShortestPathAlgorithmMessage {
-    int32 pathLength = 1;
-}
-
-message CassandraTokenRange {
-    string partitioner = 1;
-    string startToken = 2;
-    string endToken = 3;
-}
-
 message JobCheckpoint {
     int32 superstep = 1;
     repeated Task tasks = 2;
+    repeated Aggregator aggregators = 3;
 
     message Task {
         int32 taskId = 1;

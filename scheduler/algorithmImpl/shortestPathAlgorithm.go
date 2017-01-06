@@ -17,12 +17,10 @@ func (algo *shortestPathAlgorithm) Init(context algorithm.InitContext) error {
 }
 
 func (algo *shortestPathAlgorithm) BeforeSuperstep(context algorithm.SuperstepContext) error {
-	//TODO
 	return nil
 }
 
 func (algo *shortestPathAlgorithm) AfterSuperstep(context algorithm.SuperstepContext) error {
-	//TODO
 	return nil
 }
 

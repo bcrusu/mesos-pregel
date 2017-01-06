@@ -15,3 +15,9 @@ message CassandraStoreParams {
         int32 MaxBytes = 2;
     }
 }
+
+message CassandraTokenRange {
+    string partitioner = 1;
+    string startToken = 2;
+    string endToken = 3;
+}

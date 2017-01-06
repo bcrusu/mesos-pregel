@@ -9,11 +9,11 @@ It is generated from these files:
 	private.proto
 
 It has these top-level messages:
-	PregelTaskParams
-	PregelTaskStatus
+	ExecTaskParams
+	ExecTaskResult
+	ExecSuperstepParams
+	ExecSuperstepResult
 	Aggregator
-	ShortestPathAlgorithmMessage
-	CassandraTokenRange
 	JobCheckpoint
 */
 package protos
@@ -33,124 +33,222 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
-type PregelTaskParams struct {
-	TaskId          int32         `protobuf:"varint,1,opt,name=taskId,proto3" json:"taskId,omitempty"`
-	JobId           string        `protobuf:"bytes,2,opt,name=jobId,proto3" json:"jobId,omitempty"`
-	Superstep       int32         `protobuf:"varint,3,opt,name=superstep,proto3" json:"superstep,omitempty"`
-	Store           string        `protobuf:"bytes,4,opt,name=store,proto3" json:"store,omitempty"`
-	StoreParams     []byte        `protobuf:"bytes,5,opt,name=storeParams,proto3" json:"storeParams,omitempty"`
-	Algorithm       string        `protobuf:"bytes,6,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
-	AlgorithmParams []byte        `protobuf:"bytes,7,opt,name=algorithmParams,proto3" json:"algorithmParams,omitempty"`
-	VertexRange     []byte        `protobuf:"bytes,8,opt,name=vertexRange,proto3" json:"vertexRange,omitempty"`
-	Aggregators     []*Aggregator `protobuf:"bytes,9,rep,name=aggregators" json:"aggregators,omitempty"`
+type ExecTaskParams struct {
+	TaskId          int32                `protobuf:"varint,1,opt,name=taskId,proto3" json:"taskId,omitempty"`
+	JobId           string               `protobuf:"bytes,2,opt,name=jobId,proto3" json:"jobId,omitempty"`
+	Store           string               `protobuf:"bytes,3,opt,name=store,proto3" json:"store,omitempty"`
+	StoreParams     []byte               `protobuf:"bytes,4,opt,name=storeParams,proto3" json:"storeParams,omitempty"`
+	VertexRange     []byte               `protobuf:"bytes,5,opt,name=vertexRange,proto3" json:"vertexRange,omitempty"`
+	Algorithm       string               `protobuf:"bytes,6,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
+	AlgorithmParams []byte               `protobuf:"bytes,7,opt,name=algorithmParams,proto3" json:"algorithmParams,omitempty"`
+	SuperstepParams *ExecSuperstepParams `protobuf:"bytes,8,opt,name=superstepParams" json:"superstepParams,omitempty"`
 }
 
-func (m *PregelTaskParams) Reset()                    { *m = PregelTaskParams{} }
-func (m *PregelTaskParams) String() string            { return proto.CompactTextString(m) }
-func (*PregelTaskParams) ProtoMessage()               {}
-func (*PregelTaskParams) Descriptor() ([]byte, []int) { return fileDescriptorPrivate, []int{0} }
+func (m *ExecTaskParams) Reset()                    { *m = ExecTaskParams{} }
+func (m *ExecTaskParams) String() string            { return proto.CompactTextString(m) }
+func (*ExecTaskParams) ProtoMessage()               {}
+func (*ExecTaskParams) Descriptor() ([]byte, []int) { return fileDescriptorPrivate, []int{0} }
 
-func (m *PregelTaskParams) GetTaskId() int32 {
+func (m *ExecTaskParams) GetTaskId() int32 {
 	if m != nil {
 		return m.TaskId
 	}
 	return 0
 }
 
-func (m *PregelTaskParams) GetJobId() string {
+func (m *ExecTaskParams) GetJobId() string {
 	if m != nil {
 		return m.JobId
 	}
 	return ""
 }
 
-func (m *PregelTaskParams) GetSuperstep() int32 {
-	if m != nil {
-		return m.Superstep
-	}
-	return 0
-}
-
-func (m *PregelTaskParams) GetStore() string {
+func (m *ExecTaskParams) GetStore() string {
 	if m != nil {
 		return m.Store
 	}
 	return ""
 }
 
-func (m *PregelTaskParams) GetStoreParams() []byte {
+func (m *ExecTaskParams) GetStoreParams() []byte {
 	if m != nil {
 		return m.StoreParams
 	}
 	return nil
 }
 
-func (m *PregelTaskParams) GetAlgorithm() string {
-	if m != nil {
-		return m.Algorithm
-	}
-	return ""
-}
-
-func (m *PregelTaskParams) GetAlgorithmParams() []byte {
-	if m != nil {
-		return m.AlgorithmParams
-	}
-	return nil
-}
-
-func (m *PregelTaskParams) GetVertexRange() []byte {
+func (m *ExecTaskParams) GetVertexRange() []byte {
 	if m != nil {
 		return m.VertexRange
 	}
 	return nil
 }
 
-func (m *PregelTaskParams) GetAggregators() []*Aggregator {
+func (m *ExecTaskParams) GetAlgorithm() string {
 	if m != nil {
-		return m.Aggregators
+		return m.Algorithm
+	}
+	return ""
+}
+
+func (m *ExecTaskParams) GetAlgorithmParams() []byte {
+	if m != nil {
+		return m.AlgorithmParams
 	}
 	return nil
 }
 
-type PregelTaskStatus struct {
-	TaskId      int32         `protobuf:"varint,1,opt,name=taskId,proto3" json:"taskId,omitempty"`
-	JobId       string        `protobuf:"bytes,2,opt,name=jobId,proto3" json:"jobId,omitempty"`
-	Superstep   int32         `protobuf:"varint,3,opt,name=superstep,proto3" json:"superstep,omitempty"`
-	Aggregators []*Aggregator `protobuf:"bytes,4,rep,name=aggregators" json:"aggregators,omitempty"`
+func (m *ExecTaskParams) GetSuperstepParams() *ExecSuperstepParams {
+	if m != nil {
+		return m.SuperstepParams
+	}
+	return nil
 }
 
-func (m *PregelTaskStatus) Reset()                    { *m = PregelTaskStatus{} }
-func (m *PregelTaskStatus) String() string            { return proto.CompactTextString(m) }
-func (*PregelTaskStatus) ProtoMessage()               {}
-func (*PregelTaskStatus) Descriptor() ([]byte, []int) { return fileDescriptorPrivate, []int{1} }
+type ExecTaskResult struct {
+	TaskId          int32                `protobuf:"varint,1,opt,name=taskId,proto3" json:"taskId,omitempty"`
+	JobId           string               `protobuf:"bytes,2,opt,name=jobId,proto3" json:"jobId,omitempty"`
+	SuperstepResult *ExecSuperstepResult `protobuf:"bytes,4,opt,name=superstepResult" json:"superstepResult,omitempty"`
+}
 
-func (m *PregelTaskStatus) GetTaskId() int32 {
+func (m *ExecTaskResult) Reset()                    { *m = ExecTaskResult{} }
+func (m *ExecTaskResult) String() string            { return proto.CompactTextString(m) }
+func (*ExecTaskResult) ProtoMessage()               {}
+func (*ExecTaskResult) Descriptor() ([]byte, []int) { return fileDescriptorPrivate, []int{1} }
+
+func (m *ExecTaskResult) GetTaskId() int32 {
 	if m != nil {
 		return m.TaskId
 	}
 	return 0
 }
 
-func (m *PregelTaskStatus) GetJobId() string {
+func (m *ExecTaskResult) GetJobId() string {
 	if m != nil {
 		return m.JobId
 	}
 	return ""
 }
 
-func (m *PregelTaskStatus) GetSuperstep() int32 {
+func (m *ExecTaskResult) GetSuperstepResult() *ExecSuperstepResult {
+	if m != nil {
+		return m.SuperstepResult
+	}
+	return nil
+}
+
+type ExecSuperstepParams struct {
+	Superstep   int32         `protobuf:"varint,1,opt,name=superstep,proto3" json:"superstep,omitempty"`
+	Aggregators []*Aggregator `protobuf:"bytes,2,rep,name=aggregators" json:"aggregators,omitempty"`
+}
+
+func (m *ExecSuperstepParams) Reset()                    { *m = ExecSuperstepParams{} }
+func (m *ExecSuperstepParams) String() string            { return proto.CompactTextString(m) }
+func (*ExecSuperstepParams) ProtoMessage()               {}
+func (*ExecSuperstepParams) Descriptor() ([]byte, []int) { return fileDescriptorPrivate, []int{2} }
+
+func (m *ExecSuperstepParams) GetSuperstep() int32 {
 	if m != nil {
 		return m.Superstep
 	}
 	return 0
 }
 
-func (m *PregelTaskStatus) GetAggregators() []*Aggregator {
+func (m *ExecSuperstepParams) GetAggregators() []*Aggregator {
 	if m != nil {
 		return m.Aggregators
 	}
 	return nil
+}
+
+type ExecSuperstepResult struct {
+	Superstep   int32                      `protobuf:"varint,1,opt,name=superstep,proto3" json:"superstep,omitempty"`
+	Aggregators []*Aggregator              `protobuf:"bytes,2,rep,name=aggregators" json:"aggregators,omitempty"`
+	Stats       *ExecSuperstepResult_Stats `protobuf:"bytes,3,opt,name=stats" json:"stats,omitempty"`
+}
+
+func (m *ExecSuperstepResult) Reset()                    { *m = ExecSuperstepResult{} }
+func (m *ExecSuperstepResult) String() string            { return proto.CompactTextString(m) }
+func (*ExecSuperstepResult) ProtoMessage()               {}
+func (*ExecSuperstepResult) Descriptor() ([]byte, []int) { return fileDescriptorPrivate, []int{3} }
+
+func (m *ExecSuperstepResult) GetSuperstep() int32 {
+	if m != nil {
+		return m.Superstep
+	}
+	return 0
+}
+
+func (m *ExecSuperstepResult) GetAggregators() []*Aggregator {
+	if m != nil {
+		return m.Aggregators
+	}
+	return nil
+}
+
+func (m *ExecSuperstepResult) GetStats() *ExecSuperstepResult_Stats {
+	if m != nil {
+		return m.Stats
+	}
+	return nil
+}
+
+type ExecSuperstepResult_Stats struct {
+	TotalDuration     int64 `protobuf:"varint,1,opt,name=totalDuration,proto3" json:"totalDuration,omitempty"`
+	ComputedCount     int32 `protobuf:"varint,2,opt,name=computedCount,proto3" json:"computedCount,omitempty"`
+	ComputeDuration   int64 `protobuf:"varint,3,opt,name=computeDuration,proto3" json:"computeDuration,omitempty"`
+	SentMessagesCount int32 `protobuf:"varint,4,opt,name=sentMessagesCount,proto3" json:"sentMessagesCount,omitempty"`
+	HaltedCount       int32 `protobuf:"varint,5,opt,name=haltedCount,proto3" json:"haltedCount,omitempty"`
+	InactiveCount     int32 `protobuf:"varint,6,opt,name=inactiveCount,proto3" json:"inactiveCount,omitempty"`
+}
+
+func (m *ExecSuperstepResult_Stats) Reset()         { *m = ExecSuperstepResult_Stats{} }
+func (m *ExecSuperstepResult_Stats) String() string { return proto.CompactTextString(m) }
+func (*ExecSuperstepResult_Stats) ProtoMessage()    {}
+func (*ExecSuperstepResult_Stats) Descriptor() ([]byte, []int) {
+	return fileDescriptorPrivate, []int{3, 0}
+}
+
+func (m *ExecSuperstepResult_Stats) GetTotalDuration() int64 {
+	if m != nil {
+		return m.TotalDuration
+	}
+	return 0
+}
+
+func (m *ExecSuperstepResult_Stats) GetComputedCount() int32 {
+	if m != nil {
+		return m.ComputedCount
+	}
+	return 0
+}
+
+func (m *ExecSuperstepResult_Stats) GetComputeDuration() int64 {
+	if m != nil {
+		return m.ComputeDuration
+	}
+	return 0
+}
+
+func (m *ExecSuperstepResult_Stats) GetSentMessagesCount() int32 {
+	if m != nil {
+		return m.SentMessagesCount
+	}
+	return 0
+}
+
+func (m *ExecSuperstepResult_Stats) GetHaltedCount() int32 {
+	if m != nil {
+		return m.HaltedCount
+	}
+	return 0
+}
+
+func (m *ExecSuperstepResult_Stats) GetInactiveCount() int32 {
+	if m != nil {
+		return m.InactiveCount
+	}
+	return 0
 }
 
 type Aggregator struct {
@@ -162,7 +260,7 @@ type Aggregator struct {
 func (m *Aggregator) Reset()                    { *m = Aggregator{} }
 func (m *Aggregator) String() string            { return proto.CompactTextString(m) }
 func (*Aggregator) ProtoMessage()               {}
-func (*Aggregator) Descriptor() ([]byte, []int) { return fileDescriptorPrivate, []int{2} }
+func (*Aggregator) Descriptor() ([]byte, []int) { return fileDescriptorPrivate, []int{4} }
 
 func (m *Aggregator) GetName() string {
 	if m != nil {
@@ -185,59 +283,10 @@ func (m *Aggregator) GetValue() []byte {
 	return nil
 }
 
-type ShortestPathAlgorithmMessage struct {
-	PathLength int32 `protobuf:"varint,1,opt,name=pathLength,proto3" json:"pathLength,omitempty"`
-}
-
-func (m *ShortestPathAlgorithmMessage) Reset()         { *m = ShortestPathAlgorithmMessage{} }
-func (m *ShortestPathAlgorithmMessage) String() string { return proto.CompactTextString(m) }
-func (*ShortestPathAlgorithmMessage) ProtoMessage()    {}
-func (*ShortestPathAlgorithmMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptorPrivate, []int{3}
-}
-
-func (m *ShortestPathAlgorithmMessage) GetPathLength() int32 {
-	if m != nil {
-		return m.PathLength
-	}
-	return 0
-}
-
-type CassandraTokenRange struct {
-	Partitioner string `protobuf:"bytes,1,opt,name=partitioner,proto3" json:"partitioner,omitempty"`
-	StartToken  string `protobuf:"bytes,2,opt,name=startToken,proto3" json:"startToken,omitempty"`
-	EndToken    string `protobuf:"bytes,3,opt,name=endToken,proto3" json:"endToken,omitempty"`
-}
-
-func (m *CassandraTokenRange) Reset()                    { *m = CassandraTokenRange{} }
-func (m *CassandraTokenRange) String() string            { return proto.CompactTextString(m) }
-func (*CassandraTokenRange) ProtoMessage()               {}
-func (*CassandraTokenRange) Descriptor() ([]byte, []int) { return fileDescriptorPrivate, []int{4} }
-
-func (m *CassandraTokenRange) GetPartitioner() string {
-	if m != nil {
-		return m.Partitioner
-	}
-	return ""
-}
-
-func (m *CassandraTokenRange) GetStartToken() string {
-	if m != nil {
-		return m.StartToken
-	}
-	return ""
-}
-
-func (m *CassandraTokenRange) GetEndToken() string {
-	if m != nil {
-		return m.EndToken
-	}
-	return ""
-}
-
 type JobCheckpoint struct {
-	Superstep int32                 `protobuf:"varint,1,opt,name=superstep,proto3" json:"superstep,omitempty"`
-	Tasks     []*JobCheckpoint_Task `protobuf:"bytes,2,rep,name=tasks" json:"tasks,omitempty"`
+	Superstep   int32                 `protobuf:"varint,1,opt,name=superstep,proto3" json:"superstep,omitempty"`
+	Tasks       []*JobCheckpoint_Task `protobuf:"bytes,2,rep,name=tasks" json:"tasks,omitempty"`
+	Aggregators []*Aggregator         `protobuf:"bytes,3,rep,name=aggregators" json:"aggregators,omitempty"`
 }
 
 func (m *JobCheckpoint) Reset()                    { *m = JobCheckpoint{} }
@@ -255,6 +304,13 @@ func (m *JobCheckpoint) GetSuperstep() int32 {
 func (m *JobCheckpoint) GetTasks() []*JobCheckpoint_Task {
 	if m != nil {
 		return m.Tasks
+	}
+	return nil
+}
+
+func (m *JobCheckpoint) GetAggregators() []*Aggregator {
+	if m != nil {
+		return m.Aggregators
 	}
 	return nil
 }
@@ -292,11 +348,12 @@ func (m *JobCheckpoint_Task) GetPreferredHosts() []string {
 }
 
 func init() {
-	proto.RegisterType((*PregelTaskParams)(nil), "protos.PregelTaskParams")
-	proto.RegisterType((*PregelTaskStatus)(nil), "protos.PregelTaskStatus")
+	proto.RegisterType((*ExecTaskParams)(nil), "protos.ExecTaskParams")
+	proto.RegisterType((*ExecTaskResult)(nil), "protos.ExecTaskResult")
+	proto.RegisterType((*ExecSuperstepParams)(nil), "protos.ExecSuperstepParams")
+	proto.RegisterType((*ExecSuperstepResult)(nil), "protos.ExecSuperstepResult")
+	proto.RegisterType((*ExecSuperstepResult_Stats)(nil), "protos.ExecSuperstepResult.Stats")
 	proto.RegisterType((*Aggregator)(nil), "protos.Aggregator")
-	proto.RegisterType((*ShortestPathAlgorithmMessage)(nil), "protos.ShortestPathAlgorithmMessage")
-	proto.RegisterType((*CassandraTokenRange)(nil), "protos.CassandraTokenRange")
 	proto.RegisterType((*JobCheckpoint)(nil), "protos.JobCheckpoint")
 	proto.RegisterType((*JobCheckpoint_Task)(nil), "protos.JobCheckpoint.Task")
 }
@@ -304,33 +361,38 @@ func init() {
 func init() { proto.RegisterFile("private.proto", fileDescriptorPrivate) }
 
 var fileDescriptorPrivate = []byte{
-	// 447 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xac, 0x53, 0xdd, 0x8a, 0xd3, 0x40,
-	0x14, 0x26, 0xe9, 0x8f, 0x9b, 0xd3, 0xdd, 0x55, 0x46, 0x91, 0xa1, 0x2c, 0x12, 0x72, 0x21, 0xb9,
-	0x2a, 0xa2, 0x5e, 0x0b, 0xcb, 0x82, 0xb8, 0xa2, 0x50, 0xb2, 0xfb, 0x02, 0xa7, 0xe6, 0x98, 0xc4,
-	0xb6, 0x99, 0x30, 0xe7, 0xb4, 0xf8, 0x20, 0x3e, 0x8b, 0xef, 0xe0, 0x5b, 0x49, 0x66, 0xd2, 0x36,
-	0x1b, 0x11, 0xbc, 0xf0, 0xaa, 0xf3, 0x7d, 0x67, 0xce, 0x77, 0xbe, 0x7e, 0x67, 0x02, 0x17, 0x8d,
-	0xad, 0xf6, 0x28, 0xb4, 0x68, 0xac, 0x11, 0xa3, 0xa6, 0xee, 0x87, 0x93, 0x9f, 0x21, 0x3c, 0x59,
-	0x5a, 0x2a, 0x68, 0x73, 0x8f, 0xbc, 0x5e, 0xa2, 0xc5, 0x2d, 0xab, 0xe7, 0x30, 0x15, 0xe4, 0xf5,
-	0x6d, 0xae, 0x83, 0x38, 0x48, 0x27, 0x59, 0x87, 0xd4, 0x33, 0x98, 0x7c, 0x33, 0xab, 0xdb, 0x5c,
-	0x87, 0x71, 0x90, 0x46, 0x99, 0x07, 0xea, 0x0a, 0x22, 0xde, 0x35, 0x64, 0x59, 0xa8, 0xd1, 0x23,
-	0xd7, 0x70, 0x22, 0xda, 0x1e, 0x16, 0x63, 0x49, 0x8f, 0x7d, 0x8f, 0x03, 0x2a, 0x86, 0x99, 0x3b,
-	0xf8, 0x81, 0x7a, 0x12, 0x07, 0xe9, 0x79, 0xd6, 0xa7, 0x5a, 0x55, 0xdc, 0x14, 0xc6, 0x56, 0x52,
-	0x6e, 0xf5, 0xd4, 0xf5, 0x9e, 0x08, 0x95, 0xc2, 0xe3, 0x23, 0xe8, 0x34, 0x1e, 0x39, 0x8d, 0x21,
-	0xdd, 0x4e, 0xda, 0x93, 0x15, 0xfa, 0x9e, 0x61, 0x5d, 0x90, 0x3e, 0xf3, 0x93, 0x7a, 0x94, 0x7a,
-	0x0b, 0x33, 0x2c, 0x0a, 0x4b, 0x05, 0x8a, 0xb1, 0xac, 0xa3, 0x78, 0x94, 0xce, 0x5e, 0x2b, 0x9f,
-	0x13, 0x2f, 0xae, 0x8f, 0xa5, 0xac, 0x7f, 0x2d, 0xf9, 0x11, 0xf4, 0x83, 0xbb, 0x13, 0x94, 0xdd,
-	0xff, 0x0d, 0x6e, 0x60, 0x6b, 0xfc, 0x6f, 0xb6, 0xde, 0x03, 0x9c, 0x4a, 0x4a, 0xc1, 0xb8, 0xc6,
-	0x2d, 0x39, 0x37, 0x51, 0xe6, 0xce, 0xea, 0x12, 0xc2, 0xea, 0x60, 0x24, 0xac, 0x9c, 0xb7, 0x3d,
-	0x6e, 0x76, 0xe4, 0x1c, 0x9c, 0x67, 0x1e, 0x24, 0xef, 0xe0, 0xea, 0xae, 0x34, 0x56, 0x88, 0x65,
-	0x89, 0x52, 0x5e, 0x1f, 0x52, 0xfd, 0x4c, 0xcc, 0x58, 0x90, 0x7a, 0x01, 0xd0, 0xa0, 0x94, 0x9f,
-	0xa8, 0x2e, 0xa4, 0xec, 0xfe, 0x6d, 0x8f, 0x49, 0x18, 0x9e, 0xde, 0x20, 0x33, 0xd6, 0xb9, 0xc5,
-	0x7b, 0xb3, 0xa6, 0xda, 0x67, 0x1d, 0xc3, 0xac, 0x41, 0x2b, 0x95, 0x54, 0xa6, 0x26, 0xdb, 0xf9,
-	0xea, 0x53, 0xad, 0x30, 0x0b, 0x5a, 0x71, 0x4d, 0x9d, 0xcd, 0x1e, 0xa3, 0xe6, 0x70, 0x46, 0x75,
-	0xee, 0xab, 0x23, 0x57, 0x3d, 0xe2, 0xe4, 0x57, 0x00, 0x17, 0x1f, 0xcd, 0xea, 0xa6, 0xa4, 0x2f,
-	0xeb, 0xc6, 0x54, 0xb5, 0x3c, 0x8c, 0x38, 0x18, 0x46, 0xfc, 0x0a, 0x26, 0xed, 0x82, 0x58, 0x87,
-	0x2e, 0xdc, 0xf9, 0x21, 0xdc, 0x07, 0x1a, 0x8b, 0x76, 0xbf, 0x99, 0xbf, 0x38, 0x2f, 0x61, 0xdc,
-	0xc2, 0xbf, 0x2e, 0x7a, 0xf0, 0xda, 0xc2, 0x3f, 0x5f, 0xdb, 0x4b, 0xb8, 0x6c, 0x2c, 0x7d, 0x25,
-	0x6b, 0x29, 0xff, 0x60, 0x58, 0x58, 0x8f, 0xe2, 0x51, 0x1a, 0x65, 0x03, 0x76, 0xe5, 0x3f, 0xd0,
-	0x37, 0xbf, 0x03, 0x00, 0x00, 0xff, 0xff, 0x61, 0x88, 0x45, 0x88, 0xb8, 0x03, 0x00, 0x00,
+	// 523 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xb4, 0x54, 0x5b, 0x8e, 0xd3, 0x30,
+	0x14, 0x55, 0x92, 0xa6, 0xd0, 0xdb, 0x69, 0x47, 0x18, 0x84, 0xa2, 0xc2, 0x47, 0x88, 0x10, 0xca,
+	0x07, 0xaa, 0x50, 0x41, 0xe2, 0x1b, 0x0d, 0x83, 0x18, 0x24, 0x24, 0xe4, 0x61, 0x03, 0x6e, 0x7b,
+	0x49, 0x4d, 0xd3, 0x38, 0xb2, 0x9d, 0x6a, 0x36, 0xc0, 0x1e, 0xd8, 0x01, 0x0b, 0x64, 0x01, 0x20,
+	0xdb, 0x69, 0x9a, 0x64, 0x18, 0x1e, 0x1f, 0x7c, 0x25, 0xf7, 0xe4, 0xe4, 0xdc, 0xeb, 0xe3, 0x63,
+	0xc3, 0xa4, 0x94, 0x7c, 0xcf, 0x34, 0xce, 0x4b, 0x29, 0xb4, 0x20, 0x43, 0xfb, 0x50, 0xc9, 0x37,
+	0x1f, 0xa6, 0xe7, 0x57, 0xb8, 0xfa, 0xc8, 0xd4, 0xf6, 0x03, 0x93, 0x6c, 0xa7, 0xc8, 0x7d, 0x18,
+	0x6a, 0xa6, 0xb6, 0x17, 0xeb, 0xc8, 0x8b, 0xbd, 0x34, 0xa4, 0x75, 0x45, 0xee, 0x41, 0xf8, 0x59,
+	0x2c, 0x2f, 0xd6, 0x91, 0x1f, 0x7b, 0xe9, 0x88, 0xba, 0xc2, 0xa0, 0x4a, 0x0b, 0x89, 0x51, 0xe0,
+	0x50, 0x5b, 0x90, 0x18, 0xc6, 0xf6, 0xc5, 0x49, 0x46, 0x83, 0xd8, 0x4b, 0x4f, 0x68, 0x1b, 0x32,
+	0x8c, 0x3d, 0x4a, 0x8d, 0x57, 0x94, 0x15, 0x19, 0x46, 0xa1, 0x63, 0xb4, 0x20, 0xf2, 0x10, 0x46,
+	0x2c, 0xcf, 0x84, 0xe4, 0x7a, 0xb3, 0x8b, 0x86, 0x56, 0xfd, 0x08, 0x90, 0x14, 0x4e, 0x9b, 0xa2,
+	0xee, 0x72, 0xcb, 0x6a, 0xf4, 0x61, 0x72, 0x0e, 0xa7, 0xaa, 0x2a, 0x51, 0x2a, 0x8d, 0x65, 0xcd,
+	0xbc, 0x1d, 0x7b, 0xe9, 0x78, 0xf1, 0xc0, 0x79, 0xa1, 0xe6, 0xc6, 0x80, 0xcb, 0x2e, 0x85, 0xf6,
+	0xff, 0x49, 0xbe, 0x78, 0x47, 0xa7, 0x28, 0xaa, 0x2a, 0xd7, 0xff, 0xe8, 0x54, 0x7b, 0x0e, 0x27,
+	0x60, 0x7d, 0xb9, 0x69, 0x0e, 0x47, 0xa1, 0xfd, 0x7f, 0x12, 0x0e, 0x77, 0x7f, 0x31, 0xaf, 0x71,
+	0xab, 0x61, 0xd6, 0xe3, 0x1c, 0x01, 0xf2, 0x02, 0xc6, 0x2c, 0xcb, 0x24, 0x66, 0x4c, 0x0b, 0xa9,
+	0x22, 0x3f, 0x0e, 0xd2, 0xf1, 0x82, 0x1c, 0xfa, 0xbe, 0x6a, 0x3e, 0xd1, 0x36, 0x2d, 0xf9, 0x1a,
+	0xf4, 0x7a, 0xd5, 0xeb, 0xfe, 0x0f, 0xbd, 0xc8, 0x4b, 0x93, 0x23, 0xa6, 0x95, 0xcd, 0xd1, 0x78,
+	0xf1, 0xe8, 0x37, 0x9e, 0xcc, 0x2f, 0x0d, 0x91, 0x3a, 0xfe, 0xec, 0xbb, 0x07, 0xa1, 0x05, 0xc8,
+	0x63, 0x98, 0x68, 0xa1, 0x59, 0xfe, 0xba, 0x92, 0x4c, 0x73, 0x51, 0xd8, 0xd1, 0x02, 0xda, 0x05,
+	0x0d, 0x6b, 0x25, 0x76, 0x65, 0xa5, 0x71, 0x7d, 0x26, 0xaa, 0x42, 0xdb, 0x4d, 0x0a, 0x69, 0x17,
+	0x34, 0xf1, 0xaa, 0x81, 0x46, 0x2d, 0xb0, 0x6a, 0x7d, 0x98, 0x3c, 0x85, 0x3b, 0x0a, 0x0b, 0xfd,
+	0x1e, 0x95, 0x62, 0x19, 0x2a, 0xa7, 0x39, 0xb0, 0x9a, 0xd7, 0x3f, 0x98, 0xd8, 0x6f, 0x58, 0xde,
+	0xf4, 0x0e, 0x2d, 0xaf, 0x0d, 0x99, 0xf9, 0x78, 0xc1, 0x56, 0x9a, 0xef, 0xd1, 0x71, 0x86, 0x6e,
+	0xbe, 0x0e, 0x98, 0xbc, 0x01, 0x38, 0x3a, 0x49, 0x08, 0x0c, 0x0a, 0xb6, 0x43, 0xbb, 0xe0, 0x11,
+	0xb5, 0xef, 0x64, 0x0a, 0x3e, 0x3f, 0x24, 0xd0, 0xe7, 0x36, 0x94, 0x7b, 0x96, 0x57, 0xee, 0xa0,
+	0x9e, 0x50, 0x57, 0x24, 0x3f, 0x3c, 0x98, 0xbc, 0x13, 0xcb, 0xb3, 0x0d, 0xae, 0xb6, 0xa5, 0xe0,
+	0xc5, 0x9f, 0x36, 0xf7, 0x19, 0x84, 0x26, 0xe4, 0x87, 0x6d, 0x9d, 0x1d, 0xb6, 0xa9, 0xa3, 0x31,
+	0xb7, 0x67, 0xc4, 0x11, 0xfb, 0x71, 0x08, 0xfe, 0x2a, 0x0e, 0xb3, 0x0d, 0x0c, 0x8c, 0xc8, 0x8d,
+	0x47, 0xac, 0x77, 0x7d, 0xf8, 0xd7, 0xaf, 0x8f, 0x27, 0x30, 0x2d, 0x25, 0x7e, 0x42, 0x29, 0x71,
+	0xfd, 0x56, 0x28, 0xed, 0x5a, 0x8f, 0x68, 0x0f, 0x5d, 0xba, 0x9b, 0xf0, 0xf9, 0xcf, 0x00, 0x00,
+	0x00, 0xff, 0xff, 0xbb, 0x79, 0x80, 0x9c, 0x21, 0x05, 0x00, 0x00,
 }

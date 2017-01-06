@@ -7,8 +7,8 @@ type Algorithm interface {
 	Init(context InitContext) error
 	GetResult() interface{}
 
-	BeforeSuperstep(context SuperstepContext) error
-	AfterSuperstep(context SuperstepContext) error
+	BeforeSuperstep(context SuperstepContext) error //move to handlers interface
+	AfterSuperstep(context SuperstepContext) error  //move to handlers interface
 
 	ResultEncoder() encoding.Encoder
 }

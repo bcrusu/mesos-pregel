@@ -2,6 +2,7 @@ package main
 
 import (
 	"sync"
+	"time"
 
 	"github.com/bcrusu/mesos-pregel/aggregator"
 	"github.com/bcrusu/mesos-pregel/executor/algorithm"
@@ -23,7 +24,7 @@ type PregelTask struct {
 	graph            *graph.Graph
 }
 
-func NewPregelTask(params protos.PregelTaskParams) (*PregelTask, error) {
+func NewPregelTask(params protos.ExecTaskParams) (*PregelTask, error) {
 	store, err := store.New(params.Store, params.StoreParams, params.VertexRange)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to initialize store: %v", params.Store)
@@ -41,20 +42,27 @@ func NewPregelTask(params protos.PregelTaskParams) (*PregelTask, error) {
 		algorithm: algorithm}, nil
 }
 
-func (task *PregelTask) ExecSuperstep(superstep int, aggregators *aggregator.AggregatorSet) (*protos.PregelTaskStatus, error) {
+func (task *PregelTask) ExecSuperstep(params *protos.ExecSuperstepParams) (*protos.ExecSuperstepResult, error) {
 	task.mutex.Lock()
 	defer task.mutex.Unlock()
 
+	startTime := time.Now()
+	superstep := int(params.Superstep)
+	prevSuperstep := superstep - 1
+
 	if task.currentSuperstep >= superstep {
 		return nil, errors.Errorf("cannot execute past superstep - current superstep: %d; asked to execute %d", task.currentSuperstep, superstep)
+	}
+
+	aggregatorSet, err := aggregator.NewSetFromMessages(params.Aggregators)
+	if err != nil {
+		return nil, err
 	}
 
 	if err := task.store.Connect(); err != nil {
 		return nil, err
 	}
 	defer task.store.Close()
-
-	prevSuperstep := superstep - 1
 
 	if err := task.loadSuperstep(prevSuperstep); err != nil {
 		return nil, err
@@ -70,20 +78,36 @@ func (task *PregelTask) ExecSuperstep(superstep int, aggregators *aggregator.Agg
 		return nil, err
 	}
 
-	processor := messagesProcessor.New(task.jobID, superstep, task.graph, task.algorithm, aggregators)
+	processor := messagesProcessor.New(task.jobID, superstep, task.graph, task.algorithm, aggregatorSet)
 	processResult, err := processor.Process(messages, halted)
 	if err != nil {
 		return nil, err
 	}
 
-	err = task.saveResult(processResult)
+	err = task.saveResult(processResult.Entities)
 	if err != nil {
 		return nil, err
 	}
 
-	return &protos.PregelTaskStatus{
-		TaskId: task.ID,
-		JobId:  task.jobID}, nil
+	aggregators, err := aggregator.ConvertSetToMessages(aggregatorSet)
+	if err != nil {
+		return nil, err
+	}
+
+	elapsed := time.Since(startTime)
+
+	return &protos.ExecSuperstepResult{
+		Superstep:   int32(superstep),
+		Aggregators: aggregators,
+		Stats: &protos.ExecSuperstepResult_Stats{
+			TotalDuration:     int64(elapsed),
+			ComputedCount:     int32(processResult.Stats.ComputedCount),
+			ComputeDuration:   int64(processResult.Stats.ComputeDuration),
+			HaltedCount:       int32(processResult.Stats.HaltedCount),
+			SentMessagesCount: int32(processResult.Stats.SentMessagesCount),
+			InactiveCount:     int32(processResult.Stats.InactiveCount),
+		},
+	}, nil
 }
 
 func (task *PregelTask) loadSuperstep(superstep int) error {
@@ -205,7 +229,7 @@ func (task *PregelTask) loadHaltedVertices(superstep int) (map[string]bool, erro
 	return result, nil
 }
 
-func (task *PregelTask) saveResult(result *messagesProcessor.ProcessResult) error {
+func (task *PregelTask) saveResult(entities *messagesProcessor.ProcessResultEntities) error {
 	//TODO
 	return nil
 }

@@ -20,7 +20,7 @@ func (algo *shortestPathAlgorithm) Compute(context *algorithm.VertexContext, msg
 }
 
 func (algo *shortestPathAlgorithm) VertexMessageCombiner() algorithm.VertexMessageCombiner {
-	return algorithm.VertexMessageCombiner(combineVertexMessages)
+	return combineVertexMessages
 }
 
 func (algo *shortestPathAlgorithm) VertexMessageEncoder() encoding.Encoder {

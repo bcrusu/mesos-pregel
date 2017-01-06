@@ -138,7 +138,7 @@ func (op *contextOperations) SetEdgeValue(from string, to string, value interfac
 	op.changedEdgeValues[edge] = value
 }
 
-func (op *contextOperations) GetProcessResult(jobId string, superstep int) (*ProcessResult, error) {
+func (op *contextOperations) GetEntities(jobId string, superstep int) (*ProcessResultEntities, error) {
 	m := make([]*pregel.VertexMessage, 0, len(op.vertexMessages))
 	v := make([]*pregel.VertexOperation, 0, op.getVertexOperationsCount())
 	h := make([]*pregel.VertexHalted, 0, len(op.haltedVertices))
@@ -196,7 +196,7 @@ func (op *contextOperations) GetProcessResult(jobId string, superstep int) (*Pro
 		h = append(h, &pregel.VertexHalted{ID: id, JobID: jobId, Superstep: superstep})
 	}
 
-	return &ProcessResult{m, v, h, e}, nil
+	return &ProcessResultEntities{m, v, h, e}, nil
 }
 
 func (op *contextOperations) getVertexOperationsCount() int {

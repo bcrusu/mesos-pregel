@@ -84,7 +84,7 @@ func (task *PregelTask) ExecSuperstep(params *protos.ExecSuperstepParams) (*prot
 		return nil, err
 	}
 
-	err = task.saveResult(processResult.Entities)
+	err = task.saveEntities(processResult.Entities)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +229,7 @@ func (task *PregelTask) loadHaltedVertices(superstep int) (map[string]bool, erro
 	return result, nil
 }
 
-func (task *PregelTask) saveResult(entities *messagesProcessor.ProcessResultEntities) error {
+func (task *PregelTask) saveEntities(entities *messagesProcessor.ProcessResultEntities) error {
 	//TODO
 	return nil
 }

@@ -62,3 +62,8 @@ func (jt *jobTasks) getPercentDone() int {
 	//TODO
 	return 0
 }
+
+func (jt *jobTasks) GetTasksToExecute() []*protos.ExecTaskParams {
+	//TODO
+	return nil
+}

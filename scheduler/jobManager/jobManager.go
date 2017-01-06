@@ -30,6 +30,11 @@ type JobManager struct {
 	runningJobTasks   map[string]*jobTasks
 }
 
+type ResourceOffer interface {
+	Host() string
+	Subtract(cpus float64, mems float64) bool
+}
+
 func New(jobStore store.JobStore) (*JobManager, error) {
 	result := &JobManager{
 		jobStore:          jobStore,
@@ -104,6 +109,11 @@ func (manager *JobManager) GetJobStatus(request *protos.JobIdRequest) *protos.Ge
 }
 
 func (manager *JobManager) GetJobResult(request *protos.JobIdRequest) *protos.GetJobResultReply {
+	//TODO
+	return nil
+}
+
+func (manager *JobManager) ResourceOffers(offer ResourceOffer) []*protos.ExecTaskParams {
 	//TODO
 	return nil
 }

@@ -16,14 +16,8 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
 	mesos "github.com/mesos/mesos-go/mesosproto"
-	util "github.com/mesos/mesos-go/mesosutil"
 	sched "github.com/mesos/mesos-go/scheduler"
 	"github.com/pkg/errors"
-)
-
-const (
-	defaultExecutorCPU = 1
-	defaultExecutorMEM = 256
 )
 
 func main() {
@@ -71,9 +65,8 @@ func run() error {
 }
 
 func runDriver(jobManager *jobManager.JobManager) error {
-	executorInfo := getExecutorInfo()
 	config := sched.DriverConfig{
-		Scheduler: NewPregelScheduler(executorInfo, jobManager),
+		Scheduler: NewPregelScheduler(jobManager),
 		Framework: &mesos.FrameworkInfo{
 			User: proto.String(""),
 			Name: proto.String("Pregel"),
@@ -91,24 +84,6 @@ func runDriver(jobManager *jobManager.JobManager) error {
 	}
 
 	return nil
-}
-
-func getExecutorInfo() *mesos.ExecutorInfo {
-	//TODO: executor cmd & command uri
-	executorCommand := ""
-
-	return &mesos.ExecutorInfo{
-		ExecutorId: util.NewExecutorID("pregel"),
-		Name:       proto.String("Pregel Executor"),
-		Command: &mesos.CommandInfo{
-			Value: proto.String(executorCommand),
-			Uris:  nil,
-		},
-		Resources: []*mesos.Resource{
-			util.NewScalarResource("cpus", defaultExecutorCPU),
-			util.NewScalarResource("mem", defaultExecutorMEM),
-		},
-	}
 }
 
 func getJobStore() (store.JobStore, error) {

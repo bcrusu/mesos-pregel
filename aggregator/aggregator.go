@@ -1,16 +1,13 @@
 package aggregator
 
-import "github.com/bcrusu/mesos-pregel/encoding"
-
 type Aggregator interface {
+	Name() string
+
 	Get() interface{}
-	Set(value interface{})
+	Set(value interface{}) error
 
-	Converter() ValueConverter
-	MessageEncoder() encoding.Encoder
-}
+	GetBytes() ([]byte, error)
+	SetBytes(bytes []byte) error
 
-type ValueConverter interface {
-	ToMessage(value interface{}) (interface{}, error)
-	FromMessage(message interface{}) (interface{}, error)
+	Clone() Aggregator
 }

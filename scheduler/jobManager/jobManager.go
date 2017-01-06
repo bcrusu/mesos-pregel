@@ -244,7 +244,7 @@ func getAlgorithm(name string, params []byte) (algorithm.Algorithm, error) {
 		return nil, err
 	}
 
-	algorithm.Init()
+	//TODO algorithm.Init()
 
 	return algorithm, nil
 }

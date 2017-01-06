@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bcrusu/mesos-pregel/aggregator"
 	"github.com/bcrusu/mesos-pregel/encoding"
 	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/gogo/protobuf/proto"
@@ -87,7 +88,14 @@ func (executor *PregelExecutor) processLaunchTask(driver exec.ExecutorDriver, ta
 		return
 	}
 
-	taskStatus, err := task.ExecSuperstep(int(taskParams.Superstep))
+	aggregators, err := aggregator.NewSetFromMessages(taskParams.Aggregators)
+	if err != nil {
+		glog.Errorf("Failed to create aggregators for tas: %d", taskParams.TaskId)
+		sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_FAILED, nil)
+		return
+	}
+
+	taskStatus, err := task.ExecSuperstep(int(taskParams.Superstep), aggregators)
 	if err != nil {
 		glog.Errorf("Failed to execute superstep %d for job %s. Error %v", taskParams.Superstep, taskParams.JobId, err)
 		sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_FAILED, nil)

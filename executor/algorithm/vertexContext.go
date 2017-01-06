@@ -1,15 +1,21 @@
 package algorithm
 
+import (
+	"github.com/bcrusu/mesos-pregel/aggregator"
+)
+
 type VertexContext struct {
-	id        string
-	Edges     []*EdgeContext
-	Value     interface{}
-	Superstep int
-	op        ContextOperations
+	id          string
+	Edges       []*EdgeContext
+	Value       interface{}
+	Superstep   int
+	Aggregators *aggregator.AggregatorSet
+	op          ContextOperations
 }
 
-func NewVertexContext(id string, superstep int, value interface{}, operations ContextOperations) *VertexContext {
-	return &VertexContext{id: id, Superstep: superstep, Value: value, op: operations}
+func NewVertexContext(id string, superstep int, value interface{},
+	operations ContextOperations, aggregators *aggregator.AggregatorSet) *VertexContext {
+	return &VertexContext{id: id, Superstep: superstep, Value: value, op: operations, Aggregators: aggregators}
 }
 
 func (c *VertexContext) ID() string {

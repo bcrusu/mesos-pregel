@@ -24,7 +24,7 @@ func (algo *shortestPathAlgorithm) VertexMessageCombiner() algorithm.VertexMessa
 }
 
 func (algo *shortestPathAlgorithm) VertexMessageEncoder() encoding.Encoder {
-	return encoding.NewProtobufEncoder(func() proto.Message { return new(protos.ShortestPathMessage) })
+	return encoding.NewProtobufEncoder(func() proto.Message { return new(protos.ShortestPathAlgorithmMessage) })
 }
 
 func (algo *shortestPathAlgorithm) VertexValueEncoder() encoding.Encoder {
@@ -40,8 +40,8 @@ func (algo *shortestPathAlgorithm) Handlers() *algorithm.Handlers {
 }
 
 func combineVertexMessages(firstMsg interface{}, secondMsg interface{}) interface{} {
-	first := firstMsg.(*protos.ShortestPathMessage)
-	second := secondMsg.(*protos.ShortestPathMessage)
+	first := firstMsg.(*protos.ShortestPathAlgorithmMessage)
+	second := secondMsg.(*protos.ShortestPathAlgorithmMessage)
 
 	// compare path lengths and return the min
 	if first.PathLength < second.PathLength {

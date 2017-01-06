@@ -11,8 +11,19 @@ type shortestPathAlgorithm struct {
 	params protos.ShortestPathAlgorithmParams
 }
 
-func (algo *shortestPathAlgorithm) Init() {
+func (algo *shortestPathAlgorithm) Init(context algorithm.InitContext) error {
 	//TODO
+	return nil
+}
+
+func (algo *shortestPathAlgorithm) BeforeSuperstep(context algorithm.SuperstepContext) error {
+	//TODO
+	return nil
+}
+
+func (algo *shortestPathAlgorithm) AfterSuperstep(context algorithm.SuperstepContext) error {
+	//TODO
+	return nil
 }
 
 func (algo *shortestPathAlgorithm) GetResult() interface{} {

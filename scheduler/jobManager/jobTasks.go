@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bcrusu/mesos-pregel/aggregator"
 	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/bcrusu/mesos-pregel/store"
 )
@@ -22,6 +23,7 @@ type jobTasks struct {
 	completed        map[int]*task
 	running          map[int]*task
 	waiting          map[int]*task
+	aggregators      *aggregator.AggregatorSet
 }
 
 type task struct {

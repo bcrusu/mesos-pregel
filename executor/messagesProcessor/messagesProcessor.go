@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/bcrusu/mesos-pregel"
+	"github.com/bcrusu/mesos-pregel/aggregator"
 	"github.com/bcrusu/mesos-pregel/executor/algorithm"
 	"github.com/bcrusu/mesos-pregel/executor/graph"
 )
@@ -13,10 +14,11 @@ const (
 )
 
 type MessagesProcessor struct {
-	jobID     string
-	superstep int
-	graph     *graph.Graph
-	algorithm algorithm.Algorithm
+	jobID       string
+	superstep   int
+	graph       *graph.Graph
+	algorithm   algorithm.Algorithm
+	aggregators *aggregator.AggregatorSet
 }
 
 type ProcessResult struct {
@@ -34,8 +36,9 @@ type computeRequest struct {
 type computeResult struct {
 }
 
-func New(jobID string, superstep int, graph *graph.Graph, algorithm algorithm.Algorithm) *MessagesProcessor {
-	return &MessagesProcessor{jobID, superstep, graph, algorithm}
+func New(jobID string, superstep int, graph *graph.Graph, algorithm algorithm.Algorithm,
+	aggregators *aggregator.AggregatorSet) *MessagesProcessor {
+	return &MessagesProcessor{jobID, superstep, graph, algorithm, aggregators}
 }
 
 func (proc *MessagesProcessor) Process(messages map[string]interface{}, haltedVertices map[string]bool) (*ProcessResult, error) {
@@ -78,7 +81,7 @@ func (proc *MessagesProcessor) createVertexContext(id string, operations *contex
 	graph := proc.graph
 
 	vertexValue, _ := graph.VertexValue(id)
-	vertexContext := algorithm.NewVertexContext(id, proc.superstep, vertexValue, operations)
+	vertexContext := algorithm.NewVertexContext(id, proc.superstep, vertexValue, operations, proc.aggregators)
 
 	edges := graph.EdgesFrom(id)
 	vertexContext.Edges = make([]*algorithm.EdgeContext, len(edges))

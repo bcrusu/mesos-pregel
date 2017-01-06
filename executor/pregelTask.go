@@ -3,6 +3,7 @@ package main
 import (
 	"sync"
 
+	"github.com/bcrusu/mesos-pregel/aggregator"
 	"github.com/bcrusu/mesos-pregel/executor/algorithm"
 	"github.com/bcrusu/mesos-pregel/executor/graph"
 	"github.com/bcrusu/mesos-pregel/executor/messagesProcessor"
@@ -40,7 +41,7 @@ func NewPregelTask(params protos.PregelTaskParams) (*PregelTask, error) {
 		algorithm: algorithm}, nil
 }
 
-func (task *PregelTask) ExecSuperstep(superstep int) (*protos.PregelTaskStatus, error) {
+func (task *PregelTask) ExecSuperstep(superstep int, aggregators *aggregator.AggregatorSet) (*protos.PregelTaskStatus, error) {
 	task.mutex.Lock()
 	defer task.mutex.Unlock()
 
@@ -69,7 +70,7 @@ func (task *PregelTask) ExecSuperstep(superstep int) (*protos.PregelTaskStatus, 
 		return nil, err
 	}
 
-	processor := messagesProcessor.New(task.jobID, superstep, task.graph, task.algorithm)
+	processor := messagesProcessor.New(task.jobID, superstep, task.graph, task.algorithm, aggregators)
 	processResult, err := processor.Process(messages, halted)
 	if err != nil {
 		return nil, err

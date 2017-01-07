@@ -4,21 +4,17 @@ import (
 	"flag"
 	"log"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/bcrusu/mesos-pregel"
+	_ "github.com/bcrusu/mesos-pregel/cassandra" // register Cassandra store
 	"github.com/bcrusu/mesos-pregel/dataLoader/parser"
-	"github.com/bcrusu/mesos-pregel/dataLoader/store"
+	"github.com/bcrusu/mesos-pregel/protos"
+	"github.com/bcrusu/mesos-pregel/store"
+	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
 )
-
-var (
-	inputFilePath string
-	batchSize     int
-)
-
-func init() {
-	flag.StringVar(&inputFilePath, "filePath", "", "Input file path")
-	flag.IntVar(&batchSize, "batchSize", 1500, "Insert batch size")
-}
 
 func main() {
 	flag.Parse()
@@ -33,36 +29,89 @@ func main() {
 }
 
 func run() error {
-	inputFile, err := os.Open(inputFilePath)
+	store, err := getStore()
 	if err != nil {
-		return err
-	}
-	defer inputFile.Close()
-
-	store, err := store.NewStore()
-	if err != nil {
-		return err
-	}
-
-	if err = store.Connect(); err != nil {
 		return err
 	}
 	defer store.Close()
 
-	parser, err := parser.NewParser(inputFile)
-	if err != nil {
-		return err
+	if VerticesFilePath != nil {
+		file, err := os.Open(*VerticesFilePath)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		parser, err := parser.NewVertexParser(*Parser, file)
+		if err != nil {
+			return err
+		}
+
+		loadVertices(parser, store)
 	}
 
-	return loadData(parser, store)
+	if EdgesFilePath != nil {
+		file, err := os.Open(*EdgesFilePath)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		parser, err := parser.NewEdgeParser(*Parser, file)
+		if err != nil {
+			return err
+		}
+
+		loadEdges(parser, store)
+	}
+
+	return nil
 }
 
-func loadData(parser parser.Parser, store store.Store) error {
-	batch := make([]*pregel.Edge, 0, batchSize)
+func loadVertices(parser parser.VertexParser, store store.GraphStore) error {
+	batch := make([]*pregel.Vertex, 0, *ReadBatchSize)
 	batchNo := 0
 
 	for true {
-		edge := parser.Next()
+		vertex, err := parser.Next()
+		if err != nil {
+			return errors.Wrapf(err, "vertex parser error")
+		}
+
+		if vertex != nil {
+			batch = append(batch, vertex)
+		}
+
+		// if batch is full OR done parsing
+		if len(batch) == cap(batch) || vertex == nil {
+			batchNo++
+			log.Printf("Writing vertex batch %d containing %d items", batchNo, len(batch))
+
+			if err := store.SaveVertices(batch); err != nil {
+				return err
+			}
+
+			batch = batch[:0]
+		}
+
+		if vertex == nil {
+			break
+		}
+	}
+
+	return nil
+}
+
+func loadEdges(parser parser.EdgeParser, store store.GraphStore) error {
+	batch := make([]*pregel.Edge, 0, *ReadBatchSize)
+	batchNo := 0
+
+	for true {
+		edge, err := parser.Next()
+		if err != nil {
+			return errors.Wrapf(err, "edge parser error")
+		}
+
 		if edge != nil {
 			batch = append(batch, edge)
 		}
@@ -70,9 +119,9 @@ func loadData(parser parser.Parser, store store.Store) error {
 		// if batch is full OR done parsing
 		if len(batch) == cap(batch) || edge == nil {
 			batchNo++
-			log.Printf("Writing batch %d containing %d items", batchNo, len(batch))
+			log.Printf("Writing edge batch %d containing %d items", batchNo, len(batch))
 
-			if err := store.Write(batch); err != nil {
+			if err := store.SaveEdges(batch); err != nil {
 				return err
 			}
 
@@ -85,4 +134,51 @@ func loadData(parser parser.Parser, store store.Store) error {
 	}
 
 	return nil
+}
+
+func getStore() (store.GraphStore, error) {
+	store, err := store.New(*Store, getStoreParams())
+	if err != nil {
+		return nil, err
+	}
+
+	if err = store.Connect(); err != nil {
+		return nil, err
+	}
+
+	if err = store.Init(); err != nil {
+		return nil, err
+	}
+
+	return store, nil
+}
+
+func getStoreParams() []byte {
+	var message proto.Message
+
+	switch *Store {
+	case "Cassandra":
+		hosts := strings.Split(*CassandraHosts, ",")
+		message = &protos.CassandraStoreParams{
+			Hosts:             hosts,
+			Keyspace:          *CassandraKeyspace,
+			ReplicationFactor: int32(*CassandraReplicationFactor),
+			VerticesTable:     *CassandraVerticesTable,
+			EdgesTable:        *CassandraEdgesTable,
+			Timeout:           int64(time.Minute),
+			BatchOptions: &protos.CassandraStoreParams_BatchOptions{
+				MaxSize:  2000,
+				MaxBytes: 30 * 1024,
+			},
+		}
+	default:
+		panic("unknown store type")
+	}
+
+	bytes, err := proto.Marshal(message)
+	if err != nil {
+		panic("failed to marshal store params")
+	}
+
+	return bytes
 }

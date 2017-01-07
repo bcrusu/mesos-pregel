@@ -22,7 +22,10 @@ type JobStore interface {
 type GraphStore interface {
 	GetVertexRanges(verticesPerRange int) ([]*VertexRangeHosts, error)
 
+	SaveVertices(vertices []*pregel.Vertex) error
 	LoadVertices(vrange VertexRange) ([]*pregel.Vertex, error)
+
+	SaveEdges(edges []*pregel.Edge) error
 	LoadEdges(vrange VertexRange) ([]*pregel.Edge, error)
 
 	LoadVertexMessages(jobID string, superstep int, vrange VertexRange) ([]*pregel.VertexMessage, error)

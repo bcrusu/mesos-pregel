@@ -6,11 +6,12 @@ import (
 )
 
 var (
-	boolValueEncoder       = NewProtobufEncoder(func() proto.Message { return new(protos.BoolValue) })
-	int32ValueEncoder      = NewProtobufEncoder(func() proto.Message { return new(protos.Int32Value) })
-	int64ValueEncoder      = NewProtobufEncoder(func() proto.Message { return new(protos.Int64Value) })
-	string64ValueEncoder   = NewProtobufEncoder(func() proto.Message { return new(protos.StringValue) })
-	stringListValueEncoder = NewProtobufEncoder(func() proto.Message { return new(protos.StringListValue) })
+	boolValueEncoder             = NewProtobufEncoder(func() proto.Message { return new(protos.BoolValue) })
+	int32ValueEncoder            = NewProtobufEncoder(func() proto.Message { return new(protos.Int32Value) })
+	int64ValueEncoder            = NewProtobufEncoder(func() proto.Message { return new(protos.Int64Value) })
+	string64ValueEncoder         = NewProtobufEncoder(func() proto.Message { return new(protos.StringValue) })
+	stringListValueEncoder       = NewProtobufEncoder(func() proto.Message { return new(protos.StringListValue) })
+	dimacsCoordinateValueEncoder = NewProtobufEncoder(func() proto.Message { return new(protos.DimacsCoordinateValue) })
 )
 
 func BoolValueEncoder() Encoder {
@@ -31,6 +32,10 @@ func StringValueEncoder() Encoder {
 
 func StringListValueEncoder() Encoder {
 	return stringListValueEncoder
+}
+
+func DimacsCoordinateValueEncoder() Encoder {
+	return dimacsCoordinateValueEncoder
 }
 
 func NullEncoder() Encoder {

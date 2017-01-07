@@ -62,7 +62,7 @@ func (store *cassandraGraphStore) Close() {
 }
 
 func (store *cassandraGraphStore) Init() error {
-	if err := store.ensureTables(); err != nil {
+	if err := store.ensureSchema(); err != nil {
 		return err
 	}
 
@@ -87,10 +87,6 @@ func (store *cassandraGraphStore) GetVertexRanges(verticesPerRange int) ([]*stor
 }
 
 func (store *cassandraGraphStore) LoadVertices(vrange store.VertexRange) ([]*pregel.Vertex, error) {
-	if len(store.params.VerticesTable) == 0 {
-		return make([]*pregel.Vertex, 0), nil
-	}
-
 	cql := fmt.Sprintf(`SELECT id, value FROM %s WHERE %s;`, store.fullTableName(store.params.VerticesTable), tokenFilterPlaceholder)
 
 	createScanDest := func() []interface{} {
@@ -114,11 +110,30 @@ func (store *cassandraGraphStore) LoadVertices(vrange store.VertexRange) ([]*pre
 	return result, nil
 }
 
-func (store *cassandraGraphStore) LoadEdges(vrange store.VertexRange) ([]*pregel.Edge, error) {
-	if len(store.params.EdgesTable) == 0 {
-		return make([]*pregel.Edge, 0), nil
+func (store *cassandraGraphStore) SaveVertices(vertices []*pregel.Vertex) error {
+	cql := fmt.Sprintf(`INSERT INTO %s (id, value) VALUES(?, ?);`, store.fullTableName(store.params.VerticesTable))
+
+	items := make([]interface{}, len(vertices))
+	for i, v := range vertices {
+		items[i] = v
 	}
 
+	getItemSize := func(item interface{}) int {
+		vertex := item.(*pregel.Vertex)
+		result := len(vertex.ID)
+		result += len(vertex.Value)
+		return result
+	}
+
+	getItemArgs := func(item interface{}) []interface{} {
+		vertex := item.(*pregel.Vertex)
+		return []interface{}{vertex.ID, vertex.Value}
+	}
+
+	return store.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
+}
+
+func (store *cassandraGraphStore) LoadEdges(vrange store.VertexRange) ([]*pregel.Edge, error) {
 	cql := fmt.Sprintf(`SELECT "from", "to", value FROM %s WHERE %s;`, store.fullTableName(store.params.EdgesTable), tokenFilterPlaceholder)
 
 	createScanDest := func() []interface{} {
@@ -140,6 +155,30 @@ func (store *cassandraGraphStore) LoadEdges(vrange store.VertexRange) ([]*pregel
 	}
 
 	return result, nil
+}
+
+func (store *cassandraGraphStore) SaveEdges(edges []*pregel.Edge) error {
+	cql := fmt.Sprintf(`INSERT INTO %s ("from", "to", value) VALUES(?, ?, ?);`, store.fullTableName(store.params.EdgesTable))
+
+	items := make([]interface{}, len(edges))
+	for i, v := range edges {
+		items[i] = v
+	}
+
+	getItemSize := func(item interface{}) int {
+		edge := item.(*pregel.Edge)
+		result := len(edge.From)
+		result += len(edge.To)
+		result += len(edge.Value)
+		return result
+	}
+
+	getItemArgs := func(item interface{}) []interface{} {
+		edge := item.(*pregel.Edge)
+		return []interface{}{edge.From, edge.To, edge.Value}
+	}
+
+	return store.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
 }
 
 func (store *cassandraGraphStore) LoadVertexMessages(jobID string, superstep int, vrange store.VertexRange) ([]*pregel.VertexMessage, error) {
@@ -416,16 +455,21 @@ func (store *cassandraGraphStore) executeSelectWithTokenRange(cql string, vrange
 	return result, nil
 }
 
-func (store *cassandraGraphStore) ensureTables() error {
-	cql := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s("to" text, job_id text, superstep int, unique_id timeuuid, value blob, PRIMARY KEY(("to"), job_id, superstep, unique_id));
-CREATE TABLE IF NOT EXISTS %s(id text, job_id text, superstep int, unique_id timeuuid, type int, value blob, PRIMARY KEY((id), job_id, superstep, unique_id));
-CREATE TABLE IF NOT EXISTS %s(id text, job_id text, superstep int, PRIMARY KEY((id), job_id, superstep));
-CREATE TABLE IF NOT EXISTS %s("from" text, "to" text, job_id text, superstep int, unique_id timeuuid, type int, value blob, PRIMARY KEY(("from"), "to", job_id, superstep, unique_id));`,
-		store.fullTableName(vertexMessagesTableName), store.fullTableName(vertexOperationsTableName),
-		store.fullTableName(haltedVerticesTableName), store.fullTableName(edgeOperationsTableName))
+func (store *cassandraGraphStore) ensureSchema() error {
+	statements := []string{
+		fmt.Sprintf(`CREATE KEYSPACE IF NOT EXISTS %s WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : %d }`, store.params.Keyspace, store.params.ReplicationFactor),
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, value blob, PRIMARY KEY(id))`, store.fullTableName(store.params.VerticesTable)),
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s("from" text, "to" text, value blob, PRIMARY KEY(("from"), "to"))`, store.fullTableName(store.params.EdgesTable)),
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s("to" text, job_id text, superstep int, unique_id timeuuid, value blob, PRIMARY KEY(("to"), job_id, superstep, unique_id))`, store.fullTableName(vertexMessagesTableName)),
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, job_id text, superstep int, unique_id timeuuid, type int, value blob, PRIMARY KEY((id), job_id, superstep, unique_id))`, store.fullTableName(vertexOperationsTableName)),
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, job_id text, superstep int, PRIMARY KEY((id), job_id, superstep))`, store.fullTableName(haltedVerticesTableName)),
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s("from" text, "to" text, job_id text, superstep int, unique_id timeuuid, type int, value blob, PRIMARY KEY(("from"), "to", job_id, superstep, unique_id))`, store.fullTableName(edgeOperationsTableName)),
+	}
 
-	if err := store.session.Query(cql).Exec(); err != nil {
-		return errors.Wrap(err, "error creating vertex/edge operations tables")
+	for _, cql := range statements {
+		if err := store.session.Query(cql).Exec(); err != nil {
+			return errors.Wrap(err, "error creating schema")
+		}
 	}
 
 	return nil

@@ -5,10 +5,11 @@ package protos;
 message CassandraStoreParams {
     repeated string hosts = 1;
     string keyspace = 2;    
-    string verticesTable = 3;
-    string edgesTable = 4;
-    BatchOptions batchOptions = 5;
-    int64 timeout = 6; // milliseconds
+    int32 replicationFactor = 3;
+    string verticesTable = 4;
+    string edgesTable = 5;
+    BatchOptions batchOptions = 6;
+    int64 timeout = 7;
 
     message BatchOptions {
         int32 MaxSize = 1;

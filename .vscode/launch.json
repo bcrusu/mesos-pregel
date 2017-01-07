@@ -11,7 +11,13 @@
             "host": "127.0.0.1",
             "program": "${workspaceRoot}/dataLoader",
             "env": {},
-            "args": ["-store=cassandra", "-cassandra.table=usaRoads", "-cassandra.table=nyRoads", "-filePath=/home/bcrusu/Downloads/USA-road-d.NY.gr"],
+            "args": [                
+                "-vertices.filePath=/home/bcrusu/Downloads/USA-road-d.NY.co",
+                "-edges.filePath=/home/bcrusu/Downloads/USA-road-d.NY.gr",
+                "-cassandra.keyspace=pregel",
+                "-cassandra.replication_factor=1",
+                "-cassandra.vertices_table=nyroads_vertices",
+                "-cassandra.edges_table=nyroads_edges"],
             "showLog": true
         }
     ]

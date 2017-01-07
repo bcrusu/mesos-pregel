@@ -42,3 +42,14 @@ func ExecuteSelect(session *gocql.Session, cql string, createScanDest CreateScan
 func ExecuteScalar(session *gocql.Session, cql string, dest interface{}, params ...interface{}) error {
 	return session.Query(cql, params).Scan(dest)
 }
+
+func TableExists(session *gocql.Session, keyspace string, tableName string) (bool, error) {
+	query := session.Query(`SELECT count(1) FROM system_schema.tables WHERE keyspace_name=? and table_name=?;`, keyspace, tableName)
+
+	var count int
+	if err := query.Scan(&count); err != nil {
+		return false, err
+	}
+
+	return count == 1, nil
+}

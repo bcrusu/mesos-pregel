@@ -24,17 +24,22 @@ func (exe *BatchExecutor) Execute(cql string, items []interface{}, getItemSize I
 }
 
 func (exe *BatchExecutor) createBatches(cql string, items []interface{}, getItemSize ItemSizeFunc, getItemArgs ItemArgsFunc) []*gocql.Batch {
-	result := make([]*gocql.Batch, 0, 100)
+	result := make([]*gocql.Batch, 0, exe.maxSize)
 
 	currentBatch := exe.session.NewBatch(gocql.LoggedBatch)
 	var currentBatchBytes int
 	for _, item := range items {
 		itemBytes := getItemSize(item)
-		if currentBatch.Size() == exe.maxSize || currentBatchBytes+itemBytes >= exe.maxBytes {
+		if currentBatch.Size() == exe.maxSize || currentBatchBytes+itemBytes > exe.maxBytes {
+			// current batch is full
 			result = append(result, currentBatch)
+
+			// create new empty batch for next items
 			currentBatch = exe.session.NewBatch(gocql.LoggedBatch)
 			currentBatchBytes = 0
 		}
+
+		currentBatchBytes += itemBytes
 
 		var entry gocql.BatchEntry
 		entry.Stmt = cql

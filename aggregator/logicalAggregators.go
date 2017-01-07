@@ -40,6 +40,10 @@ func (agg *boolAgg) convertToBool(value interface{}) (bool, error) {
 	return false, fmt.Errorf("invalid value type - expected bool or BoolValue, got %v", reflect.TypeOf(value))
 }
 
+func (agg *boolAgg) clone() *boolAgg {
+	return &boolAgg{agg.value}
+}
+
 type orAgg struct {
 	*boolAgg
 }
@@ -67,7 +71,7 @@ func (agg *orAgg) Set(value interface{}) error {
 }
 
 func (agg *orAgg) Clone() Aggregator {
-	return &orAgg{boolAgg: &boolAgg{agg.value}}
+	return &orAgg{agg.boolAgg.clone()}
 }
 
 type andAgg struct {
@@ -75,7 +79,7 @@ type andAgg struct {
 }
 
 func newAndAgg() Aggregator {
-	return &andAgg{boolAgg: &boolAgg{}}
+	return &andAgg{boolAgg: &boolAgg{true}}
 }
 
 func (agg *andAgg) Name() string {
@@ -97,5 +101,5 @@ func (agg *andAgg) Set(value interface{}) error {
 }
 
 func (agg *andAgg) Clone() Aggregator {
-	return &andAgg{boolAgg: &boolAgg{agg.value}}
+	return &andAgg{agg.boolAgg.clone()}
 }

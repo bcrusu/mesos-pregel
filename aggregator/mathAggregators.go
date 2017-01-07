@@ -40,6 +40,10 @@ func (agg *int64Agg) convertToInt64(value interface{}) (int64, error) {
 	return 0, fmt.Errorf("invalid value type - expected int64 or Int64Value, got %v", reflect.TypeOf(value))
 }
 
+func (agg *int64Agg) clone() *int64Agg {
+	return &int64Agg{agg.value}
+}
+
 type minIntAgg struct {
 	*int64Agg
 }
@@ -69,7 +73,7 @@ func (agg *minIntAgg) Set(value interface{}) error {
 }
 
 func (agg *minIntAgg) Clone() Aggregator {
-	return &minIntAgg{int64Agg: &int64Agg{agg.value}}
+	return &minIntAgg{agg.int64Agg.clone()}
 }
 
 type maxIntAgg struct {
@@ -101,7 +105,7 @@ func (agg *maxIntAgg) Set(value interface{}) error {
 }
 
 func (agg *maxIntAgg) Clone() Aggregator {
-	return &maxIntAgg{int64Agg: &int64Agg{agg.value}}
+	return &maxIntAgg{agg.int64Agg.clone()}
 }
 
 type sumIntAgg struct {
@@ -131,5 +135,5 @@ func (agg *sumIntAgg) Set(value interface{}) error {
 }
 
 func (agg *sumIntAgg) Clone() Aggregator {
-	return &sumIntAgg{int64Agg: &int64Agg{agg.value}}
+	return &sumIntAgg{agg.int64Agg.clone()}
 }

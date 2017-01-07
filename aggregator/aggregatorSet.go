@@ -38,7 +38,7 @@ func NewSetFromMessages(messages []*protos.Aggregator) (*AggregatorSet, error) {
 			return nil, err
 		}
 
-		agg.SetBytes(proto.Value)
+		err = agg.SetBytes(proto.Value)
 		if err != nil {
 			return nil, err
 		}

@@ -108,7 +108,7 @@ func parseVertex(text string) (edge *pregel.Vertex, success bool) {
 		return nil, false
 	}
 
-	valueBytes, err := encoding.DimacsCoordinateValueEncoder().Marshal(&protos.DimacsCoordinateValue{X: int32(x), Y: int32(y)})
+	valueBytes, err := encoding.Coordinate2DValueEncoder().Marshal(&protos.Coordinate2DValue{X: int32(x), Y: int32(y)})
 	if err != nil {
 		panic("failed to marshal edge value")
 	}

@@ -14,18 +14,19 @@ import (
 )
 
 type PregelTask struct {
-	ID        int32
-	jobID     string
-	store     store.GraphStore
-	algorithm algorithm.Algorithm
-	mutex     sync.Mutex
+	ID          int32
+	jobID       string
+	store       store.GraphStore
+	vertexRange []byte
+	algorithm   algorithm.Algorithm
+	mutex       sync.Mutex
 
 	currentSuperstep int
 	graph            *graph.Graph
 }
 
 func NewPregelTask(params protos.ExecTaskParams) (*PregelTask, error) {
-	store, err := store.New(params.Store, params.StoreParams, params.VertexRange)
+	store, err := store.New(params.Store, params.StoreParams)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to initialize store: %v", params.Store)
 	}
@@ -36,10 +37,11 @@ func NewPregelTask(params protos.ExecTaskParams) (*PregelTask, error) {
 	}
 
 	return &PregelTask{
-		ID:        params.TaskId,
-		jobID:     params.JobId,
-		store:     store,
-		algorithm: algorithm}, nil
+		ID:          params.TaskId,
+		jobID:       params.JobId,
+		store:       store,
+		vertexRange: params.VertexRange,
+		algorithm:   algorithm}, nil
 }
 
 func (task *PregelTask) ExecSuperstep(params *protos.ExecSuperstepParams) (*protos.ExecSuperstepResult, error) {
@@ -132,7 +134,7 @@ func (task *PregelTask) loadSuperstep(superstep int) error {
 
 func (task *PregelTask) loadGraph() error {
 	// load vertices
-	vertices, err := task.store.LoadVertices()
+	vertices, err := task.store.LoadVertices(task.vertexRange)
 	if err != nil {
 		return errors.Wrap(err, "failed to load graph vertices")
 	}
@@ -149,7 +151,7 @@ func (task *PregelTask) loadGraph() error {
 	}
 
 	// load edges
-	edges, err := task.store.LoadEdges()
+	edges, err := task.store.LoadEdges(task.vertexRange)
 	if err != nil {
 		return errors.Wrap(err, "failed to load graph edges")
 	}
@@ -172,12 +174,12 @@ func (task *PregelTask) fastForwardToSuperstep(toSuperstep int) error {
 
 	// apply the superstep diffs
 	for superstep := task.currentSuperstep + 1; superstep <= toSuperstep; superstep++ {
-		vertexOps, err := task.store.LoadVertexOperations(task.jobID, superstep)
+		vertexOps, err := task.store.LoadVertexOperations(task.jobID, superstep, task.vertexRange)
 		if err != nil {
 			return errors.Wrapf(err, "failed to load vertex operations for superstep %d", superstep)
 		}
 
-		edgeOps, err := task.store.LoadEdgeOperations(task.jobID, superstep)
+		edgeOps, err := task.store.LoadEdgeOperations(task.jobID, superstep, task.vertexRange)
 		if err != nil {
 			return errors.Wrapf(err, "failed to load edge operations for superstep %d", superstep)
 		}
@@ -193,7 +195,7 @@ func (task *PregelTask) fastForwardToSuperstep(toSuperstep int) error {
 }
 
 func (task *PregelTask) loadVertexMessages(superstep int) (map[string]interface{}, error) {
-	messages, err := task.store.LoadVertexMessages(task.jobID, superstep)
+	messages, err := task.store.LoadVertexMessages(task.jobID, superstep, task.vertexRange)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +218,7 @@ func (task *PregelTask) loadVertexMessages(superstep int) (map[string]interface{
 }
 
 func (task *PregelTask) loadHaltedVertices(superstep int) (map[string]bool, error) {
-	halted, err := task.store.LoadHaltedVertices(task.jobID, superstep)
+	halted, err := task.store.LoadHaltedVertices(task.jobID, superstep, task.vertexRange)
 	if err != nil {
 		return nil, err
 	}
@@ -230,6 +232,21 @@ func (task *PregelTask) loadHaltedVertices(superstep int) (map[string]bool, erro
 }
 
 func (task *PregelTask) saveEntities(entities *messagesProcessor.ProcessResultEntities) error {
-	//TODO
+	if err := task.store.SaveVertexMessages(entities.VertexMessages); err != nil {
+		return err
+	}
+
+	if err := task.store.SaveHaltedVertices(entities.HaltedVertices); err != nil {
+		return err
+	}
+
+	if err := task.store.SaveVertexOperations(entities.VertexOperations); err != nil {
+		return err
+	}
+
+	if err := task.store.SaveEdgeOperations(entities.EdgeOperations); err != nil {
+		return err
+	}
+
 	return nil
 }

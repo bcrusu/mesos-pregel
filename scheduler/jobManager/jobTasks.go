@@ -34,14 +34,14 @@ type task struct {
 	completedTime  time.Time
 }
 
-func newJobTasks(jobID string, vertexRanges []*store.VertexRange) *jobTasks {
+func newJobTasks(jobID string, vertexRanges []*store.VertexRangeHosts) *jobTasks {
 	taskMap := make(map[int]*task)
 	for i, item := range vertexRanges {
 		taskID := i + 1
 		taskMap[taskID] = &task{
 			ID:             taskID,
 			vertexRange:    item.Range,
-			preferredHosts: item.PreferredHosts,
+			preferredHosts: item.Hosts,
 		}
 	}
 

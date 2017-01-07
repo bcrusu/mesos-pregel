@@ -2,6 +2,7 @@ package cassandra
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/bcrusu/mesos-pregel"
@@ -18,14 +19,20 @@ const (
 	vertexOperationsTableName = "_vertexOperations"
 	haltedVerticesTableName   = "_haltedVertices"
 	edgeOperationsTableName   = "_edgeOperations"
+	tokenFilterPlaceholder    = "<TOKEN_FILTER>"
 )
 
 type cassandraGraphStore struct {
-	params           protos.CassandraStoreParams
-	tokenRangeParams []interface{}
-	cluster          *gocql.ClusterConfig
-	session          *gocql.Session
-	batchExecutor    *BatchExecutor
+	params            protos.CassandraStoreParams
+	tokenRangeEncoder encoding.Encoder
+	cluster           *gocql.ClusterConfig
+	session           *gocql.Session
+	batchExecutor     *BatchExecutor
+}
+
+type tokenFilter struct {
+	cql    string
+	params []interface{}
 }
 
 func (store *cassandraGraphStore) Connect() error {
@@ -39,6 +46,10 @@ func (store *cassandraGraphStore) Connect() error {
 
 	store.cluster = cluster
 	store.session = session
+
+	batchOptions := store.params.BatchOptions
+	store.batchExecutor = NewBatchExecutor(session, int(batchOptions.MaxSize), int(batchOptions.MaxBytes))
+
 	return nil
 }
 
@@ -58,7 +69,7 @@ func (store *cassandraGraphStore) Init() error {
 	return nil
 }
 
-func (store *cassandraGraphStore) GetVertexRanges(verticesPerRange int) ([]*store.VertexRange, error) {
+func (store *cassandraGraphStore) GetVertexRanges(verticesPerRange int) ([]*store.VertexRangeHosts, error) {
 	// tokenRanges, partitioner, err := BuildTokenRanges(store.params.Hosts, store.params.Keyspace)
 	// if err != nil {
 	// 	return nil, err
@@ -75,23 +86,22 @@ func (store *cassandraGraphStore) GetVertexRanges(verticesPerRange int) ([]*stor
 	return nil, nil
 }
 
-func (store *cassandraGraphStore) LoadVertices() ([]*pregel.Vertex, error) {
+func (store *cassandraGraphStore) LoadVertices(vrange store.VertexRange) ([]*pregel.Vertex, error) {
 	if len(store.params.VerticesTable) == 0 {
 		return make([]*pregel.Vertex, 0), nil
 	}
 
-	cql := fmt.Sprintf(`SELECT id, value FROM %s WHERE token(id) >= ? AND token(id) <= ?;`, store.fullTableName(store.params.VerticesTable))
-	params := store.tokenRangeParams
+	cql := fmt.Sprintf(`SELECT id, value FROM %s WHERE %s;`, store.fullTableName(store.params.VerticesTable), tokenFilterPlaceholder)
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new([]byte)}
 	}
 
-	createEntityFunc := func(dest []interface{}) interface{} {
+	createEntity := func(dest []interface{}) interface{} {
 		return &pregel.Vertex{ID: dest[0].(string), Value: dest[1].([]byte)}
 	}
 
-	entities, err := ExecuteSelect(store.session, cql, createScanDest, createEntityFunc, params...)
+	entities, err := store.executeSelectWithTokenRange(cql, vrange, `id`, createScanDest, createEntity)
 	if err != nil {
 		return nil, err
 	}
@@ -104,23 +114,22 @@ func (store *cassandraGraphStore) LoadVertices() ([]*pregel.Vertex, error) {
 	return result, nil
 }
 
-func (store *cassandraGraphStore) LoadEdges() ([]*pregel.Edge, error) {
+func (store *cassandraGraphStore) LoadEdges(vrange store.VertexRange) ([]*pregel.Edge, error) {
 	if len(store.params.EdgesTable) == 0 {
 		return make([]*pregel.Edge, 0), nil
 	}
 
-	cql := fmt.Sprintf(`SELECT "from", "to", value FROM %s WHERE token("from") >= ? AND token("from") <= ?;`, store.fullTableName(store.params.EdgesTable))
-	params := store.tokenRangeParams
+	cql := fmt.Sprintf(`SELECT "from", "to", value FROM %s WHERE %s;`, store.fullTableName(store.params.EdgesTable), tokenFilterPlaceholder)
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new(string), new([]byte)}
 	}
 
-	createEntityFunc := func(dest []interface{}) interface{} {
+	createEntity := func(dest []interface{}) interface{} {
 		return &pregel.Edge{From: dest[0].(string), To: dest[1].(string), Value: dest[2].([]byte)}
 	}
 
-	entities, err := ExecuteSelect(store.session, cql, createScanDest, createEntityFunc, params...)
+	entities, err := store.executeSelectWithTokenRange(cql, vrange, `"from"`, createScanDest, createEntity)
 	if err != nil {
 		return nil, err
 	}
@@ -133,20 +142,19 @@ func (store *cassandraGraphStore) LoadEdges() ([]*pregel.Edge, error) {
 	return result, nil
 }
 
-func (store *cassandraGraphStore) LoadVertexMessages(jobID string, superstep int) ([]*pregel.VertexMessage, error) {
-	cql := fmt.Sprintf(`SELECT "to", value FROM %s WHERE token(id) >= ? AND token(id) <= ? AND job_id=? AND superstep=?;`,
-		store.fullTableName(vertexMessagesTableName))
-	params := append(store.tokenRangeParams, jobID, superstep)
+func (store *cassandraGraphStore) LoadVertexMessages(jobID string, superstep int, vrange store.VertexRange) ([]*pregel.VertexMessage, error) {
+	cql := fmt.Sprintf(`SELECT "to", value FROM %s WHERE job_id=? AND superstep=? AND %s;`, store.fullTableName(vertexMessagesTableName), tokenFilterPlaceholder)
+	params := []interface{}{jobID, superstep}
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new([]byte)}
 	}
 
-	createEntityFunc := func(dest []interface{}) interface{} {
+	createEntity := func(dest []interface{}) interface{} {
 		return &pregel.VertexMessage{To: dest[0].(string), Value: dest[1].([]byte), JobID: jobID, Superstep: superstep}
 	}
 
-	entities, err := ExecuteSelect(store.session, cql, createScanDest, createEntityFunc, params...)
+	entities, err := store.executeSelectWithTokenRange(cql, vrange, `id`, createScanDest, createEntity, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -184,21 +192,20 @@ func (store *cassandraGraphStore) SaveVertexMessages(messages []*pregel.VertexMe
 	return store.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
 }
 
-func (store *cassandraGraphStore) LoadVertexOperations(jobID string, superstep int) ([]*pregel.VertexOperation, error) {
-	cql := fmt.Sprintf(`SELECT id, type, value FROM %s WHERE token(id) >= ? AND token(id) <= ? AND job_id=? AND superstep=?;`,
-		store.fullTableName(vertexOperationsTableName))
-	params := append(store.tokenRangeParams, jobID, superstep)
+func (store *cassandraGraphStore) LoadVertexOperations(jobID string, superstep int, vrange store.VertexRange) ([]*pregel.VertexOperation, error) {
+	cql := fmt.Sprintf(`SELECT id, type, value FROM %s WHERE job_id=? AND superstep=? AND %s;`, store.fullTableName(vertexOperationsTableName), tokenFilterPlaceholder)
+	params := []interface{}{jobID, superstep}
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new(string), new(pregel.VertexOperationType), new([]byte)}
 	}
 
-	createEntityFunc := func(dest []interface{}) interface{} {
+	createEntity := func(dest []interface{}) interface{} {
 		return &pregel.VertexOperation{ID: dest[0].(string), JobID: jobID, Superstep: superstep,
 			Type: dest[1].(pregel.VertexOperationType), Value: dest[2].([]byte)}
 	}
 
-	entities, err := ExecuteSelect(store.session, cql, createScanDest, createEntityFunc, params...)
+	entities, err := store.executeSelectWithTokenRange(cql, vrange, `id`, createScanDest, createEntity, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -236,20 +243,19 @@ func (store *cassandraGraphStore) SaveVertexOperations(operations []*pregel.Vert
 	return store.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
 }
 
-func (store *cassandraGraphStore) LoadHaltedVertices(jobID string, superstep int) ([]string, error) {
-	cql := fmt.Sprintf(`SELECT id FROM %s WHERE token(id) >= ? AND token(id) <= ? AND job_id=? AND superstep=?;`,
-		store.fullTableName(haltedVerticesTableName))
-	params := append(store.tokenRangeParams, jobID, superstep)
+func (store *cassandraGraphStore) LoadHaltedVertices(jobID string, superstep int, vrange store.VertexRange) ([]string, error) {
+	cql := fmt.Sprintf(`SELECT id FROM %s WHERE job_id=? AND superstep=? AND %s;`, store.fullTableName(haltedVerticesTableName), tokenFilterPlaceholder)
+	params := []interface{}{jobID, superstep}
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string)}
 	}
 
-	createEntityFunc := func(dest []interface{}) interface{} {
+	createEntity := func(dest []interface{}) interface{} {
 		return dest[0].(string)
 	}
 
-	entities, err := ExecuteSelect(store.session, cql, createScanDest, createEntityFunc, params...)
+	entities, err := store.executeSelectWithTokenRange(cql, vrange, `id`, createScanDest, createEntity, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -286,21 +292,20 @@ func (store *cassandraGraphStore) SaveHaltedVertices(halted []*pregel.VertexHalt
 	return store.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
 }
 
-func (store *cassandraGraphStore) LoadEdgeOperations(jobID string, superstep int) ([]*pregel.EdgeOperation, error) {
-	cql := fmt.Sprintf(`SELECT "from", "to", type, value FROM %s WHERE token("from") >= ? AND token("from") <= ? AND job_id=? AND superstep=?;`,
-		store.fullTableName(edgeOperationsTableName))
-	params := append(store.tokenRangeParams, jobID, superstep)
+func (store *cassandraGraphStore) LoadEdgeOperations(jobID string, superstep int, vrange store.VertexRange) ([]*pregel.EdgeOperation, error) {
+	cql := fmt.Sprintf(`SELECT "from", "to", type, value FROM %s WHERE job_id=? AND superstep=? AND %s;`, store.fullTableName(edgeOperationsTableName), tokenFilterPlaceholder)
+	params := []interface{}{jobID, superstep}
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new(string), new(pregel.EdgeOperationType), new([]byte)}
 	}
 
-	createEntityFunc := func(dest []interface{}) interface{} {
+	createEntity := func(dest []interface{}) interface{} {
 		return &pregel.EdgeOperation{From: dest[0].(string), To: dest[1].(string), JobID: jobID, Superstep: superstep,
 			Type: dest[2].(pregel.EdgeOperationType), Value: dest[3].([]byte)}
 	}
 
-	entities, err := ExecuteSelect(store.session, cql, createScanDest, createEntityFunc, params...)
+	entities, err := store.executeSelectWithTokenRange(cql, vrange, `"from"`, createScanDest, createEntity, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -344,17 +349,71 @@ func (store *cassandraGraphStore) fullTableName(table string) string {
 	return GetFullTableName(store.params.Keyspace, table)
 }
 
-func getTokenRangeParams(tokenRange *protos.CassandraTokenRange) ([]interface{}, error) {
+func (store *cassandraGraphStore) parseTokenRange(vrange store.VertexRange, primaryKey string) ([]*tokenFilter, error) {
+	proto, err := store.tokenRangeEncoder.Unmarshal(vrange)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal token range")
+	}
+
+	tokenRange := proto.(*protos.CassandraTokenRange)
+
 	partitioner, err := NewPartitioner(tokenRange.Partitioner)
 	if err != nil {
 		return nil, err
 	}
 
-	//TODO: check wrapped range (i.e. start > end)
-	startToken := partitioner.ParseString(tokenRange.StartToken)
-	endToken := partitioner.ParseString(tokenRange.EndToken)
+	min := partitioner.MinToken()
+	start := partitioner.ParseString(tokenRange.StartToken)
+	end := partitioner.ParseString(tokenRange.EndToken)
 
-	return []interface{}{startToken, endToken}, nil
+	// the ring contains only one token (see BuildTokenRanges):
+	if start == min && end == min {
+		return []*tokenFilter{&tokenFilter{
+			cql:    fmt.Sprintf("token(%s) >= ?", primaryKey),
+			params: []interface{}{min},
+		}}, nil
+	}
+
+	// split into two token ranges: (start, MAX_TOKEN] + [MIN_TOKEN, end]
+	if end.Less(start) {
+		return []*tokenFilter{&tokenFilter{
+			cql:    fmt.Sprintf("token(%s) > ?", primaryKey),
+			params: []interface{}{start},
+		}, &tokenFilter{
+			cql:    fmt.Sprintf("token(%s) <= ?", primaryKey),
+			params: []interface{}{end},
+		}}, nil
+	}
+
+	// the token range interval is: (start, end]
+	return []*tokenFilter{&tokenFilter{
+		cql:    fmt.Sprintf("token(%s) > ? AND token(%s) <= ?", primaryKey, primaryKey),
+		params: []interface{}{start, end},
+	}}, nil
+}
+
+func (store *cassandraGraphStore) executeSelectWithTokenRange(cql string, vrange store.VertexRange, primaryKey string,
+	createScanDest CreateScanDestFunc, createEntity CreateEntityFunc, params ...interface{}) ([]interface{}, error) {
+	tokenFilters, err := store.parseTokenRange(vrange, primaryKey)
+	if err != nil {
+		return nil, err
+	}
+
+	result := []interface{}{}
+
+	for _, tokenFilter := range tokenFilters {
+		finalCql := strings.Replace(cql, tokenFilterPlaceholder, tokenFilter.cql, 1)
+		finalParams := append(params, tokenFilter.params...)
+
+		entities, err := ExecuteSelect(store.session, finalCql, createScanDest, createEntity, finalParams...)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, entities...)
+	}
+
+	return result, nil
 }
 
 func (store *cassandraGraphStore) ensureTables() error {
@@ -374,21 +433,13 @@ CREATE TABLE IF NOT EXISTS %s("from" text, "to" text, job_id text, superstep int
 
 type cassandraGraphStoreFactory struct{}
 
-func (store *cassandraGraphStoreFactory) Create(params interface{}, vertexRange interface{}) (store.GraphStore, error) {
-	//TODO: check vertexRange for nil
-	tokenRange := vertexRange.(*protos.CassandraTokenRange)
-	tokenRangeParams, err := getTokenRangeParams(tokenRange)
-	if err != nil {
-		return nil, err
-	}
-
-	return &cassandraGraphStore{params: *params.(*protos.CassandraStoreParams), tokenRangeParams: tokenRangeParams}, nil
+func (store *cassandraGraphStoreFactory) Create(params interface{}) (store.GraphStore, error) {
+	return &cassandraGraphStore{
+		params:            *params.(*protos.CassandraStoreParams),
+		tokenRangeEncoder: encoding.NewProtobufEncoder(func() proto.Message { return new(protos.CassandraTokenRange) }),
+	}, nil
 }
 
 func (store *cassandraGraphStoreFactory) ParamsEncoder() encoding.Encoder {
 	return encoding.NewProtobufEncoder(func() proto.Message { return new(protos.CassandraStoreParams) })
-}
-
-func (store *cassandraGraphStoreFactory) VertexRangeEncoder() encoding.Encoder {
-	return encoding.NewProtobufEncoder(func() proto.Message { return new(protos.CassandraTokenRange) })
 }

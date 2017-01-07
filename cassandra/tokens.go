@@ -82,7 +82,8 @@ func BuildTokenRanges(hosts []string, keyspace string) ([]*TokenRange, Partition
 	partitioner := ring.Partitioner
 
 	if len(ring.Tokens) == 1 {
-		tokenRange := &TokenRange{partitioner.MinToken(), partitioner.MaxToken(), tokenToReplicaMap[ring.Tokens[0]]}
+		// same approach as described here: https://datastax-oss.atlassian.net/browse/JAVA-684
+		tokenRange := &TokenRange{partitioner.MinToken(), partitioner.MinToken(), tokenToReplicaMap[ring.Tokens[0]]}
 		tokenRanges = append(tokenRanges, tokenRange)
 	} else {
 		for i, tokenStart := range ring.Tokens {

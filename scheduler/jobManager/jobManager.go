@@ -113,7 +113,7 @@ func (manager *JobManager) GetJobResult(request *protos.JobIdRequest) *protos.Ge
 	return nil
 }
 
-func (manager *JobManager) ResourceOffers(offer ResourceOffer) []*protos.ExecTaskParams {
+func (manager *JobManager) GetTasksToExecute(offer ResourceOffer) []*protos.ExecTaskParams {
 	//TODO
 	return nil
 }
@@ -220,7 +220,7 @@ func (manager *JobManager) saveCheckpoint(jobID string, checkpoint *protos.JobCh
 }
 
 func connectGraphStore(name string, params []byte) (store.GraphStore, error) {
-	graphStore, err := store.New(name, params, nil)
+	graphStore, err := store.New(name, params)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +238,7 @@ func connectGraphStore(name string, params []byte) (store.GraphStore, error) {
 	return graphStore, nil
 }
 
-func getVertexRanges(graphStore store.GraphStore, verticesPerTask int) ([]*store.VertexRange, error) {
+func getVertexRanges(graphStore store.GraphStore, verticesPerTask int) ([]*store.VertexRangeHosts, error) {
 	if verticesPerTask == 0 {
 		verticesPerTask = defaultVerticesPerTask
 	} else if verticesPerTask < minVerticesPerTask {

@@ -20,21 +20,21 @@ type JobStore interface {
 }
 
 type GraphStore interface {
-	GetVertexRanges(verticesPerRange int) ([]*VertexRange, error)
+	GetVertexRanges(verticesPerRange int) ([]*VertexRangeHosts, error)
 
-	LoadVertices() ([]*pregel.Vertex, error)
-	LoadEdges() ([]*pregel.Edge, error)
+	LoadVertices(vrange VertexRange) ([]*pregel.Vertex, error)
+	LoadEdges(vrange VertexRange) ([]*pregel.Edge, error)
 
-	LoadVertexMessages(jobID string, superstep int) ([]*pregel.VertexMessage, error)
+	LoadVertexMessages(jobID string, superstep int, vrange VertexRange) ([]*pregel.VertexMessage, error)
 	SaveVertexMessages(messages []*pregel.VertexMessage) error
 
-	LoadVertexOperations(jobID string, superstep int) ([]*pregel.VertexOperation, error)
+	LoadVertexOperations(jobID string, superstep int, vrange VertexRange) ([]*pregel.VertexOperation, error)
 	SaveVertexOperations(operations []*pregel.VertexOperation) error
 
-	LoadHaltedVertices(jobID string, superstep int) ([]string, error)
+	LoadHaltedVertices(jobID string, superstep int, vrange VertexRange) ([]string, error)
 	SaveHaltedVertices(halted []*pregel.VertexHalted) error
 
-	LoadEdgeOperations(jobID string, superstep int) ([]*pregel.EdgeOperation, error)
+	LoadEdgeOperations(jobID string, superstep int, vrange VertexRange) ([]*pregel.EdgeOperation, error)
 	SaveEdgeOperations(operations []*pregel.EdgeOperation) error
 
 	Connect() error
@@ -42,7 +42,9 @@ type GraphStore interface {
 	Close()
 }
 
-type VertexRange struct {
-	PreferredHosts []string
-	Range          []byte
+type VertexRange []byte
+
+type VertexRangeHosts struct {
+	Hosts []string
+	Range VertexRange
 }

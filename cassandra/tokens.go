@@ -36,6 +36,7 @@ type TokenRange struct {
 	Start    Token
 	End      Token
 	Replicas []string
+	//TODO(nice to have): the row count in the range; using this information the scheduler could place multiple small ranges in one task
 }
 
 type tokenRing struct {

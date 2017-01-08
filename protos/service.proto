@@ -26,7 +26,11 @@ message CreateJobRequest {
     string algorithm = 4;
     bytes algorithmParams = 5;
 
-    int32 verticesPerTask = 6;
+    int32 taskCPU = 6;
+	int32 taskMEM = 7;
+	int32 taskVertices = 8;
+	int32 taskTimeout = 9;
+	int32 taskMaxRetryCount = 10;
 }
 
 message CreateJobReply {

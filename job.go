@@ -3,15 +3,19 @@ package pregel
 import "time"
 
 type Job struct {
-	ID              string
-	Label           string
-	CreationTime    time.Time
-	Status          JobStatus
-	Store           string
-	StoreParams     []byte
-	Algorithm       string
-	AlgorithmParams []byte
-	VerticesPerTask int
+	ID                string
+	Label             string
+	CreationTime      time.Time
+	Status            JobStatus
+	Store             string
+	StoreParams       []byte
+	Algorithm         string
+	AlgorithmParams   []byte
+	TaskCPU           int
+	TaskMEM           int
+	TaskVertices      int
+	TaskTimeout       int
+	TaskMaxRetryCount int
 }
 
 type JobStatus int

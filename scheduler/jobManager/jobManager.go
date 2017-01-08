@@ -30,8 +30,7 @@ type JobManager struct {
 	runningJobTasks   map[string]*jobTasks
 }
 
-type ResourceOffer interface {
-	Host() string
+type Resources interface {
 	Subtract(cpus float64, mems float64) bool
 }
 
@@ -56,15 +55,19 @@ func New(jobStore store.JobStore) (*JobManager, error) {
 func (manager *JobManager) CreateJob(request *protos.CreateJobRequest) *protos.CreateJobReply {
 	id := uuid.NewRandom().String()
 	job := &pregel.Job{
-		ID:              id,
-		Label:           request.Label,
-		CreationTime:    time.Now(),
-		Status:          pregel.JobCreated,
-		Store:           request.Store,
-		StoreParams:     request.StoreParams,
-		Algorithm:       request.Algorithm,
-		AlgorithmParams: request.AlgorithmParams,
-		VerticesPerTask: int(request.VerticesPerTask),
+		ID:                id,
+		Label:             request.Label,
+		CreationTime:      time.Now(),
+		Status:            pregel.JobCreated,
+		Store:             request.Store,
+		StoreParams:       request.StoreParams,
+		Algorithm:         request.Algorithm,
+		AlgorithmParams:   request.AlgorithmParams,
+		TaskCPU:           int(request.TaskCPU),
+		TaskMEM:           int(request.TaskMEM),
+		TaskVertices:      int(request.TaskVertices),
+		TaskTimeout:       int(request.TaskTimeout),
+		TaskMaxRetryCount: int(request.TaskMaxRetryCount),
 	}
 
 	err := manager.jobStore.Save(job)
@@ -113,9 +116,24 @@ func (manager *JobManager) GetJobResult(request *protos.JobIdRequest) *protos.Ge
 	return nil
 }
 
-func (manager *JobManager) GetTasksToExecute(offer ResourceOffer) []*protos.ExecTaskParams {
+func (manager *JobManager) GetTasksToExecute(host string, resources Resources) []*protos.ExecTaskParams {
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
+
+	result := []*protos.ExecTaskParams{}
+
+	// first iteration: data locality has priority
+	// for _, jobID := range manager.runningQueue {
+	// 	jobTasks := manager.runningJobTasks[jobID]
+	// 	//tasks := jobTasks.GetTasksToExecuteForHost(host, resources)
+	// }
+
+	// second iteration: distribute the remaining resources disregarding data locality
+	// for _, jobID := range manager.runningQueue {
+
+	// }
 	//TODO
-	return nil
+	return result
 }
 
 func (manager *JobManager) CancelJob(request *protos.JobIdRequest) *protos.SimpleCallReply {

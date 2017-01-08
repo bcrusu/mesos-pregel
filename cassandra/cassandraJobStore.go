@@ -56,16 +56,30 @@ func (store *cassandraJobStore) Init() error {
 }
 
 func (store *cassandraJobStore) LoadAll() ([]*pregel.Job, error) {
-	cql := fmt.Sprintf(`SELECT id, status, store, store_params, algorithm, algorithm_params, vertices_per_task, label, creationTime FROM %s;`, store.fullTableName(jobsTableName))
+	cql := fmt.Sprintf(`SELECT id, status, store, store_params, algorithm, algorithm_params, label, creationTime,
+task_cpu, task_mem, task_vertices, task_timeout, task_max_retry_count FROM %s;`, store.fullTableName(jobsTableName))
 
 	createScanDest := func() []interface{} {
-		return []interface{}{new(string), new(int), new(string), new([]byte), new(string), new([]byte), new(int), new(string), new(time.Time)}
+		return []interface{}{new(string), new(int), new(string), new([]byte), new(string), new([]byte), new(string),
+			new(time.Time), new(int), new(int), new(int), new(int), new(int)}
 	}
 
 	createEntityFunc := func(dest []interface{}) interface{} {
-		return &pregel.Job{ID: dest[0].(string), Status: dest[1].(pregel.JobStatus), Store: dest[2].(string),
-			StoreParams: dest[3].([]byte), Algorithm: dest[4].(string), AlgorithmParams: dest[5].([]byte), VerticesPerTask: dest[6].(int),
-			Label: dest[7].(string), CreationTime: dest[8].(time.Time)}
+		return &pregel.Job{
+			ID:                dest[0].(string),
+			Status:            dest[1].(pregel.JobStatus),
+			Store:             dest[2].(string),
+			StoreParams:       dest[3].([]byte),
+			Algorithm:         dest[4].(string),
+			AlgorithmParams:   dest[5].([]byte),
+			Label:             dest[6].(string),
+			CreationTime:      dest[7].(time.Time),
+			TaskCPU:           dest[8].(int),
+			TaskMEM:           dest[9].(int),
+			TaskVertices:      dest[10].(int),
+			TaskTimeout:       dest[11].(int),
+			TaskMaxRetryCount: dest[12].(int),
+		}
 	}
 
 	entities, err := ExecuteSelect(store.session, cql, createScanDest, createEntityFunc)
@@ -82,8 +96,10 @@ func (store *cassandraJobStore) LoadAll() ([]*pregel.Job, error) {
 }
 
 func (store *cassandraJobStore) Save(job *pregel.Job) error {
-	cql := fmt.Sprintf(`INSERT INTO %s (id, label, creationTime, status, store, store_params, algorithm, algorithm_params, vertices_per_task) VALUES(?, ?, ?, ?, ?, ?, ?);`, store.fullTableName(jobsTableName))
-	args := []interface{}{job.ID, job.Label, job.CreationTime, job.Status, job.Store, job.StoreParams, job.Algorithm, job.AlgorithmParams, job.VerticesPerTask}
+	cql := fmt.Sprintf(`INSERT INTO %s (id, label, creationTime, status, store, store_params, algorithm, algorithm_params, 
+task_cpu, task_mem, task_vertices, task_timeout, task_max_retry_count) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`, store.fullTableName(jobsTableName))
+	args := []interface{}{job.ID, job.Label, job.CreationTime, job.Status, job.Store, job.StoreParams, job.Algorithm, job.AlgorithmParams,
+		job.TaskCPU, job.TaskMEM, job.TaskVertices, job.TaskTimeout, job.TaskMaxRetryCount}
 	query := store.session.Query(cql, args...)
 
 	return query.Exec()
@@ -136,8 +152,9 @@ func (store *cassandraJobStore) fullTableName(table string) string {
 }
 
 func (store *cassandraJobStore) ensureTables() error {
-	cql := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, label text, creationTime timestamp, status int, store text, store_params blob, 
-algorithm text, algorithm_params blob, vertices_per_task int, result blob, checkpoint blob, PRIMARY KEY(id));`,
+	cql := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, label text, creationTime timestamp, status int, store text, 
+store_params blob, algorithm text, algorithm_params blob, task_cpu int, task_mem int, task_vertices int, task_timeout int, 
+task_max_retry_count int, result blob, checkpoint blob, PRIMARY KEY(id));`,
 		store.fullTableName(jobsTableName))
 
 	if err := store.session.Query(cql).Exec(); err != nil {

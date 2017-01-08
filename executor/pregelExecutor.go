@@ -133,6 +133,7 @@ func (executor *PregelExecutor) getPregelTask(params protos.ExecTaskParams) (*Pr
 	executor.mutex.Lock()
 	defer executor.mutex.Unlock()
 
+	//TODO: cache only the graph
 	cacheKey := params.JobId + ":" + strconv.Itoa(int(params.TaskId))
 
 	if task, found := executor.taskCache.Get(cacheKey); found {

@@ -8,35 +8,34 @@ message ExecTaskParams {
 
     string store = 3;
     bytes storeParams = 4;
-    bytes vertexRange = 5;
 
-    string algorithm = 6;
-    bytes algorithmParams = 7;
+    string algorithm = 5;
+    bytes algorithmParams = 6;
 
-    ExecSuperstepParams superstepParams  = 8;
+    ExecSuperstepParams superstepParams  = 7;
 }
 
 message ExecTaskResult {
     int32 taskId = 1;
     string jobId = 2;
 
-    ExecSuperstepResult superstepResult = 4;
+    ExecSuperstepResult superstepResult = 3;
 }
 
 message ExecSuperstepParams {
     int32 superstep = 1;
-    repeated Aggregator aggregators = 2;
+    repeated bytes vertexRanges = 2;
+    repeated Aggregator aggregators = 3;    
 }
 
 message ExecSuperstepResult {
-    int32 superstep = 1;
-    repeated Aggregator aggregators = 2;
-    Stats stats = 3;
+    repeated Aggregator aggregators = 1;
+    Stats stats = 2;
 
     message Stats {
-        int64 totalDuration = 1;
+        int32 totalDuration = 1;
         int32 computedCount = 2;
-        int64 computeDuration = 3;
+        int32 computeDuration = 3;
         int32 sentMessagesCount = 4;
         int32 haltedCount = 5;
         int32 inactiveCount = 6;

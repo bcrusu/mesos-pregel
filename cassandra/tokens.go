@@ -22,11 +22,14 @@ type Partitioner interface {
 
 	MinToken() Token
 	MaxToken() Token
+
+	newToken(value *big.Int) Token
 }
 
 type Token interface {
 	fmt.Stringer
 	Less(Token) bool
+	toBigInt() *big.Int
 }
 
 type TokenRange struct {
@@ -119,12 +122,20 @@ func (p murmur3Partitioner) MaxToken() Token {
 	return maxMurmur3Token
 }
 
+func (p murmur3Partitioner) newToken(value *big.Int) Token {
+	return (murmur3Token)(value.Int64())
+}
+
 func (m murmur3Token) String() string {
 	return strconv.FormatInt(int64(m), 10)
 }
 
 func (m murmur3Token) Less(token Token) bool {
 	return m < token.(murmur3Token)
+}
+
+func (m murmur3Token) toBigInt() *big.Int {
+	return big.NewInt(int64(m))
 }
 
 type randomPartitioner struct{}
@@ -157,12 +168,22 @@ func (r randomPartitioner) MaxToken() Token {
 	return maxRandomToken
 }
 
+func (r randomPartitioner) newToken(value *big.Int) Token {
+	return (*randomToken)(value)
+}
+
 func (r *randomToken) String() string {
 	return (*big.Int)(r).String()
 }
 
 func (r *randomToken) Less(token Token) bool {
 	return -1 == (*big.Int)(r).Cmp((*big.Int)(token.(*randomToken)))
+}
+
+func (r *randomToken) toBigInt() *big.Int {
+	copy := &big.Int{}
+	copy.Set((*big.Int)(r))
+	return copy
 }
 
 func (t *tokenRing) Len() int {

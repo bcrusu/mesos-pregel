@@ -7,9 +7,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-func GetRowCount(session *gocql.Session, keyspace string, table string) (int64, error) {
+func GetRowCount(session *gocql.Session, keyspace string, table string) (int, error) {
 	cql := fmt.Sprintf(`select count(*) from %s`, GetFullTableName(keyspace, table))
-	var count int64
+	var count int
 	err := ExecuteScalar(session, cql, &count)
 	return count, err
 }
@@ -22,7 +22,7 @@ type CreateScanDestFunc func() []interface{}
 type CreateEntityFunc func(dest []interface{}) interface{}
 
 func ExecuteSelect(session *gocql.Session, cql string, createScanDest CreateScanDestFunc, createEntity CreateEntityFunc, params ...interface{}) ([]interface{}, error) {
-	iter := session.Query(cql, params).Iter()
+	iter := session.Query(cql, params...).Iter()
 
 	result := make([]interface{}, 0, 1000)
 
@@ -40,7 +40,7 @@ func ExecuteSelect(session *gocql.Session, cql string, createScanDest CreateScan
 }
 
 func ExecuteScalar(session *gocql.Session, cql string, dest interface{}, params ...interface{}) error {
-	return session.Query(cql, params).Scan(dest)
+	return session.Query(cql, params...).Scan(dest)
 }
 
 func TableExists(session *gocql.Session, keyspace string, tableName string) (bool, error) {

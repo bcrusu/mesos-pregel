@@ -35,59 +35,78 @@ type tokenFilter struct {
 	params []interface{}
 }
 
-func (store *cassandraGraphStore) Connect() error {
-	cluster := gocql.NewCluster(store.params.Hosts...)
-	cluster.Timeout = time.Duration(store.params.Timeout)
+func (cstore *cassandraGraphStore) Connect() error {
+	cluster := gocql.NewCluster(cstore.params.Hosts...)
+	cluster.Timeout = time.Duration(cstore.params.Timeout)
 
 	session, err := cluster.CreateSession()
 	if err != nil {
 		return err
 	}
 
-	store.cluster = cluster
-	store.session = session
+	cstore.cluster = cluster
+	cstore.session = session
 
-	batchOptions := store.params.BatchOptions
-	store.batchExecutor = NewBatchExecutor(session, int(batchOptions.MaxSize), int(batchOptions.MaxBytes))
+	batchOptions := cstore.params.BatchOptions
+	cstore.batchExecutor = NewBatchExecutor(session, int(batchOptions.MaxSize), int(batchOptions.MaxBytes))
 
 	return nil
 }
 
-func (store *cassandraGraphStore) Close() {
-	if store.session != nil {
-		store.session.Close()
-		store.cluster = nil
-		store.session = nil
+func (cstore *cassandraGraphStore) Close() {
+	if cstore.session != nil {
+		cstore.session.Close()
+		cstore.cluster = nil
+		cstore.session = nil
 	}
 }
 
-func (store *cassandraGraphStore) Init() error {
-	if err := store.ensureSchema(); err != nil {
+func (cstore *cassandraGraphStore) Init() error {
+	if err := cstore.ensureSchema(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (store *cassandraGraphStore) GetVertexRanges(verticesPerRange int) ([]*store.VertexRangeHosts, error) {
-	// tokenRanges, partitioner, err := BuildTokenRanges(store.params.Hosts, store.params.Keyspace)
-	// if err != nil {
-	// 	return nil, err
-	// }
+func (cstore *cassandraGraphStore) GetVertexRanges(verticesPerRange int) ([]*store.VertexRangeHosts, error) {
+	tokenRanges, partitioner, err := BuildTokenRanges(cstore.params.Hosts, cstore.params.Keyspace)
+	if err != nil {
+		return nil, err
+	}
 
-	// splitter, err := NewTokenRangeSplitter(partitioner)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	verticesCount, err := GetRowCount(cstore.session, cstore.params.Keyspace, cstore.params.VerticesTable)
+	if err != nil {
+		return nil, err
+	}
 
-	// tokenRanges = splitter.SplitTokenRanges(tokenRanges, verticesPerRange)
+	tokenRanges = splitTokenRanges(partitioner, tokenRanges, verticesCount, verticesPerRange)
 
-	//TODO:
-	return nil, nil
+	// convert
+	result := []*store.VertexRangeHosts{}
+	for _, tokenRange := range tokenRanges {
+		proto := &protos.CassandraTokenRange{
+			Partitioner: partitioner.Name(),
+			StartToken:  tokenRange.Start.String(),
+			EndToken:    tokenRange.End.String(),
+		}
+
+		bytes, err := cstore.tokenRangeEncoder.Marshal(proto)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, &store.VertexRangeHosts{
+			Hosts: tokenRange.Replicas,
+			Range: bytes,
+		})
+	}
+
+	return result, nil
 }
 
-func (store *cassandraGraphStore) LoadVertices(vrange store.VertexRange) ([]*pregel.Vertex, error) {
-	cql := fmt.Sprintf(`SELECT id, value FROM %s WHERE %s;`, store.fullTableName(store.params.VerticesTable), tokenFilterPlaceholder)
+func (cstore *cassandraGraphStore) LoadVertices(vrange store.VertexRange) ([]*pregel.Vertex, error) {
+	cql := fmt.Sprintf(`SELECT id, value FROM %s WHERE %s;`, cstore.fullTableName(cstore.params.VerticesTable), tokenFilterPlaceholder)
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new([]byte)}
@@ -97,7 +116,7 @@ func (store *cassandraGraphStore) LoadVertices(vrange store.VertexRange) ([]*pre
 		return &pregel.Vertex{ID: dest[0].(string), Value: dest[1].([]byte)}
 	}
 
-	entities, err := store.executeSelectWithTokenRange(cql, vrange, `id`, createScanDest, createEntity)
+	entities, err := cstore.executeSelectWithTokenRange(cql, vrange, `id`, createScanDest, createEntity)
 	if err != nil {
 		return nil, err
 	}
@@ -110,8 +129,8 @@ func (store *cassandraGraphStore) LoadVertices(vrange store.VertexRange) ([]*pre
 	return result, nil
 }
 
-func (store *cassandraGraphStore) SaveVertices(vertices []*pregel.Vertex) error {
-	cql := fmt.Sprintf(`INSERT INTO %s (id, value) VALUES(?, ?);`, store.fullTableName(store.params.VerticesTable))
+func (cstore *cassandraGraphStore) SaveVertices(vertices []*pregel.Vertex) error {
+	cql := fmt.Sprintf(`INSERT INTO %s (id, value) VALUES(?, ?);`, cstore.fullTableName(cstore.params.VerticesTable))
 
 	items := make([]interface{}, len(vertices))
 	for i, v := range vertices {
@@ -130,11 +149,11 @@ func (store *cassandraGraphStore) SaveVertices(vertices []*pregel.Vertex) error 
 		return []interface{}{vertex.ID, vertex.Value}
 	}
 
-	return store.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
+	return cstore.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
 }
 
-func (store *cassandraGraphStore) LoadEdges(vrange store.VertexRange) ([]*pregel.Edge, error) {
-	cql := fmt.Sprintf(`SELECT "from", "to", value FROM %s WHERE %s;`, store.fullTableName(store.params.EdgesTable), tokenFilterPlaceholder)
+func (cstore *cassandraGraphStore) LoadEdges(vrange store.VertexRange) ([]*pregel.Edge, error) {
+	cql := fmt.Sprintf(`SELECT "from", "to", value FROM %s WHERE %s;`, cstore.fullTableName(cstore.params.EdgesTable), tokenFilterPlaceholder)
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new(string), new([]byte)}
@@ -144,7 +163,7 @@ func (store *cassandraGraphStore) LoadEdges(vrange store.VertexRange) ([]*pregel
 		return &pregel.Edge{From: dest[0].(string), To: dest[1].(string), Value: dest[2].([]byte)}
 	}
 
-	entities, err := store.executeSelectWithTokenRange(cql, vrange, `"from"`, createScanDest, createEntity)
+	entities, err := cstore.executeSelectWithTokenRange(cql, vrange, `"from"`, createScanDest, createEntity)
 	if err != nil {
 		return nil, err
 	}
@@ -157,8 +176,8 @@ func (store *cassandraGraphStore) LoadEdges(vrange store.VertexRange) ([]*pregel
 	return result, nil
 }
 
-func (store *cassandraGraphStore) SaveEdges(edges []*pregel.Edge) error {
-	cql := fmt.Sprintf(`INSERT INTO %s ("from", "to", value) VALUES(?, ?, ?);`, store.fullTableName(store.params.EdgesTable))
+func (cstore *cassandraGraphStore) SaveEdges(edges []*pregel.Edge) error {
+	cql := fmt.Sprintf(`INSERT INTO %s ("from", "to", value) VALUES(?, ?, ?);`, cstore.fullTableName(cstore.params.EdgesTable))
 
 	items := make([]interface{}, len(edges))
 	for i, v := range edges {
@@ -178,11 +197,11 @@ func (store *cassandraGraphStore) SaveEdges(edges []*pregel.Edge) error {
 		return []interface{}{edge.From, edge.To, edge.Value}
 	}
 
-	return store.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
+	return cstore.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
 }
 
-func (store *cassandraGraphStore) LoadVertexMessages(jobID string, superstep int, vrange store.VertexRange) ([]*pregel.VertexMessage, error) {
-	cql := fmt.Sprintf(`SELECT "to", value FROM %s WHERE job_id=? AND superstep=? AND %s;`, store.fullTableName(vertexMessagesTableName), tokenFilterPlaceholder)
+func (cstore *cassandraGraphStore) LoadVertexMessages(jobID string, superstep int, vrange store.VertexRange) ([]*pregel.VertexMessage, error) {
+	cql := fmt.Sprintf(`SELECT "to", value FROM %s WHERE job_id=? AND superstep=? AND %s;`, cstore.fullTableName(vertexMessagesTableName), tokenFilterPlaceholder)
 	params := []interface{}{jobID, superstep}
 
 	createScanDest := func() []interface{} {
@@ -193,7 +212,7 @@ func (store *cassandraGraphStore) LoadVertexMessages(jobID string, superstep int
 		return &pregel.VertexMessage{To: dest[0].(string), Value: dest[1].([]byte), JobID: jobID, Superstep: superstep}
 	}
 
-	entities, err := store.executeSelectWithTokenRange(cql, vrange, `id`, createScanDest, createEntity, params...)
+	entities, err := cstore.executeSelectWithTokenRange(cql, vrange, `id`, createScanDest, createEntity, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -206,8 +225,8 @@ func (store *cassandraGraphStore) LoadVertexMessages(jobID string, superstep int
 	return result, nil
 }
 
-func (store *cassandraGraphStore) SaveVertexMessages(messages []*pregel.VertexMessage) error {
-	cql := fmt.Sprintf(`INSERT INTO %s ("to", job_id, superstep, unique_id, value) VALUES(?, ?, ?, ?, ?);`, store.fullTableName(vertexMessagesTableName))
+func (cstore *cassandraGraphStore) SaveVertexMessages(messages []*pregel.VertexMessage) error {
+	cql := fmt.Sprintf(`INSERT INTO %s ("to", job_id, superstep, unique_id, value) VALUES(?, ?, ?, ?, ?);`, cstore.fullTableName(vertexMessagesTableName))
 
 	items := make([]interface{}, len(messages))
 	for i, v := range messages {
@@ -228,11 +247,11 @@ func (store *cassandraGraphStore) SaveVertexMessages(messages []*pregel.VertexMe
 		return []interface{}{msg.To, msg.JobID, msg.Superstep, gocql.TimeUUID(), msg.Value}
 	}
 
-	return store.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
+	return cstore.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
 }
 
-func (store *cassandraGraphStore) LoadVertexOperations(jobID string, superstep int, vrange store.VertexRange) ([]*pregel.VertexOperation, error) {
-	cql := fmt.Sprintf(`SELECT id, type, value FROM %s WHERE job_id=? AND superstep=? AND %s;`, store.fullTableName(vertexOperationsTableName), tokenFilterPlaceholder)
+func (cstore *cassandraGraphStore) LoadVertexOperations(jobID string, superstep int, vrange store.VertexRange) ([]*pregel.VertexOperation, error) {
+	cql := fmt.Sprintf(`SELECT id, type, value FROM %s WHERE job_id=? AND superstep=? AND %s;`, cstore.fullTableName(vertexOperationsTableName), tokenFilterPlaceholder)
 	params := []interface{}{jobID, superstep}
 
 	createScanDest := func() []interface{} {
@@ -244,7 +263,7 @@ func (store *cassandraGraphStore) LoadVertexOperations(jobID string, superstep i
 			Type: dest[1].(pregel.VertexOperationType), Value: dest[2].([]byte)}
 	}
 
-	entities, err := store.executeSelectWithTokenRange(cql, vrange, `id`, createScanDest, createEntity, params...)
+	entities, err := cstore.executeSelectWithTokenRange(cql, vrange, `id`, createScanDest, createEntity, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -257,8 +276,8 @@ func (store *cassandraGraphStore) LoadVertexOperations(jobID string, superstep i
 	return result, nil
 }
 
-func (store *cassandraGraphStore) SaveVertexOperations(operations []*pregel.VertexOperation) error {
-	cql := fmt.Sprintf(`INSERT INTO %s (id, job_id, superstep, unique_id, type, value) VALUES(?, ?, ?, ?, ?, ?);`, store.fullTableName(vertexOperationsTableName))
+func (cstore *cassandraGraphStore) SaveVertexOperations(operations []*pregel.VertexOperation) error {
+	cql := fmt.Sprintf(`INSERT INTO %s (id, job_id, superstep, unique_id, type, value) VALUES(?, ?, ?, ?, ?, ?);`, cstore.fullTableName(vertexOperationsTableName))
 
 	items := make([]interface{}, len(operations))
 	for i, v := range operations {
@@ -279,11 +298,11 @@ func (store *cassandraGraphStore) SaveVertexOperations(operations []*pregel.Vert
 		return []interface{}{op.ID, op.JobID, op.Superstep, gocql.TimeUUID(), op.Type, op.Value}
 	}
 
-	return store.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
+	return cstore.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
 }
 
-func (store *cassandraGraphStore) LoadHaltedVertices(jobID string, superstep int, vrange store.VertexRange) ([]string, error) {
-	cql := fmt.Sprintf(`SELECT id FROM %s WHERE job_id=? AND superstep=? AND %s;`, store.fullTableName(haltedVerticesTableName), tokenFilterPlaceholder)
+func (cstore *cassandraGraphStore) LoadHaltedVertices(jobID string, superstep int, vrange store.VertexRange) ([]string, error) {
+	cql := fmt.Sprintf(`SELECT id FROM %s WHERE job_id=? AND superstep=? AND %s;`, cstore.fullTableName(haltedVerticesTableName), tokenFilterPlaceholder)
 	params := []interface{}{jobID, superstep}
 
 	createScanDest := func() []interface{} {
@@ -294,7 +313,7 @@ func (store *cassandraGraphStore) LoadHaltedVertices(jobID string, superstep int
 		return dest[0].(string)
 	}
 
-	entities, err := store.executeSelectWithTokenRange(cql, vrange, `id`, createScanDest, createEntity, params...)
+	entities, err := cstore.executeSelectWithTokenRange(cql, vrange, `id`, createScanDest, createEntity, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -307,8 +326,8 @@ func (store *cassandraGraphStore) LoadHaltedVertices(jobID string, superstep int
 	return result, nil
 }
 
-func (store *cassandraGraphStore) SaveHaltedVertices(halted []*pregel.VertexHalted) error {
-	cql := fmt.Sprintf(`INSERT INTO %s (id, job_id, superstep) VALUES(?, ?, ?);`, store.fullTableName(vertexMessagesTableName))
+func (cstore *cassandraGraphStore) SaveHaltedVertices(halted []*pregel.VertexHalted) error {
+	cql := fmt.Sprintf(`INSERT INTO %s (id, job_id, superstep) VALUES(?, ?, ?);`, cstore.fullTableName(vertexMessagesTableName))
 
 	items := make([]interface{}, len(halted))
 	for i, v := range halted {
@@ -328,11 +347,11 @@ func (store *cassandraGraphStore) SaveHaltedVertices(halted []*pregel.VertexHalt
 		return []interface{}{h.ID, h.JobID, h.Superstep}
 	}
 
-	return store.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
+	return cstore.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
 }
 
-func (store *cassandraGraphStore) LoadEdgeOperations(jobID string, superstep int, vrange store.VertexRange) ([]*pregel.EdgeOperation, error) {
-	cql := fmt.Sprintf(`SELECT "from", "to", type, value FROM %s WHERE job_id=? AND superstep=? AND %s;`, store.fullTableName(edgeOperationsTableName), tokenFilterPlaceholder)
+func (cstore *cassandraGraphStore) LoadEdgeOperations(jobID string, superstep int, vrange store.VertexRange) ([]*pregel.EdgeOperation, error) {
+	cql := fmt.Sprintf(`SELECT "from", "to", type, value FROM %s WHERE job_id=? AND superstep=? AND %s;`, cstore.fullTableName(edgeOperationsTableName), tokenFilterPlaceholder)
 	params := []interface{}{jobID, superstep}
 
 	createScanDest := func() []interface{} {
@@ -344,7 +363,7 @@ func (store *cassandraGraphStore) LoadEdgeOperations(jobID string, superstep int
 			Type: dest[2].(pregel.EdgeOperationType), Value: dest[3].([]byte)}
 	}
 
-	entities, err := store.executeSelectWithTokenRange(cql, vrange, `"from"`, createScanDest, createEntity, params...)
+	entities, err := cstore.executeSelectWithTokenRange(cql, vrange, `"from"`, createScanDest, createEntity, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -357,8 +376,8 @@ func (store *cassandraGraphStore) LoadEdgeOperations(jobID string, superstep int
 	return result, nil
 }
 
-func (store *cassandraGraphStore) SaveEdgeOperations(operations []*pregel.EdgeOperation) error {
-	cql := fmt.Sprintf(`INSERT INTO %s ("from", "to", job_id, superstep, unique_id, type, value) VALUES(?, ?, ?, ?, ?, ?, ?);`, store.fullTableName(edgeOperationsTableName))
+func (cstore *cassandraGraphStore) SaveEdgeOperations(operations []*pregel.EdgeOperation) error {
+	cql := fmt.Sprintf(`INSERT INTO %s ("from", "to", job_id, superstep, unique_id, type, value) VALUES(?, ?, ?, ?, ?, ?, ?);`, cstore.fullTableName(edgeOperationsTableName))
 
 	items := make([]interface{}, len(operations))
 	for i, v := range operations {
@@ -381,15 +400,15 @@ func (store *cassandraGraphStore) SaveEdgeOperations(operations []*pregel.EdgeOp
 		return []interface{}{op.From, op.To, op.JobID, op.Superstep, gocql.TimeUUID(), op.Type, op.Value}
 	}
 
-	return store.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
+	return cstore.batchExecutor.Execute(cql, items, getItemSize, getItemArgs)
 }
 
-func (store *cassandraGraphStore) fullTableName(table string) string {
-	return GetFullTableName(store.params.Keyspace, table)
+func (cstore *cassandraGraphStore) fullTableName(table string) string {
+	return GetFullTableName(cstore.params.Keyspace, table)
 }
 
-func (store *cassandraGraphStore) parseTokenRange(vrange store.VertexRange, primaryKey string) ([]*tokenFilter, error) {
-	proto, err := store.tokenRangeEncoder.Unmarshal(vrange)
+func (cstore *cassandraGraphStore) parseTokenRange(vrange store.VertexRange, primaryKey string) ([]*tokenFilter, error) {
+	proto, err := cstore.tokenRangeEncoder.Unmarshal(vrange)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal token range")
 	}
@@ -431,9 +450,9 @@ func (store *cassandraGraphStore) parseTokenRange(vrange store.VertexRange, prim
 	}}, nil
 }
 
-func (store *cassandraGraphStore) executeSelectWithTokenRange(cql string, vrange store.VertexRange, primaryKey string,
+func (cstore *cassandraGraphStore) executeSelectWithTokenRange(cql string, vrange store.VertexRange, primaryKey string,
 	createScanDest CreateScanDestFunc, createEntity CreateEntityFunc, params ...interface{}) ([]interface{}, error) {
-	tokenFilters, err := store.parseTokenRange(vrange, primaryKey)
+	tokenFilters, err := cstore.parseTokenRange(vrange, primaryKey)
 	if err != nil {
 		return nil, err
 	}
@@ -444,7 +463,7 @@ func (store *cassandraGraphStore) executeSelectWithTokenRange(cql string, vrange
 		finalCql := strings.Replace(cql, tokenFilterPlaceholder, tokenFilter.cql, 1)
 		finalParams := append(params, tokenFilter.params...)
 
-		entities, err := ExecuteSelect(store.session, finalCql, createScanDest, createEntity, finalParams...)
+		entities, err := ExecuteSelect(cstore.session, finalCql, createScanDest, createEntity, finalParams...)
 		if err != nil {
 			return nil, err
 		}
@@ -455,19 +474,19 @@ func (store *cassandraGraphStore) executeSelectWithTokenRange(cql string, vrange
 	return result, nil
 }
 
-func (store *cassandraGraphStore) ensureSchema() error {
+func (cstore *cassandraGraphStore) ensureSchema() error {
 	statements := []string{
-		fmt.Sprintf(`CREATE KEYSPACE IF NOT EXISTS %s WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : %d }`, store.params.Keyspace, store.params.ReplicationFactor),
-		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, value blob, PRIMARY KEY(id))`, store.fullTableName(store.params.VerticesTable)),
-		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s("from" text, "to" text, value blob, PRIMARY KEY(("from"), "to"))`, store.fullTableName(store.params.EdgesTable)),
-		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s("to" text, job_id text, superstep int, unique_id timeuuid, value blob, PRIMARY KEY(("to"), job_id, superstep, unique_id))`, store.fullTableName(vertexMessagesTableName)),
-		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, job_id text, superstep int, unique_id timeuuid, type int, value blob, PRIMARY KEY((id), job_id, superstep, unique_id))`, store.fullTableName(vertexOperationsTableName)),
-		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, job_id text, superstep int, PRIMARY KEY((id), job_id, superstep))`, store.fullTableName(haltedVerticesTableName)),
-		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s("from" text, "to" text, job_id text, superstep int, unique_id timeuuid, type int, value blob, PRIMARY KEY(("from"), "to", job_id, superstep, unique_id))`, store.fullTableName(edgeOperationsTableName)),
+		fmt.Sprintf(`CREATE KEYSPACE IF NOT EXISTS %s WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : %d }`, cstore.params.Keyspace, cstore.params.ReplicationFactor),
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, value blob, PRIMARY KEY(id))`, cstore.fullTableName(cstore.params.VerticesTable)),
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s("from" text, "to" text, value blob, PRIMARY KEY(("from"), "to"))`, cstore.fullTableName(cstore.params.EdgesTable)),
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s("to" text, job_id text, superstep int, unique_id timeuuid, value blob, PRIMARY KEY(("to"), job_id, superstep, unique_id))`, cstore.fullTableName(vertexMessagesTableName)),
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, job_id text, superstep int, unique_id timeuuid, type int, value blob, PRIMARY KEY((id), job_id, superstep, unique_id))`, cstore.fullTableName(vertexOperationsTableName)),
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, job_id text, superstep int, PRIMARY KEY((id), job_id, superstep))`, cstore.fullTableName(haltedVerticesTableName)),
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s("from" text, "to" text, job_id text, superstep int, unique_id timeuuid, type int, value blob, PRIMARY KEY(("from"), "to", job_id, superstep, unique_id))`, cstore.fullTableName(edgeOperationsTableName)),
 	}
 
 	for _, cql := range statements {
-		if err := store.session.Query(cql).Exec(); err != nil {
+		if err := cstore.session.Query(cql).Exec(); err != nil {
 			return errors.Wrap(err, "error creating schema")
 		}
 	}
@@ -477,13 +496,13 @@ func (store *cassandraGraphStore) ensureSchema() error {
 
 type cassandraGraphStoreFactory struct{}
 
-func (store *cassandraGraphStoreFactory) Create(params interface{}) (store.GraphStore, error) {
+func (cstore *cassandraGraphStoreFactory) Create(params interface{}) (store.GraphStore, error) {
 	return &cassandraGraphStore{
 		params:            *params.(*protos.CassandraStoreParams),
 		tokenRangeEncoder: encoding.NewProtobufEncoder(func() proto.Message { return new(protos.CassandraTokenRange) }),
 	}, nil
 }
 
-func (store *cassandraGraphStoreFactory) ParamsEncoder() encoding.Encoder {
+func (cstore *cassandraGraphStoreFactory) ParamsEncoder() encoding.Encoder {
 	return encoding.NewProtobufEncoder(func() proto.Message { return new(protos.CassandraStoreParams) })
 }

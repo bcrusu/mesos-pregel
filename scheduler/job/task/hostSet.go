@@ -1,4 +1,4 @@
-package jobManager
+package task
 
 import (
 	"fmt"

@@ -61,7 +61,7 @@ task_cpu, task_mem, task_vertices, task_timeout, task_max_retry_count FROM %s;`,
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new(int), new(string), new([]byte), new(string), new([]byte), new(string),
-			new(time.Time), new(int), new(int), new(int), new(int), new(int)}
+			new(time.Time), new(float64), new(float64), new(int), new(int), new(int)}
 	}
 
 	createEntityFunc := func(dest []interface{}) interface{} {
@@ -74,8 +74,8 @@ task_cpu, task_mem, task_vertices, task_timeout, task_max_retry_count FROM %s;`,
 			AlgorithmParams:   dest[5].([]byte),
 			Label:             dest[6].(string),
 			CreationTime:      dest[7].(time.Time),
-			TaskCPU:           dest[8].(int),
-			TaskMEM:           dest[9].(int),
+			TaskCPU:           dest[8].(float64),
+			TaskMEM:           dest[9].(float64),
 			TaskVertices:      dest[10].(int),
 			TaskTimeout:       dest[11].(int),
 			TaskMaxRetryCount: dest[12].(int),
@@ -153,7 +153,7 @@ func (store *cassandraJobStore) fullTableName(table string) string {
 
 func (store *cassandraJobStore) ensureTables() error {
 	cql := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, label text, creationTime timestamp, status int, store text, 
-store_params blob, algorithm text, algorithm_params blob, task_cpu int, task_mem int, task_vertices int, task_timeout int, 
+store_params blob, algorithm text, algorithm_params blob, task_cpu double, task_mem double, task_vertices int, task_timeout int, 
 task_max_retry_count int, result blob, checkpoint blob, PRIMARY KEY(id));`,
 		store.fullTableName(jobsTableName))
 

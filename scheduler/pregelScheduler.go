@@ -5,7 +5,7 @@ import (
 
 	"github.com/bcrusu/mesos-pregel/encoding"
 	"github.com/bcrusu/mesos-pregel/protos"
-	"github.com/bcrusu/mesos-pregel/scheduler/jobManager"
+	"github.com/bcrusu/mesos-pregel/scheduler/job"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
 	mesos "github.com/mesos/mesos-go/mesosproto"
@@ -22,12 +22,12 @@ const (
 
 type PregelScheduler struct {
 	executorInfo          *mesos.ExecutorInfo
-	jobManager            *jobManager.JobManager
+	jobManager            *job.Manager
 	execTaskParamsEncoder encoding.Encoder
 	execTaskResultEncoder encoding.Encoder
 }
 
-func NewPregelScheduler(jobManager *jobManager.JobManager) *PregelScheduler {
+func NewPregelScheduler(jobManager *job.Manager) *PregelScheduler {
 	return &PregelScheduler{
 		executorInfo:          getExecutorInfo(),
 		jobManager:            jobManager,
@@ -55,8 +55,9 @@ func (scheduler *PregelScheduler) ResourceOffers(driver sched.SchedulerDriver, o
 	offersBySlave := getOffersBySlave(offers)
 
 	for slaveID, slaveOffers := range offersBySlave {
-		resourceOffer := newResourceOffer(slaveOffers)
-		taskParamList := scheduler.jobManager.GetTasksToExecute(resourceOffer)
+		resourceOffer := newResourcePool(slaveOffers)
+		host := *slaveOffers[0].Hostname
+		taskParamList := scheduler.jobManager.GetTasksToExecute(host, resourceOffer)
 
 		// create task info protos
 		var tasks []*mesos.TaskInfo

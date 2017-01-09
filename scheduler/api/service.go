@@ -2,15 +2,15 @@ package api
 
 import (
 	"github.com/bcrusu/mesos-pregel/protos"
-	"github.com/bcrusu/mesos-pregel/scheduler/jobManager"
+	"github.com/bcrusu/mesos-pregel/scheduler/job"
 	"golang.org/x/net/context"
 )
 
 type service struct {
-	jobManager *jobManager.JobManager
+	jobManager *job.Manager
 }
 
-func newServiceServer(jobManager *jobManager.JobManager) protos.ServiceServer {
+func newServiceServer(jobManager *job.Manager) protos.ServiceServer {
 	return &service{jobManager}
 }
 

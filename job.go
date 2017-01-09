@@ -11,8 +11,8 @@ type Job struct {
 	StoreParams       []byte
 	Algorithm         string
 	AlgorithmParams   []byte
-	TaskCPU           int
-	TaskMEM           int
+	TaskCPU           float64
+	TaskMEM           float64
 	TaskVertices      int
 	TaskTimeout       int
 	TaskMaxRetryCount int

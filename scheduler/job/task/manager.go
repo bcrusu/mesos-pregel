@@ -1,6 +1,7 @@
-package jobManager
+package task
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -8,16 +9,15 @@ import (
 	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/bcrusu/mesos-pregel/store"
 	"github.com/bcrusu/mesos-pregel/util"
+	"github.com/golang/glog"
 )
 
 const (
-	defaultTaskTimeout = 30 * time.Second
-	defaultTaskCPU     = 0.1
-	defaultTaskMEM     = 32
+	defaultTaskTimeout = 30 * time.Second //TODO:
 	noHostID           = 0
 )
 
-type jobTasks struct {
+type Manager struct {
 	taskTimeout         time.Duration
 	taskMaxRetryCount   int
 	mutex               sync.Mutex // guards all below
@@ -32,6 +32,25 @@ type jobTasks struct {
 	completedTasks      map[int]*completedTask // map[TASK_ID]value
 }
 
+type StartTaskResult struct {
+	TaskID       int
+	Superstep    int
+	VertexRanges []store.VertexRange
+	Aggregators  *aggregator.AggregatorSet
+}
+
+type SetTaskFinishedRequest struct {
+	TaskID      int
+	Aggregators *aggregator.AggregatorSet
+
+	TotalDuration     time.Duration
+	ComputedCount     int
+	ComputeDuration   time.Duration
+	SentMessagesCount int
+	HaltedCount       int
+	InactiveCount     int
+}
+
 type rangeInfo struct {
 	vertexRange store.VertexRange
 	hosts       []int // List<HOST_ID>
@@ -40,20 +59,14 @@ type rangeInfo struct {
 
 type runningTask struct {
 	rangeID   int //TODO: group multiple small ranges into groups to be scheduled together in the same task
+	hostID    int
 	startTime time.Time
 }
 
 type completedTask struct {
 }
 
-type startTaskResult struct {
-	taskID       int
-	superstep    int
-	vertexRanges []store.VertexRange
-	aggregators  *aggregator.AggregatorSet
-}
-
-func newJobTasks(vertexRanges []*store.VertexRangeHosts, taskTimeout int, taskMaxRetryCount int) *jobTasks {
+func New(vertexRanges []*store.VertexRangeHosts, taskTimeout int, taskMaxRetryCount int) *Manager {
 	hosts := &hostSet{}
 	ranges := make(map[int]*rangeInfo)
 
@@ -71,7 +84,7 @@ func newJobTasks(vertexRanges []*store.VertexRangeHosts, taskTimeout int, taskMa
 		}
 	}
 
-	return &jobTasks{
+	return &Manager{
 		taskTimeout:         time.Duration(taskTimeout),
 		taskMaxRetryCount:   taskMaxRetryCount,
 		currentSuperstep:    1,
@@ -85,32 +98,41 @@ func newJobTasks(vertexRanges []*store.VertexRangeHosts, taskTimeout int, taskMa
 	}
 }
 
-func (jt *jobTasks) StartTaskForHost(host string) (*startTaskResult, error) {
-	jt.mutex.Lock()
-	defer jt.mutex.Unlock()
+func NewFromCheckpoint(checkpoint *protos.JobCheckpoint) *Manager {
+	//TODO
+	return nil
+}
 
-	if err := jt.cancelTimedOutTasks(); err != nil {
+func (m *Manager) Superstep() int {
+	return m.currentSuperstep
+}
+
+func (m *Manager) StartTaskForHost(host string) (*StartTaskResult, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	if err := m.cancelTimedOutTasks(); err != nil {
 		return nil, err
 	}
 
-	hostID, ok := jt.hosts.GetID(host)
+	hostID, ok := m.hosts.GetID(host)
 	if !ok {
 		return nil, nil
 	}
 
-	return jt.startTaskForHostID(hostID)
+	return m.startTaskForHostID(hostID)
 }
 
-func (jt *jobTasks) StartTask() (*startTaskResult, error) {
-	jt.mutex.Lock()
-	defer jt.mutex.Unlock()
+func (m *Manager) StartTask() (*StartTaskResult, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 
-	if err := jt.cancelTimedOutTasks(); err != nil {
+	if err := m.cancelTimedOutTasks(); err != nil {
 		return nil, err
 	}
 
-	for hostID := range jt.waitingByHost {
-		result, err := jt.startTaskForHostID(hostID)
+	for hostID := range m.waitingByHost {
+		result, err := m.startTaskForHostID(hostID)
 		if result != nil || err != nil {
 			return result, err
 		}
@@ -119,82 +141,87 @@ func (jt *jobTasks) StartTask() (*startTaskResult, error) {
 	return nil, nil
 }
 
-func (jt *jobTasks) startTaskForHostID(hostID int) (*startTaskResult, error) {
-	waiting, ok := jt.waitingByHost[hostID]
+func (m *Manager) SetTaskFinished(request *SetTaskFinishedRequest) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	//TODO
+}
+
+func (m *Manager) GetCheckpoint() *protos.JobCheckpoint {
+	//TODO
+	return nil
+}
+
+func (m *Manager) startTaskForHostID(hostID int) (*StartTaskResult, error) {
+	waiting, ok := m.waitingByHost[hostID]
 	if !ok {
 		return nil, nil
 	}
 
 	//TODO: select the next by taking into account the no. of failures in the past - exponential back off?
-	rangeID, ok := waiting.RemoveFirst()
+	rangeID, ok := waiting.RemoveOne()
 	if !ok {
 		return nil, nil
 	}
 
-	rangeInfo := jt.ranges[rangeID]
-	taskID := jt.getNextTaskID()
+	rangeInfo := m.ranges[rangeID]
+	taskID := m.getNextTaskID()
 
-	jt.runningTasks[taskID] = &runningTask{
+	m.runningTasks[taskID] = &runningTask{
 		rangeID:   rangeID,
 		startTime: time.Now(),
 	}
 
-	return &startTaskResult{
-		taskID:       taskID,
-		superstep:    jt.currentSuperstep,
-		aggregators:  jt.previousAggregators,
-		vertexRanges: []store.VertexRange{rangeInfo.vertexRange},
+	return &StartTaskResult{
+		TaskID:       taskID,
+		Superstep:    m.currentSuperstep,
+		Aggregators:  m.previousAggregators,
+		VertexRanges: []store.VertexRange{rangeInfo.vertexRange},
 	}, nil
 }
 
-func newJobTasksFromCheckpoint(checkpoint *protos.JobCheckpoint) *jobTasks {
-	//TODO
-	return nil
-}
-
-func (jt *jobTasks) getCheckpoint() *protos.JobCheckpoint {
-	//TODO
-	return nil
-}
-
-func (jt *jobTasks) getPercentDone() int {
+func (m *Manager) PercentDone() int {
 	//TODO
 	return 0
 }
 
-func (jt *jobTasks) getNextTaskID() int {
-	jt.lastTaskID++
-	return jt.lastTaskID
+func (m *Manager) getNextTaskID() int {
+	m.lastTaskID++
+	return m.lastTaskID
 }
 
-func (jt *jobTasks) cancelTimedOutTasks() error {
+func (m *Manager) cancelTimedOutTasks() error {
 	now := time.Now()
 	cancelled := []int{}
 
-	for taskID, runningTask := range jt.runningTasks {
-		deadline := runningTask.startTime.Add(jt.taskTimeout)
+	for taskID, runningTask := range m.runningTasks {
+		deadline := runningTask.startTime.Add(m.taskTimeout)
 		if deadline.After(now) {
 			continue
 		}
 
+		hostname, _ := m.hosts.GetHostname(runningTask.hostID)
+		glog.Warningf("task %d timed out on host %s", taskID, hostname)
+
 		rangeID := runningTask.rangeID
-		rangeInfo := jt.ranges[rangeID]
+		rangeInfo := m.ranges[rangeID]
 		rangeInfo.retryCount++
 
-		if rangeInfo.retryCount == jt.taskMaxRetryCount {
-			return nil //TODO: propagate error and stop the job
+		if rangeInfo.retryCount == m.taskMaxRetryCount {
+			return fmt.Errorf("failed to execute task %d - exceeded max retry count", taskID)
 		}
 
 		// add back to waiting pool
 		for _, hostID := range rangeInfo.hosts {
-			jt.waitingByHost[hostID].Add(rangeID)
+			m.waitingByHost[hostID].Add(rangeID)
 		}
 
 		cancelled = append(cancelled, taskID)
 	}
 
 	for _, taskID := range cancelled {
-		delete(jt.runningTasks, taskID)
+		delete(m.runningTasks, taskID)
 	}
 
 	return nil

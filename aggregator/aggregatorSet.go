@@ -159,7 +159,7 @@ func UnionSets(first AggregatorSet, second AggregatorSet) (*AggregatorSet, error
 	return &AggregatorSet{aggs: result}, nil
 }
 
-func ConvertSetToMessages(set *AggregatorSet) ([]*protos.Aggregator, error) {
+func ConvertSetToProto(set *AggregatorSet) ([]*protos.Aggregator, error) {
 	set.mutex.RLock()
 	defer set.mutex.RUnlock()
 

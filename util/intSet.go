@@ -52,7 +52,7 @@ func (s *IntSet) Clone() *IntSet {
 	return result
 }
 
-func (s *IntSet) RemoveFirst() (int, bool) {
+func (s *IntSet) RemoveOne() (int, bool) {
 	if s.IsEmpty() {
 		return 0, false
 	}

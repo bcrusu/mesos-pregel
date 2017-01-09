@@ -11,7 +11,7 @@ import (
 	"github.com/bcrusu/mesos-pregel/cassandra"
 	_ "github.com/bcrusu/mesos-pregel/scheduler/algorithmImpl" // register default algorithms
 	"github.com/bcrusu/mesos-pregel/scheduler/api"
-	"github.com/bcrusu/mesos-pregel/scheduler/jobManager"
+	"github.com/bcrusu/mesos-pregel/scheduler/job"
 	"github.com/bcrusu/mesos-pregel/store"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
@@ -51,7 +51,7 @@ func run() error {
 		return err
 	}
 
-	jobManager, err := jobManager.New(jobStore)
+	jobManager, err := job.NewManager(jobStore)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func run() error {
 	return runDriver(jobManager)
 }
 
-func runDriver(jobManager *jobManager.JobManager) error {
+func runDriver(jobManager *job.Manager) error {
 	config := sched.DriverConfig{
 		Scheduler: NewPregelScheduler(jobManager),
 		Framework: &mesos.FrameworkInfo{
@@ -96,7 +96,7 @@ func getJobStore() (store.JobStore, error) {
 	}
 }
 
-func startAPIServer(jobManager *jobManager.JobManager) error {
+func startAPIServer(jobManager *job.Manager) error {
 	server := api.NewAPIServer(jobManager)
 	return server.ServeAsync(*APIPort)
 }

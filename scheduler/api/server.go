@@ -5,17 +5,17 @@ import (
 	"net"
 
 	"github.com/bcrusu/mesos-pregel/protos"
-	"github.com/bcrusu/mesos-pregel/scheduler/jobManager"
+	"github.com/bcrusu/mesos-pregel/scheduler/job"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )
 
 type APIServer struct {
-	jobManager *jobManager.JobManager
+	jobManager *job.Manager
 	server     *grpc.Server
 }
 
-func NewAPIServer(jobManager *jobManager.JobManager) *APIServer {
+func NewAPIServer(jobManager *job.Manager) *APIServer {
 	return &APIServer{jobManager: jobManager}
 }
 

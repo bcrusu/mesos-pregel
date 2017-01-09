@@ -1,4 +1,4 @@
-package jobManager
+package job
 
 import (
 	"sort"

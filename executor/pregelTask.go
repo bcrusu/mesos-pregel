@@ -94,7 +94,7 @@ func (task *PregelTask) ExecSuperstep(params *protos.ExecSuperstepParams) (*prot
 		return nil, err
 	}
 
-	aggregators, err := aggregator.ConvertSetToMessages(aggregatorSet)
+	aggregators, err := aggregator.ConvertSetToProto(aggregatorSet)
 	if err != nil {
 		return nil, err
 	}

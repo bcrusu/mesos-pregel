@@ -3,13 +3,11 @@ package main
 import (
 	"math"
 
-	"github.com/golang/glog"
 	mesos "github.com/mesos/mesos-go/mesosproto"
 	util "github.com/mesos/mesos-go/mesosutil"
 )
 
-type resourceOffer struct {
-	host string
+type resourcesPool struct {
 	cpus float64
 	mems float64
 }
@@ -19,36 +17,25 @@ type offerResources struct {
 	mems float64
 }
 
-func newResourceOffer(offers []*mesos.Offer) *resourceOffer {
-	if len(offers) == 0 {
-		return nil
-	}
-
-	host := *offers[0].Hostname
+func newResourcePool(offers []*mesos.Offer) *resourcesPool {
 	cpus := 0.0
 	mems := 0.0
 
 	for _, offer := range offers {
-		if *offer.Hostname != host {
-			glog.Warningf("ignoring offer %s - wrong host %s", offer.Id.Value, *offer.Hostname)
-			continue
-		}
-
 		res := getOfferResources(offer)
 		cpus += res.cpus
 		mems += res.mems
 	}
 
-	return &resourceOffer{host: host, cpus: cpus, mems: mems}
+	return &resourcesPool{cpus: cpus, mems: mems}
 }
 
-func (r *resourceOffer) Host() string {
-	return r.host
+func (r *resourcesPool) CanSubtract(cpus float64, mems float64) bool {
+	return r.cpus >= cpus && r.mems >= mems
 }
 
-func (r *resourceOffer) Subtract(cpus float64, mems float64) bool {
-	ok := r.cpus >= cpus && r.mems >= mems
-	if !ok {
+func (r *resourcesPool) Subtract(cpus float64, mems float64) bool {
+	if !r.CanSubtract(cpus, mems) {
 		return false
 	}
 

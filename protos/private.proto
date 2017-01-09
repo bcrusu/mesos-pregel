@@ -33,9 +33,9 @@ message ExecSuperstepResult {
     Stats stats = 2;
 
     message Stats {
-        int32 totalDuration = 1;
+        int64 totalDuration = 1;
         int32 computedCount = 2;
-        int32 computeDuration = 3;
+        int64 computeDuration = 3;
         int32 sentMessagesCount = 4;
         int32 haltedCount = 5;
         int32 inactiveCount = 6;

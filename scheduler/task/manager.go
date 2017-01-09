@@ -10,45 +10,34 @@ import (
 	"github.com/bcrusu/mesos-pregel/store"
 	"github.com/bcrusu/mesos-pregel/util"
 	"github.com/golang/glog"
+	"github.com/pkg/errors"
 )
 
 const (
-	defaultTaskTimeout = 30 * time.Second //TODO:
+	defaultTaskTimeout = 30 * time.Second
 	noHostID           = 0
 )
 
 type Manager struct {
+	jobID               string
 	taskTimeout         time.Duration
 	taskMaxRetryCount   int
 	mutex               sync.Mutex // guards all below
+	totalStats          *Stats
 	currentSuperstep    int
 	currentAggregators  *aggregator.AggregatorSet
-	previousAggregators *aggregator.AggregatorSet
+	currentStats        *Stats
+	previousAggregators []*protos.Aggregator
 	ranges              map[int]*rangeInfo // map[RANGE_ID]value
 	hosts               *hostSet
 	waitingByHost       map[int]*util.IntSet // map[HOST_ID]Set<RANGE_ID>
 	lastTaskID          int
-	runningTasks        map[int]*runningTask   // map[TASK_ID]value
-	completedTasks      map[int]*completedTask // map[TASK_ID]value
+	runningTasks        map[int]*runningTaskInfo // map[TASK_ID]value
 }
 
 type StartTaskResult struct {
-	TaskID       int
-	Superstep    int
-	VertexRanges []store.VertexRange
-	Aggregators  *aggregator.AggregatorSet
-}
-
-type SetTaskFinishedRequest struct {
-	TaskID      int
-	Aggregators *aggregator.AggregatorSet
-
-	TotalDuration     time.Duration
-	ComputedCount     int
-	ComputeDuration   time.Duration
-	SentMessagesCount int
-	HaltedCount       int
-	InactiveCount     int
+	TaskID          int
+	SuperstepParams *protos.ExecSuperstepParams
 }
 
 type rangeInfo struct {
@@ -57,16 +46,14 @@ type rangeInfo struct {
 	retryCount  int
 }
 
-type runningTask struct {
-	rangeID   int //TODO: group multiple small ranges into groups to be scheduled together in the same task
+type runningTaskInfo struct {
+	rangeID   int //TODO(nice to have): group multiple small ranges into groups to be scheduled together in the same task
 	hostID    int
 	startTime time.Time
 }
 
-type completedTask struct {
-}
-
-func New(vertexRanges []*store.VertexRangeHosts, taskTimeout int, taskMaxRetryCount int) *Manager {
+func NewManager(jobID string, vertexRanges []*store.VertexRangeHosts, initialAggregators *aggregator.AggregatorSet,
+	taskTimeout time.Duration, taskMaxRetryCount int) (*Manager, error) {
 	hosts := &hostSet{}
 	ranges := make(map[int]*rangeInfo)
 
@@ -84,26 +71,39 @@ func New(vertexRanges []*store.VertexRangeHosts, taskTimeout int, taskMaxRetryCo
 		}
 	}
 
+	aggProto, err := aggregator.ConvertSetToProto(initialAggregators)
+	if err != nil {
+		return nil, errors.Wrap(err, "faild to marshal initial aggregators")
+	}
+
+	if taskTimeout == 0 {
+		taskTimeout = defaultTaskTimeout
+	}
+
 	return &Manager{
+		jobID:               jobID,
 		taskTimeout:         time.Duration(taskTimeout),
 		taskMaxRetryCount:   taskMaxRetryCount,
+		totalStats:          &Stats{},
 		currentSuperstep:    1,
-		currentAggregators:  aggregator.NewSet(),
-		previousAggregators: aggregator.NewSet(),
+		currentAggregators:  initialAggregators,
+		currentStats:        &Stats{},
+		previousAggregators: aggProto,
 		ranges:              ranges,
 		hosts:               hosts,
 		waitingByHost:       groupByHost(ranges),
-		runningTasks:        make(map[int]*runningTask),
-		completedTasks:      make(map[int]*completedTask),
-	}
+		runningTasks:        make(map[int]*runningTaskInfo),
+	}, nil
 }
 
-func NewFromCheckpoint(checkpoint *protos.JobCheckpoint) *Manager {
+func NewManagerFromCheckpoint(checkpoint *protos.JobCheckpoint) *Manager {
 	//TODO
 	return nil
 }
 
 func (m *Manager) Superstep() int {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	return m.currentSuperstep
 }
 
@@ -141,11 +141,43 @@ func (m *Manager) StartTask() (*StartTaskResult, error) {
 	return nil, nil
 }
 
-func (m *Manager) SetTaskFinished(request *SetTaskFinishedRequest) {
+func (m *Manager) SetTaskCompleted(taskID int, result *protos.ExecSuperstepResult) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	//TODO
+	aggregators, err := aggregator.NewSetFromMessages(result.Aggregators)
+	if err != nil {
+		return errors.Wrapf(err, "faild to unmarshal aggregators for task %d", taskID)
+	}
+
+	if err = m.currentAggregators.UnionWith(aggregators); err != nil {
+		return errors.Wrapf(err, "faild to merge aggregators for task %d", taskID)
+	}
+
+	m.totalStats.add(result.Stats)
+	m.currentStats.add(result.Stats)
+
+	//TODO: advance to next superstep if current finished
+	return nil
+}
+
+func (m *Manager) SetTaskFailed(taskID int) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	task, ok := m.runningTasks[taskID]
+	if !ok {
+		glog.Warningf("job %s - ignoring unknown task %d", m.jobID, taskID)
+		return nil
+	}
+
+	if hostname, ok := m.hosts.GetHostname(task.hostID); ok {
+		glog.Warningf("job %s - task %d failed on host %s", m.jobID, taskID, hostname)
+	} else {
+		glog.Warningf("job %s - task %d failed", m.jobID, taskID)
+	}
+
+	return m.retryTask(taskID, task)
 }
 
 func (m *Manager) GetCheckpoint() *protos.JobCheckpoint {
@@ -168,16 +200,19 @@ func (m *Manager) startTaskForHostID(hostID int) (*StartTaskResult, error) {
 	rangeInfo := m.ranges[rangeID]
 	taskID := m.getNextTaskID()
 
-	m.runningTasks[taskID] = &runningTask{
+	m.runningTasks[taskID] = &runningTaskInfo{
 		rangeID:   rangeID,
 		startTime: time.Now(),
+		hostID:    hostID,
 	}
 
 	return &StartTaskResult{
-		TaskID:       taskID,
-		Superstep:    m.currentSuperstep,
-		Aggregators:  m.previousAggregators,
-		VertexRanges: []store.VertexRange{rangeInfo.vertexRange},
+		TaskID: taskID,
+		SuperstepParams: &protos.ExecSuperstepParams{
+			Superstep:    int32(m.currentSuperstep),
+			VertexRanges: convertVertexRangesToProto([]store.VertexRange{rangeInfo.vertexRange}),
+			Aggregators:  m.previousAggregators,
+		},
 	}, nil
 }
 
@@ -195,26 +230,21 @@ func (m *Manager) cancelTimedOutTasks() error {
 	now := time.Now()
 	cancelled := []int{}
 
-	for taskID, runningTask := range m.runningTasks {
-		deadline := runningTask.startTime.Add(m.taskTimeout)
+	for taskID, task := range m.runningTasks {
+		deadline := task.startTime.Add(m.taskTimeout)
 		if deadline.After(now) {
 			continue
 		}
 
-		hostname, _ := m.hosts.GetHostname(runningTask.hostID)
-		glog.Warningf("task %d timed out on host %s", taskID, hostname)
-
-		rangeID := runningTask.rangeID
-		rangeInfo := m.ranges[rangeID]
-		rangeInfo.retryCount++
-
-		if rangeInfo.retryCount == m.taskMaxRetryCount {
-			return fmt.Errorf("failed to execute task %d - exceeded max retry count", taskID)
+		if hostname, ok := m.hosts.GetHostname(task.hostID); ok {
+			glog.Warningf("job %s - task %d timed out on host %s", m.jobID, taskID, hostname)
+		} else {
+			glog.Warningf("job %s - task %d timed out", m.jobID, taskID)
 		}
 
-		// add back to waiting pool
-		for _, hostID := range rangeInfo.hosts {
-			m.waitingByHost[hostID].Add(rangeID)
+		err := m.retryTask(taskID, task)
+		if err != nil {
+			return err
 		}
 
 		cancelled = append(cancelled, taskID)
@@ -222,6 +252,23 @@ func (m *Manager) cancelTimedOutTasks() error {
 
 	for _, taskID := range cancelled {
 		delete(m.runningTasks, taskID)
+	}
+
+	return nil
+}
+
+func (m *Manager) retryTask(taskID int, task *runningTaskInfo) error {
+	rangeID := task.rangeID
+	rangeInfo := m.ranges[rangeID]
+	rangeInfo.retryCount++
+
+	if rangeInfo.retryCount == m.taskMaxRetryCount {
+		return fmt.Errorf("job %s - task %d exceeded the maximum number of retries allowed: %d", m.jobID, taskID, m.taskMaxRetryCount)
+	}
+
+	// add back to waiting pool
+	for _, hostID := range rangeInfo.hosts {
+		m.waitingByHost[hostID].Add(rangeID)
 	}
 
 	return nil
@@ -251,5 +298,13 @@ func groupByHost(ranges map[int]*rangeInfo) map[int]*util.IntSet {
 		}
 	}
 
+	return result
+}
+
+func convertVertexRangesToProto(vranges []store.VertexRange) [][]byte {
+	result := make([][]byte, len(vranges))
+	for i, vrange := range vranges {
+		result[i] = []byte(vrange)
+	}
 	return result
 }

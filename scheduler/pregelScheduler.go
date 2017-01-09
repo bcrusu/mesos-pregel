@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/bcrusu/mesos-pregel/encoding"
 	"github.com/bcrusu/mesos-pregel/protos"
@@ -36,11 +38,11 @@ func NewPregelScheduler(jobManager *job.Manager) *PregelScheduler {
 }
 
 func (scheduler *PregelScheduler) Registered(driver sched.SchedulerDriver, frameworkId *mesos.FrameworkID, masterInfo *mesos.MasterInfo) {
-	glog.Infoln("Framework Registered with Master ", masterInfo)
+	glog.Infoln("framework Registered with Master ", masterInfo)
 }
 
 func (scheduler *PregelScheduler) Reregistered(driver sched.SchedulerDriver, masterInfo *mesos.MasterInfo) {
-	glog.Infoln("Framework Re-Registered with Master ", masterInfo)
+	glog.Infoln("framework Re-Registered with Master ", masterInfo)
 	_, err := driver.ReconcileTasks([]*mesos.TaskStatus{})
 	if err != nil {
 		glog.Errorf("failed to request task reconciliation: %v", err)
@@ -57,16 +59,16 @@ func (scheduler *PregelScheduler) ResourceOffers(driver sched.SchedulerDriver, o
 	for slaveID, slaveOffers := range offersBySlave {
 		resourceOffer := newResourcePool(slaveOffers)
 		host := *slaveOffers[0].Hostname
-		taskParamList := scheduler.jobManager.GetTasksToExecute(host, resourceOffer)
+		tasksToExecute := scheduler.jobManager.GetTasksToExecute(host, resourceOffer)
 
 		// create task info protos
 		var tasks []*mesos.TaskInfo
-		for _, params := range taskParamList {
-			taskID := fmt.Sprintf("Pregel_job=%s:task=%d:superstep=%d", params.JobId, params.TaskId, params.SuperstepParams.Superstep)
+		for _, task := range tasksToExecute {
+			mesosTaskID := getMesosTaskID(task)
 
-			task, err := scheduler.getTaskInfo(slaveID, taskID, params)
+			task, err := scheduler.getTaskInfo(slaveID, mesosTaskID, task)
 			if err != nil {
-				glog.Errorf("failed to create task info %s; error: %v", taskID, err)
+				glog.Errorf("failed to create Mesos task info %s; error: %v", mesosTaskID, err)
 				continue
 			}
 
@@ -86,22 +88,30 @@ func (scheduler *PregelScheduler) ResourceOffers(driver sched.SchedulerDriver, o
 }
 
 func (scheduler *PregelScheduler) StatusUpdate(driver sched.SchedulerDriver, status *mesos.TaskStatus) {
-	glog.Infoln("Status update: task", status.TaskId.GetValue(), " is in state ", status.State.Enum().String())
+	mesosTaskID := status.TaskId.GetValue()
+	jobID, taskID, ok := parseMesosTaskID(mesosTaskID)
 
-	// switch *status.State {
-	// case mesos.TaskState_TASK_FINISHED:
-	// 	var taskResult *protos.ExecTaskResult
-	// 	if result, err := scheduler.execTaskParamsEncoder.Unmarshal(status.Data); err != nil {
-	// 		glog.Errorf("mesos task %s - failed to unmarshal task result; error %v", *status.TaskId.Value, err)
-	// 		//TODO
-	// 		return
-	// 	} else {
-	// 		taskResult = result.(*protos.ExecTaskResult)
-	// 	}
-	// case mesos.TaskState_TASK_FAILED:
-	// case mesos.TaskState_TASK_LOST:
+	// ignore task status with unrecognized id
+	if !ok {
+		return
+	}
 
-	// }
+	switch status.GetState() {
+	case mesos.TaskState_TASK_FINISHED:
+		taskResult, err := scheduler.execTaskParamsEncoder.Unmarshal(status.Data)
+		if err != nil {
+			glog.Errorf("mesos task %s - failed to unmarshal task result; error %v", mesosTaskID, err)
+			scheduler.jobManager.SetTaskFailed(jobID, taskID)
+			return
+		}
+
+		scheduler.jobManager.SetTaskCompleted(taskResult.(*protos.ExecTaskResult))
+	case mesos.TaskState_TASK_FAILED:
+	case mesos.TaskState_TASK_LOST:
+	case mesos.TaskState_TASK_KILLED:
+	case mesos.TaskState_TASK_ERROR:
+		scheduler.jobManager.SetTaskFailed(jobID, taskID)
+	}
 }
 
 func (scheduler *PregelScheduler) OfferRescinded(_ sched.SchedulerDriver, oid *mesos.OfferID) {
@@ -121,10 +131,11 @@ func (scheduler *PregelScheduler) ExecutorLost(_ sched.SchedulerDriver, eid *mes
 }
 
 func (scheduler *PregelScheduler) Error(_ sched.SchedulerDriver, err string) {
-	glog.Errorf("Scheduler received error: %v", err)
+	glog.Errorf("scheduler received error: %v", err)
 }
 
-func (scheduler *PregelScheduler) getTaskInfo(slaveID string, taskID string, params *protos.ExecTaskParams) (*mesos.TaskInfo, error) {
+func (scheduler *PregelScheduler) getTaskInfo(slaveID string, taskID string, task *job.TaskToExecute) (*mesos.TaskInfo, error) {
+	params := task.Parmas
 	data, err := scheduler.execTaskParamsEncoder.Marshal(params)
 	if err != nil {
 		glog.Errorf("job %s - failed to marshal params for task %d", params.JobId, params.TaskId)
@@ -138,8 +149,8 @@ func (scheduler *PregelScheduler) getTaskInfo(slaveID string, taskID string, par
 		SlaveId:  &mesos.SlaveID{Value: proto.String(slaveID)},
 		Executor: scheduler.executorInfo,
 		Resources: []*mesos.Resource{
-			util.NewScalarResource(resourceNameCPU, 0.2), //TODO: pass in the correct values for cpu and mem
-			util.NewScalarResource(resourceNameMEM, 32),
+			util.NewScalarResource(resourceNameCPU, task.CPU),
+			util.NewScalarResource(resourceNameMEM, task.MEM),
 		},
 	}, nil
 }
@@ -186,4 +197,33 @@ func getOfferIDs(offers []*mesos.Offer) []*mesos.OfferID {
 	}
 
 	return result
+}
+
+func getMesosTaskID(task *job.TaskToExecute) string {
+	return fmt.Sprintf("Pregel:job=%s:task=%d", task.Parmas.JobId, task.Parmas.TaskId)
+}
+
+func parseMesosTaskID(taskID string) (jobID string, pregelTaskID int, success bool) {
+	splits := strings.Split(taskID, ":")
+	if len(splits) != 3 {
+		return "", 0, false
+	}
+
+	splits2 := strings.Split(splits[1], "=")
+	if len(splits) != 2 {
+		return "", 0, false
+	}
+	jobID = splits2[1]
+
+	splits2 = strings.Split(splits[2], "=")
+	if len(splits) != 2 {
+		return "", 0, false
+	}
+
+	id, err := strconv.Atoi(splits2[1])
+	if err != nil {
+		return "", 0, false
+	}
+
+	return jobID, id, true
 }

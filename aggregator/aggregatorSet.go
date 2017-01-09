@@ -128,35 +128,39 @@ func (set *AggregatorSet) Contains(id string) bool {
 	return ok
 }
 
-func UnionSets(first AggregatorSet, second AggregatorSet) (*AggregatorSet, error) {
-	first.mutex.RLock()
-	defer first.mutex.RUnlock()
-	second.mutex.RLock()
-	defer second.mutex.RUnlock()
+func (set *AggregatorSet) Clone() *AggregatorSet {
+	set.mutex.RLock()
+	defer set.mutex.RUnlock()
 
-	// clone the first set
-	result := make(map[string]Aggregator, len(first.aggs))
-	for k, agg := range first.aggs {
-		result[k] = agg.Clone()
+	aggs := make(map[string]Aggregator, len(set.aggs))
+	for k, agg := range set.aggs {
+		aggs[k] = agg.Clone()
 	}
 
+	return &AggregatorSet{aggs: aggs}
+}
+
+func (set *AggregatorSet) UnionWith(other *AggregatorSet) error {
+	other.mutex.RLock()
+	defer other.mutex.RUnlock()
+
 	// merge second set into the clone
-	for id, secondAgg := range second.aggs {
-		firstAgg, ok := result[id]
+	for id, secondAgg := range other.aggs {
+		firstAgg, ok := set.aggs[id]
 		if ok {
 			if firstAgg.Name() != secondAgg.Name() {
 				// found incompatible aggregators
-				return nil, fmt.Errorf("union failed - sets contain different aggregator types for id: %s", id)
+				return fmt.Errorf("union failed - sets contain different aggregator types for id: %s", id)
 			}
 
 			// aggregate values
 			firstAgg.Set(secondAgg.Get())
 		} else {
-			result[id] = secondAgg.Clone()
+			set.aggs[id] = secondAgg.Clone()
 		}
 	}
 
-	return &AggregatorSet{aggs: result}, nil
+	return nil
 }
 
 func ConvertSetToProto(set *AggregatorSet) ([]*protos.Aggregator, error) {

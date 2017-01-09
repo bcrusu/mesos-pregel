@@ -14,8 +14,7 @@ import (
 )
 
 const (
-	defaultTaskTimeout = 30 * time.Second
-	noHostID           = 0
+	noHostID = 0
 )
 
 type Manager struct {
@@ -74,10 +73,6 @@ func NewManager(jobID string, vertexRanges []*store.VertexRangeHosts, initialAgg
 	aggProto, err := aggregator.ConvertSetToProto(initialAggregators)
 	if err != nil {
 		return nil, errors.Wrap(err, "faild to marshal initial aggregators")
-	}
-
-	if taskTimeout == 0 {
-		taskTimeout = defaultTaskTimeout
 	}
 
 	return &Manager{

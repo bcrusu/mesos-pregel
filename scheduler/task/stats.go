@@ -16,9 +16,9 @@ type Stats struct {
 }
 
 func (s *Stats) add(stats *protos.ExecSuperstepResult_Stats) {
-	s.TotalDuration += stats.TotalDuration
+	s.TotalDuration += time.Duration(stats.TotalDuration)
 	s.ComputedCount += stats.ComputedCount
-	s.ComputeDuration += stats.ComputeDuration
+	s.ComputeDuration += time.Duration(stats.ComputeDuration)
 	s.SentMessagesCount += stats.SentMessagesCount
 	s.HaltedCount += stats.HaltedCount
 	s.InactiveCount += stats.InactiveCount

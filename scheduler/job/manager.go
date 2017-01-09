@@ -18,11 +18,7 @@ import (
 )
 
 const (
-	maxRunningJobs      = 10
-	defaultTaskCPU      = 0.1
-	defaultTaskMEM      = 32.0
-	defaultTaskVertices = 10000
-	minTaskVertices     = 1000
+	maxRunningJobs = 10
 )
 
 type Manager struct {
@@ -65,8 +61,12 @@ func NewManager(jobStore store.JobStore) (*Manager, error) {
 }
 
 func (m *Manager) CreateJob(request *protos.CreateJobRequest) *protos.CreateJobReply {
+	if ok := validateCreateJobRequest(request); !ok {
+		return &protos.CreateJobReply{Status: protos.CallStatus_ERROR_INVALID_REQUEST}
+	}
+
 	id := uuid.NewRandom().String()
-	job := coerceJobParams(&pregel.Job{
+	job := &pregel.Job{
 		ID:                id,
 		Label:             request.Label,
 		CreationTime:      time.Now(),
@@ -80,7 +80,7 @@ func (m *Manager) CreateJob(request *protos.CreateJobRequest) *protos.CreateJobR
 		TaskVertices:      int(request.TaskVertices),
 		TaskTimeout:       int(request.TaskTimeout),
 		TaskMaxRetryCount: int(request.TaskMaxRetryCount),
-	})
+	}
 
 	err := m.jobStore.Save(job)
 	if err != nil {
@@ -392,7 +392,10 @@ func (m *Manager) startJob(jobID string) error {
 		return nil //TODO: mark job as finished
 	}
 
-	jobManager := task.NewManager(vertexRanges, context.aggregators, job.TaskTimeout, job.TaskMaxRetryCount)
+	jobManager, err := task.NewManager(jobID, vertexRanges, context.aggregators, time.Duration(job.TaskTimeout), job.TaskMaxRetryCount)
+	if err != nil {
+		//todo
+	}
 	m.taskManagers[jobID] = jobManager
 
 	return nil
@@ -400,17 +403,6 @@ func (m *Manager) startJob(jobID string) error {
 
 func (m *Manager) finishJob(job *pregel.Job) {
 	//TODO
-}
-
-func coerceJobParams(job *pregel.Job) *pregel.Job {
-	//TODO
-	// if taskVertices == 0 {
-	// 	taskVertices = defaultTaskVertices
-	// } else if taskVertices < minTaskVertices {
-	// 	taskVertices = minTaskVertices
-	// }
-
-	return job
 }
 
 func connectGraphStore(name string, params []byte) (store.GraphStore, error) {

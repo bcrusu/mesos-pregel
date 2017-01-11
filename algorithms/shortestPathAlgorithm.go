@@ -1,8 +1,9 @@
-package algorithmImpl
+package algorithms
 
 import (
+	"github.com/bcrusu/mesos-pregel/aggregator"
+	"github.com/bcrusu/mesos-pregel/algorithm"
 	"github.com/bcrusu/mesos-pregel/encoding"
-	"github.com/bcrusu/mesos-pregel/executor/algorithm"
 	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/gogo/protobuf/proto"
 )
@@ -15,6 +16,11 @@ func (algo *shortestPathAlgorithm) Compute(context *algorithm.VertexContext, msg
 	//value := context.Value.(*protos.Int32Value)
 	//message := msg.(*protos.ShortestPathMessage)
 
+	//TODO
+	return nil
+}
+
+func (algo *shortestPathAlgorithm) GetResult(aggregators *aggregator.AggregatorSet) interface{} {
 	//TODO
 	return nil
 }
@@ -33,6 +39,10 @@ func (algo *shortestPathAlgorithm) VertexValueEncoder() encoding.Encoder {
 
 func (algo *shortestPathAlgorithm) EdgeValueEncoder() encoding.Encoder {
 	return encoding.Int32ValueEncoder()
+}
+
+func (algo *shortestPathAlgorithm) ResultEncoder() encoding.Encoder {
+	return encoding.NewProtobufEncoder(func() proto.Message { return new(protos.ShortestPathAlgorithmResult) })
 }
 
 func (algo *shortestPathAlgorithm) Handlers() *algorithm.Handlers {

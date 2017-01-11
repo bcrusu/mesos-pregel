@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/bcrusu/mesos-pregel/aggregator"
-	"github.com/bcrusu/mesos-pregel/executor/algorithm"
+	"github.com/bcrusu/mesos-pregel/algorithm"
 	"github.com/bcrusu/mesos-pregel/executor/graph"
 	"github.com/bcrusu/mesos-pregel/executor/messagesProcessor"
 	"github.com/bcrusu/mesos-pregel/protos"
@@ -30,7 +30,7 @@ func NewPregelTask(params protos.ExecTaskParams) (*PregelTask, error) {
 		return nil, errors.Wrapf(err, "failed to initialize store: %v", params.Store)
 	}
 
-	algorithm, err := algorithm.NewAlgorithm(params.Algorithm, params.AlgorithmParams)
+	algorithm, err := algorithm.New(params.Algorithm, params.AlgorithmParams)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to initialize algorithm: %v", params.Algorithm)
 	}

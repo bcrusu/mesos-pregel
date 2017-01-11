@@ -7,9 +7,9 @@ import (
 	exec "github.com/mesos/mesos-go/executor"
 	"github.com/pkg/errors"
 
-	_ "github.com/bcrusu/mesos-pregel/aggregator"             // register default aggregators
-	_ "github.com/bcrusu/mesos-pregel/cassandra"              // register Cassandra store
-	_ "github.com/bcrusu/mesos-pregel/executor/algorithmImpl" // register default algorithms
+	_ "github.com/bcrusu/mesos-pregel/aggregator" // register default aggregators
+	_ "github.com/bcrusu/mesos-pregel/algorithms" // register default algorithms
+	_ "github.com/bcrusu/mesos-pregel/cassandra"  // register Cassandra store
 )
 
 func main() {

@@ -8,8 +8,8 @@ import (
 	"time"
 
 	_ "github.com/bcrusu/mesos-pregel/aggregator" // register default aggregators
+	_ "github.com/bcrusu/mesos-pregel/algorithms" // register default algorithms
 	"github.com/bcrusu/mesos-pregel/cassandra"
-	_ "github.com/bcrusu/mesos-pregel/scheduler/algorithmImpl" // register default algorithms
 	"github.com/bcrusu/mesos-pregel/scheduler/api"
 	"github.com/bcrusu/mesos-pregel/scheduler/job"
 	"github.com/bcrusu/mesos-pregel/store"

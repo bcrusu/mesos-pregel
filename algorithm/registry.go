@@ -13,11 +13,11 @@ type AlgorithmFactory interface {
 
 var factories = make(map[string]AlgorithmFactory)
 
-func RegisterAlgorithm(algorithm string, factory AlgorithmFactory) {
+func Register(algorithm string, factory AlgorithmFactory) {
 	factories[algorithm] = factory
 }
 
-func NewAlgorithm(algorithm string, params []byte) (Algorithm, error) {
+func New(algorithm string, params []byte) (Algorithm, error) {
 	factory, ok := factories[algorithm]
 	if !ok {
 		return nil, fmt.Errorf("unknown algorithm %s", algorithm)

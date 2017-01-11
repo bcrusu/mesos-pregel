@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/bcrusu/mesos-pregel"
-	"github.com/bcrusu/mesos-pregel/scheduler/algorithm"
+	"github.com/bcrusu/mesos-pregel/algorithm"
 	"github.com/bcrusu/mesos-pregel/scheduler/task"
 	"github.com/bcrusu/mesos-pregel/store"
 	"github.com/golang/glog"
@@ -23,7 +23,7 @@ func createJobStopper(jobStore store.JobStore) chan *jobStopperParams {
 	inputChan := make(chan *jobStopperParams)
 
 	processCompleted := func(job *pregel.Job, taskManager *task.Manager) error {
-		algorithm, err := algorithm.NewAlgorithm(job.Algorithm, job.AlgorithmParams)
+		algorithm, err := algorithm.New(job.Algorithm, job.AlgorithmParams)
 		if err != nil {
 			return err
 		}

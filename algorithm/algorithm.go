@@ -1,14 +1,20 @@
 package algorithm
 
-import "github.com/bcrusu/mesos-pregel/encoding"
+import (
+	"github.com/bcrusu/mesos-pregel/aggregator"
+	"github.com/bcrusu/mesos-pregel/encoding"
+)
 
 type Algorithm interface {
 	Compute(context *VertexContext, message interface{}) error
+	GetResult(aggregators *aggregator.AggregatorSet) interface{}
+
 	VertexMessageCombiner() VertexMessageCombiner
 
 	VertexMessageEncoder() encoding.Encoder
 	VertexValueEncoder() encoding.Encoder
 	EdgeValueEncoder() encoding.Encoder
+	ResultEncoder() encoding.Encoder
 
 	Handlers() *Handlers
 }

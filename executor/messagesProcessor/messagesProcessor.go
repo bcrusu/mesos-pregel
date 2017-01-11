@@ -6,7 +6,7 @@ import (
 
 	"github.com/bcrusu/mesos-pregel"
 	"github.com/bcrusu/mesos-pregel/aggregator"
-	"github.com/bcrusu/mesos-pregel/executor/algorithm"
+	"github.com/bcrusu/mesos-pregel/algorithm"
 	"github.com/bcrusu/mesos-pregel/executor/graph"
 )
 

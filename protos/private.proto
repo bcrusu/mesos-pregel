@@ -3,7 +3,7 @@ syntax = "proto3";
 package protos;
 
 message ExecTaskParams {
-    int32 taskId = 1;
+    string taskId = 1;
     string jobId = 2;
 
     string store = 3;
@@ -16,7 +16,7 @@ message ExecTaskParams {
 }
 
 message ExecTaskResult {
-    int32 taskId = 1;
+    string taskId = 1;
     string jobId = 2;
 
     ExecSuperstepResult superstepResult = 3;

@@ -6,13 +6,10 @@ type JobStore interface {
 	LoadAll() ([]*pregel.Job, error)
 
 	Save(*pregel.Job) error
-	SetStatus(jobID string, status pregel.JobStatus) error
+	SaveStatus(jobID string, status pregel.JobStatus, result []byte, checkpoint []byte) error
 
 	LoadResult(jobID string) ([]byte, error)
-	SaveResult(jobID string, value []byte) error
-
 	LoadCheckpoint(jobID string) ([]byte, error)
-	SaveCheckpoint(jobID string, value []byte) error
 
 	Connect() error
 	Init() error

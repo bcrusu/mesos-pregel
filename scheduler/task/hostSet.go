@@ -1,12 +1,13 @@
 package task
 
-import (
-	"fmt"
-)
-
 type hostSet struct {
-	byID   map[int]string // map[HOST_ID]hostname
-	byName map[string]int // map[hostname]HOST_ID
+	byID   map[int]*hostInfo // map[HOST_ID]hostname
+	byName map[string]int    // map[hostname]HOST_ID
+}
+
+type hostInfo struct {
+	hostname  string
+	failCount int
 }
 
 func (h *hostSet) Add(hostname string) int {
@@ -18,22 +19,14 @@ func (h *hostSet) Add(hostname string) int {
 	}
 
 	id = h.nextID()
-	h.byID[id] = hostname
+	h.byID[id] = &hostInfo{hostname: hostname}
 	h.byName[hostname] = id
 	return id
 }
 
-func (h *hostSet) AddWithID(hostname string, id int) error {
-	h.ensureMaps()
-
-	_, ok := h.byID[id]
-	if ok {
-		return fmt.Errorf("duplicate id %d", id)
-	}
-
-	h.byID[id] = hostname
-	h.byName[hostname] = id
-	return nil
+func (h *hostSet) Get(ID int) (*hostInfo, bool) {
+	info, ok := h.byID[ID]
+	return info, ok
 }
 
 func (h *hostSet) GetID(hostname string) (int, bool) {
@@ -42,8 +35,12 @@ func (h *hostSet) GetID(hostname string) (int, bool) {
 }
 
 func (h *hostSet) GetHostname(id int) (string, bool) {
-	name, ok := h.byID[id]
-	return name, ok
+	info, ok := h.byID[id]
+	if !ok {
+		return "", false
+	}
+
+	return info.hostname, true
 }
 
 func (h *hostSet) IsEmpty() bool {
@@ -59,6 +56,6 @@ func (h *hostSet) ensureMaps() {
 		return
 	}
 
-	h.byID = make(map[int]string)
+	h.byID = make(map[int]*hostInfo)
 	h.byName = make(map[string]int)
 }

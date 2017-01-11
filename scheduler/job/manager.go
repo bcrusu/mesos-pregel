@@ -5,16 +5,11 @@ import (
 	"time"
 
 	"github.com/bcrusu/mesos-pregel"
-	"github.com/bcrusu/mesos-pregel/aggregator"
-	"github.com/bcrusu/mesos-pregel/encoding"
 	"github.com/bcrusu/mesos-pregel/protos"
-	"github.com/bcrusu/mesos-pregel/scheduler/algorithm"
 	"github.com/bcrusu/mesos-pregel/scheduler/task"
 	"github.com/bcrusu/mesos-pregel/store"
-	"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
 	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -22,13 +17,15 @@ const (
 )
 
 type Manager struct {
-	jobStore          store.JobStore
-	checkpointEncoder encoding.Encoder
-	mutex             sync.RWMutex
-	jobs              map[string]*pregel.Job
-	waitingQueue      *jobQueue
-	runningQueue      *jobQueue
-	taskManagers      map[string]*task.Manager
+	jobStore            store.JobStore
+	stopChan            chan struct{}
+	jobStarter          *jobStarter
+	jobStopperChan      chan *jobStopperParams
+	mutex               sync.RWMutex
+	jobs                map[string]*pregel.Job
+	waiting             *jobQueue
+	running             *jobQueue
+	runningTaskManagers map[string]*task.Manager
 }
 
 type Resources interface {
@@ -44,13 +41,27 @@ type TaskToExecute struct {
 
 func NewManager(jobStore store.JobStore) (*Manager, error) {
 	result := &Manager{
-		jobStore:          jobStore,
-		jobs:              make(map[string]*pregel.Job),
-		waitingQueue:      &jobQueue{},
-		runningQueue:      &jobQueue{},
-		taskManagers:      make(map[string]*task.Manager),
-		checkpointEncoder: encoding.NewProtobufEncoder(func() proto.Message { return new(protos.JobCheckpoint) }),
+		stopChan:            make(chan struct{}),
+		jobStore:            jobStore,
+		jobs:                make(map[string]*pregel.Job),
+		running:             &jobQueue{},
+		runningTaskManagers: make(map[string]*task.Manager),
+		jobStarter:          newJobStarter(jobStore),
 	}
+
+	go func() {
+		for taskManager := range result.jobStarter.output {
+			result.mutex.Lock()
+
+			jobID := taskManager.JobID()
+			result.runningTaskManagers[jobID] = taskManager
+			result.running.Add(jobID)
+
+			result.mutex.Unlock()
+		}
+	}()
+
+	result.jobStopperChan = createJobStopper(jobStore)
 
 	err := result.initFromStore()
 	if err != nil {
@@ -67,19 +78,18 @@ func (m *Manager) CreateJob(request *protos.CreateJobRequest) *protos.CreateJobR
 
 	id := uuid.NewRandom().String()
 	job := &pregel.Job{
-		ID:                id,
-		Label:             request.Label,
-		CreationTime:      time.Now(),
-		Status:            pregel.JobCreated,
-		Store:             request.Store,
-		StoreParams:       request.StoreParams,
-		Algorithm:         request.Algorithm,
-		AlgorithmParams:   request.AlgorithmParams,
-		TaskCPU:           request.TaskCPU,
-		TaskMEM:           request.TaskMEM,
-		TaskVertices:      int(request.TaskVertices),
-		TaskTimeout:       int(request.TaskTimeout),
-		TaskMaxRetryCount: int(request.TaskMaxRetryCount),
+		ID:              id,
+		Label:           request.Label,
+		CreationTime:    time.Now(),
+		Status:          pregel.JobCreated,
+		Store:           request.Store,
+		StoreParams:     request.StoreParams,
+		Algorithm:       request.Algorithm,
+		AlgorithmParams: request.AlgorithmParams,
+		TaskCPU:         request.TaskCPU,
+		TaskMEM:         request.TaskMEM,
+		TaskVertices:    int(request.TaskVertices),
+		TaskTimeout:     int(request.TaskTimeout),
 	}
 
 	err := m.jobStore.Save(job)
@@ -91,25 +101,24 @@ func (m *Manager) CreateJob(request *protos.CreateJobRequest) *protos.CreateJobR
 	defer m.mutex.Unlock()
 
 	m.jobs[id] = job
-	m.waitingQueue.Add(id)
+	m.waiting.Add(id)
 
 	return &protos.CreateJobReply{JobId: id, Status: protos.CallStatus_OK}
 }
 
 func (m *Manager) GetJobStatus(request *protos.JobIdRequest) *protos.GetJobStatusReply {
-	id := request.JobId
-
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
-	job, ok := m.jobs[id]
+	jobID := request.JobId
+	job, ok := m.jobs[jobID]
 	if !ok {
 		return &protos.GetJobStatusReply{Status: protos.CallStatus_ERROR_INVALID_JOB}
 	}
 
 	var superstep int
 	var percentDone int
-	if taskManager, ok := m.taskManagers[id]; ok {
+	if taskManager, ok := m.runningTaskManagers[jobID]; ok {
 		superstep = taskManager.Superstep()
 		percentDone = taskManager.PercentDone()
 	}
@@ -131,26 +140,13 @@ func (m *Manager) GetTasksToExecute(host string, resources Resources) []*TaskToE
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	m.startWaitingJobs()
-
-	startTasks := func(jobID string, onlyLocalTasks bool) ([]*TaskToExecute, error) {
+	startTasks := func(jobID string, onlyLocalTasks bool) []*TaskToExecute {
 		job := m.jobs[jobID]
-		taskManager := m.taskManagers[jobID]
+		taskManager := m.runningTaskManagers[jobID]
 
 		result := []*TaskToExecute{}
 		for resources.CanSubtract(job.TaskCPU, job.TaskMEM) {
-			var task *task.StartTaskResult
-			var err error
-
-			if onlyLocalTasks {
-				task, err = taskManager.StartTaskForHost(host)
-			} else {
-				task, err = taskManager.StartTask()
-			}
-
-			if err != nil {
-				return nil, errors.Wrapf(err, "faild to start task for job %s", jobID)
-			}
+			task := taskManager.StartTask(host, onlyLocalTasks)
 
 			// stop if no more tasks to start
 			if task == nil {
@@ -160,7 +156,7 @@ func (m *Manager) GetTasksToExecute(host string, resources Resources) []*TaskToE
 			result = append(result, &TaskToExecute{
 				Parmas: &protos.ExecTaskParams{
 					JobId:           jobID,
-					TaskId:          int32(task.TaskID),
+					TaskId:          task.TaskID,
 					Store:           job.Store,
 					StoreParams:     job.StoreParams,
 					Algorithm:       job.Algorithm,
@@ -174,31 +170,21 @@ func (m *Manager) GetTasksToExecute(host string, resources Resources) []*TaskToE
 			resources.Subtract(job.TaskCPU, job.TaskMEM)
 		}
 
-		return result, nil
+		return result
 	}
 
-	result := []*TaskToExecute{}
+	var result []*TaskToExecute
 	var jobID string
 
 	// first iteration: data locality has priority
-	iter := m.runningQueue.Iter(&jobID)
-	for iter.Next() {
-		tasks, err := startTasks(jobID, true)
-		if err != nil {
-			//TODO: stop job on error
-		}
-
+	for iter := m.running.Iter(&jobID); iter.Next(); {
+		tasks := startTasks(jobID, true)
 		result = append(result, tasks...)
 	}
 
 	// second iteration: distribute the remaining resources disregarding data locality
-	iter = m.runningQueue.Iter(&jobID)
-	for iter.Next() {
-		tasks, err := startTasks(jobID, false)
-		if err != nil {
-			//TODO: stop job on error
-		}
-
+	for iter := m.running.Iter(&jobID); iter.Next(); {
+		tasks := startTasks(jobID, false)
 		result = append(result, tasks...)
 	}
 
@@ -209,32 +195,41 @@ func (m *Manager) SetTaskCompleted(result *protos.ExecTaskResult) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
-	taskManager, ok := m.taskManagers[result.JobId]
+	job, ok := m.jobs[result.JobId]
 	if !ok {
+		glog.Infof("ignoring unknown job %s", job.ID)
 		return
 	}
 
-	err := taskManager.SetTaskCompleted(int(result.TaskId), result.SuperstepResult)
-	if err != nil {
-		//TODO: stop the job
+	taskID := result.TaskId
+	taskManager, ok := m.runningTaskManagers[job.ID]
+	if !ok {
+		glog.Infof("job %s - ignoring orphaned task %d", job.ID, taskID)
+		return
 	}
 
-	//TODO: check if the next superstep started and fire Before/After Superstep handlers
+	taskManager.SetTaskCompleted(taskID, result.SuperstepResult)
+
+	//TODO: check if the job finished
 }
 
-func (m *Manager) SetTaskFailed(jobID string, taskID int) {
+func (m *Manager) SetTaskFailed(jobID string, taskID string) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
-	taskManager, ok := m.taskManagers[jobID]
+	_, ok := m.jobs[jobID]
 	if !ok {
+		glog.Infof("ignoring unknown job %s", jobID)
 		return
 	}
 
-	err := taskManager.SetTaskFailed(taskID)
-	if err != nil {
-		//TODO: stop the job
+	taskManager, ok := m.runningTaskManagers[jobID]
+	if !ok {
+		glog.Infof("job %s - ignoring orphaned failed task %d", jobID, taskID)
+		return
 	}
+
+	taskManager.SetTaskFailed(taskID)
 }
 
 func (m *Manager) CancelJob(request *protos.JobIdRequest) *protos.SimpleCallReply {
@@ -249,31 +244,65 @@ func (m *Manager) CancelJob(request *protos.JobIdRequest) *protos.SimpleCallRepl
 	}
 	m.mutex.RUnlock()
 
-	// update store (no lock)
-	err := m.jobStore.SetStatus(id, pregel.JobCancelled)
-	if err != nil {
+	oldStatus := job.Status
+	params := &jobStopperParams{
+		job:       job,
+		newStatus: pregel.JobCancelled,
+		doneChan:  make(chan struct{}),
+		errorChan: make(chan error),
+	}
+
+	m.jobStopperChan <- params
+
+	select {
+	case <-params.errorChan:
 		return &protos.SimpleCallReply{Status: protos.CallStatus_INTERNAL_ERROR}
+	case <-params.doneChan:
 	}
 
 	// update state if job was not changed (write lock)
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	if job.CanCancel() {
-		switch job.Status {
-		case pregel.JobCreated:
-			m.waitingQueue.Remove(id)
-		case pregel.JobRunning:
-			m.runningQueue.Remove(id)
-			delete(m.taskManagers, id)
-
-			//TODO(optional): call Scheduler.KillTask
-		}
-
-		job.Status = pregel.JobCancelled
+	switch oldStatus {
+	case pregel.JobCreated:
+		m.waiting.Remove(id)
+	case pregel.JobRunning:
+		m.removeRunning(id)
 	}
 
 	return &protos.SimpleCallReply{Status: protos.CallStatus_OK}
+}
+
+func (m *Manager) startWaitingJobsWatcher(stopChan chan struct{}) {
+	sendToStarter := func() {
+		m.mutex.Lock()
+		defer m.mutex.Unlock()
+
+		started := []string{}
+		count := maxRunningJobs - m.running.Count()
+
+		var jobID string
+		for iter := m.waiting.Iter(&jobID); count > 0 && iter.Next(); count-- {
+			m.jobStarter.input <- m.jobs[jobID]
+			started = append(started, jobID)
+		}
+
+		for _, jobID := range started {
+			m.waiting.Remove(jobID)
+		}
+	}
+
+	go func() {
+		for {
+			select {
+			case <-time.After(2 * time.Second):
+				sendToStarter()
+			case <-stopChan:
+				return
+			}
+		}
+	}()
 }
 
 func (m *Manager) initFromStore() error {
@@ -290,138 +319,19 @@ func (m *Manager) initFromStore() error {
 
 		switch job.Status {
 		case pregel.JobCreated:
-			m.waitingQueue.Add(id)
+			m.waiting.Add(id)
 		case pregel.JobRunning:
-			checkpoint, err := m.loadCheckpoint(id)
-			if checkpoint == nil || err != nil {
-				if err != nil {
-					glog.Warningf("failed to load checkpoint for job %s; error: %v", id, err)
-				}
-
-				m.waitingQueue.Add(id)
-				continue
-			}
-
-			m.taskManagers[id] = task.NewManagerFromCheckpoint(checkpoint)
-			m.runningQueue.Add(id)
+			m.jobStarter.input <- job
 		}
 	}
 
+	m.jobStarter.wait()
 	return nil
 }
 
-func (m *Manager) loadCheckpoint(jobID string) (*protos.JobCheckpoint, error) {
-	bytes, err := m.jobStore.LoadCheckpoint(jobID)
-	if err != nil {
-		return nil, err
-	}
-
-	if bytes == nil {
-		return nil, nil
-	}
-
-	checkpoint, err := m.checkpointEncoder.Unmarshal(bytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return checkpoint.(*protos.JobCheckpoint), nil
-}
-
-func (m *Manager) saveCheckpoint(jobID string, checkpoint *protos.JobCheckpoint) error {
-	bytes, err := m.checkpointEncoder.Marshal(checkpoint)
-	if err != nil {
-		return err
-	}
-
-	return m.jobStore.SaveCheckpoint(jobID, bytes)
-}
-
-func (m *Manager) startWaitingJobs() {
-	var jobID string
-	var started []string
-
-	iter := m.waitingQueue.Iter(&jobID)
-	for iter.Next() {
-		if m.runningQueue.Count() >= maxRunningJobs {
-			break
-		}
-
-		if err := m.startJob(jobID); err != nil {
-			//TODO mark job as failed
-		}
-
-		started = append(started, jobID)
-	}
-
-	for _, jobID = range started {
-		m.waitingQueue.Remove(jobID)
-	}
-}
-
-func (m *Manager) startJob(jobID string) error {
-	job := m.jobs[jobID]
-
-	graphStore, err := connectGraphStore(job.Store, job.StoreParams)
-	if err != nil {
-		return err
-	}
-	defer graphStore.Close()
-
-	vertexRanges, err := graphStore.GetVertexRanges(job.TaskVertices)
-	if err != nil {
-		return err
-	}
-
-	algorithm, err := algorithm.NewAlgorithm(job.Algorithm, job.AlgorithmParams)
-	if err != nil {
-		return err
-	}
-
-	context := &superstepContext{
-		superstep:   1,
-		aggregators: aggregator.NewSet(),
-	}
-
-	err = algorithm.BeforeSuperstep(context)
-	if err != nil {
-		return err
-	}
-
-	if context.stopped {
-		return nil //TODO: mark job as finished
-	}
-
-	jobManager, err := task.NewManager(jobID, vertexRanges, context.aggregators, time.Duration(job.TaskTimeout), job.TaskMaxRetryCount)
-	if err != nil {
-		//todo
-	}
-	m.taskManagers[jobID] = jobManager
-
-	return nil
-}
-
-func (m *Manager) finishJob(job *pregel.Job) {
-	//TODO
-}
-
-func connectGraphStore(name string, params []byte) (store.GraphStore, error) {
-	graphStore, err := store.New(name, params)
-	if err != nil {
-		return nil, err
-	}
-
-	err = graphStore.Connect()
-	if err != nil {
-		return nil, err
-	}
-
-	err = graphStore.Init()
-	if err != nil {
-		return nil, err
-	}
-
-	return graphStore, nil
+func (m *Manager) removeRunning(jobID string) {
+	m.running.Remove(jobID)
+	delete(m.runningTaskManagers, jobID)
 }
 
 func convertJobStatusToProto(status pregel.JobStatus) protos.JobStatus {

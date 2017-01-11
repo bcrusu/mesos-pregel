@@ -30,7 +30,6 @@ message CreateJobRequest {
 	double taskMEM = 7;
 	int32 taskVertices = 8;
 	int64 taskTimeout = 9;
-	int32 taskMaxRetryCount = 10;
 }
 
 message CreateJobReply {

@@ -57,28 +57,27 @@ func (store *cassandraJobStore) Init() error {
 
 func (store *cassandraJobStore) LoadAll() ([]*pregel.Job, error) {
 	cql := fmt.Sprintf(`SELECT id, status, store, store_params, algorithm, algorithm_params, label, creationTime,
-task_cpu, task_mem, task_vertices, task_timeout, task_max_retry_count FROM %s;`, store.fullTableName(jobsTableName))
+task_cpu, task_mem, task_vertices, task_timeout FROM %s;`, store.fullTableName(jobsTableName))
 
 	createScanDest := func() []interface{} {
 		return []interface{}{new(string), new(int), new(string), new([]byte), new(string), new([]byte), new(string),
-			new(time.Time), new(float64), new(float64), new(int), new(int), new(int)}
+			new(time.Time), new(float64), new(float64), new(int), new(int)}
 	}
 
 	createEntityFunc := func(dest []interface{}) interface{} {
 		return &pregel.Job{
-			ID:                dest[0].(string),
-			Status:            dest[1].(pregel.JobStatus),
-			Store:             dest[2].(string),
-			StoreParams:       dest[3].([]byte),
-			Algorithm:         dest[4].(string),
-			AlgorithmParams:   dest[5].([]byte),
-			Label:             dest[6].(string),
-			CreationTime:      dest[7].(time.Time),
-			TaskCPU:           dest[8].(float64),
-			TaskMEM:           dest[9].(float64),
-			TaskVertices:      dest[10].(int),
-			TaskTimeout:       dest[11].(int),
-			TaskMaxRetryCount: dest[12].(int),
+			ID:              dest[0].(string),
+			Status:          dest[1].(pregel.JobStatus),
+			Store:           dest[2].(string),
+			StoreParams:     dest[3].([]byte),
+			Algorithm:       dest[4].(string),
+			AlgorithmParams: dest[5].([]byte),
+			Label:           dest[6].(string),
+			CreationTime:    dest[7].(time.Time),
+			TaskCPU:         dest[8].(float64),
+			TaskMEM:         dest[9].(float64),
+			TaskVertices:    dest[10].(int),
+			TaskTimeout:     dest[11].(int),
 		}
 	}
 
@@ -97,9 +96,17 @@ task_cpu, task_mem, task_vertices, task_timeout, task_max_retry_count FROM %s;`,
 
 func (store *cassandraJobStore) Save(job *pregel.Job) error {
 	cql := fmt.Sprintf(`INSERT INTO %s (id, label, creationTime, status, store, store_params, algorithm, algorithm_params, 
-task_cpu, task_mem, task_vertices, task_timeout, task_max_retry_count) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`, store.fullTableName(jobsTableName))
+task_cpu, task_mem, task_vertices, task_timeout) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`, store.fullTableName(jobsTableName))
 	args := []interface{}{job.ID, job.Label, job.CreationTime, job.Status, job.Store, job.StoreParams, job.Algorithm, job.AlgorithmParams,
-		job.TaskCPU, job.TaskMEM, job.TaskVertices, job.TaskTimeout, job.TaskMaxRetryCount}
+		job.TaskCPU, job.TaskMEM, job.TaskVertices, job.TaskTimeout}
+	query := store.session.Query(cql, args...)
+
+	return query.Exec()
+}
+
+func (store *cassandraJobStore) SaveStatus(jobID string, status pregel.JobStatus, result []byte, checkpoint []byte) error {
+	cql := fmt.Sprintf(`UPDATE %s SET status = ?, result = ?, checkpoint = ? WHERE id = ?;`, store.fullTableName(jobsTableName))
+	args := []interface{}{status, result, checkpoint, jobID}
 	query := store.session.Query(cql, args...)
 
 	return query.Exec()
@@ -122,14 +129,6 @@ func (store *cassandraJobStore) LoadResult(jobID string) ([]byte, error) {
 	return result, err
 }
 
-func (store *cassandraJobStore) SaveResult(jobID string, value []byte) error {
-	cql := fmt.Sprintf(`UPDATE %s SET result = ? WHERE id = ?;`, store.fullTableName(jobsTableName))
-	args := []interface{}{value, jobID}
-	query := store.session.Query(cql, args...)
-
-	return query.Exec()
-}
-
 func (store *cassandraJobStore) LoadCheckpoint(jobID string) ([]byte, error) {
 	cql := fmt.Sprintf(`SELECT checkpoint FROM %s WHERE id = ?;`, store.fullTableName(jobsTableName))
 
@@ -137,14 +136,6 @@ func (store *cassandraJobStore) LoadCheckpoint(jobID string) ([]byte, error) {
 	err := ExecuteScalar(store.session, cql, &checkpoint, jobID)
 
 	return checkpoint, err
-}
-
-func (store *cassandraJobStore) SaveCheckpoint(jobID string, value []byte) error {
-	cql := fmt.Sprintf(`UPDATE %s SET checkpoint = ? WHERE id = ?;`, store.fullTableName(jobsTableName))
-	args := []interface{}{value, jobID}
-	query := store.session.Query(cql, args...)
-
-	return query.Exec()
 }
 
 func (store *cassandraJobStore) fullTableName(table string) string {

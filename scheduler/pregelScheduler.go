@@ -1,13 +1,10 @@
 package main
 
 import (
-	"fmt"
-	"strconv"
-	"strings"
-
 	"github.com/bcrusu/mesos-pregel/encoding"
 	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/bcrusu/mesos-pregel/scheduler/job"
+	putil "github.com/bcrusu/mesos-pregel/util"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
 	mesos "github.com/mesos/mesos-go/mesosproto"
@@ -64,7 +61,7 @@ func (scheduler *PregelScheduler) ResourceOffers(driver sched.SchedulerDriver, o
 		// create task info protos
 		var tasks []*mesos.TaskInfo
 		for _, task := range tasksToExecute {
-			mesosTaskID := getMesosTaskID(task)
+			mesosTaskID := putil.GetMesosTaskID(task.Parmas.JobId, task.Parmas.TaskId)
 
 			task, err := scheduler.getTaskInfo(slaveID, mesosTaskID, task)
 			if err != nil {
@@ -89,9 +86,9 @@ func (scheduler *PregelScheduler) ResourceOffers(driver sched.SchedulerDriver, o
 
 func (scheduler *PregelScheduler) StatusUpdate(driver sched.SchedulerDriver, status *mesos.TaskStatus) {
 	mesosTaskID := status.TaskId.GetValue()
-	jobID, taskID, ok := parseMesosTaskID(mesosTaskID)
+	jobID, taskID, ok := putil.ParseMesosTaskID(mesosTaskID)
 
-	// ignore task status with unrecognized id
+	// ignore task status having invalid task id
 	if !ok {
 		return
 	}
@@ -197,33 +194,4 @@ func getOfferIDs(offers []*mesos.Offer) []*mesos.OfferID {
 	}
 
 	return result
-}
-
-func getMesosTaskID(task *job.TaskToExecute) string {
-	return fmt.Sprintf("Pregel:job=%s:task=%d", task.Parmas.JobId, task.Parmas.TaskId)
-}
-
-func parseMesosTaskID(taskID string) (jobID string, pregelTaskID int, success bool) {
-	splits := strings.Split(taskID, ":")
-	if len(splits) != 3 {
-		return "", 0, false
-	}
-
-	splits2 := strings.Split(splits[1], "=")
-	if len(splits) != 2 {
-		return "", 0, false
-	}
-	jobID = splits2[1]
-
-	splits2 = strings.Split(splits[2], "=")
-	if len(splits) != 2 {
-		return "", 0, false
-	}
-
-	id, err := strconv.Atoi(splits2[1])
-	if err != nil {
-		return "", 0, false
-	}
-
-	return jobID, id, true
 }

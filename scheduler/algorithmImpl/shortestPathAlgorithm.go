@@ -1,6 +1,7 @@
 package algorithmImpl
 
 import (
+	"github.com/bcrusu/mesos-pregel/aggregator"
 	"github.com/bcrusu/mesos-pregel/encoding"
 	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/bcrusu/mesos-pregel/scheduler/algorithm"
@@ -11,15 +12,7 @@ type shortestPathAlgorithm struct {
 	params protos.ShortestPathAlgorithmParams
 }
 
-func (algo *shortestPathAlgorithm) BeforeSuperstep(context algorithm.SuperstepContext) error {
-	return nil
-}
-
-func (algo *shortestPathAlgorithm) AfterSuperstep(context algorithm.SuperstepContext) error {
-	return nil
-}
-
-func (algo *shortestPathAlgorithm) GetResult() interface{} {
+func (algo *shortestPathAlgorithm) GetResult(aggregators *aggregator.AggregatorSet) interface{} {
 	//TODO
 	return nil
 }

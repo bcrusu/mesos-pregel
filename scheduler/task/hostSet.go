@@ -1,5 +1,7 @@
 package task
 
+import "github.com/bcrusu/mesos-pregel/protos"
+
 type hostSet struct {
 	byID   map[int]*hostInfo // map[HOST_ID]hostname
 	byName map[string]int    // map[hostname]HOST_ID
@@ -34,8 +36,8 @@ func (h *hostSet) GetID(hostname string) (int, bool) {
 	return id, ok
 }
 
-func (h *hostSet) GetHostname(id int) (string, bool) {
-	info, ok := h.byID[id]
+func (h *hostSet) GetHostname(ID int) (string, bool) {
+	info, ok := h.byID[ID]
 	if !ok {
 		return "", false
 	}
@@ -58,4 +60,38 @@ func (h *hostSet) ensureMaps() {
 
 	h.byID = make(map[int]*hostInfo)
 	h.byName = make(map[string]int)
+}
+
+func (h *hostSet) toProto() []*protos.JobCheckpoint_Host {
+	result := make([]*protos.JobCheckpoint_Host, len(h.byID))
+
+	i := 0
+	for hostID, info := range h.byID {
+		result[i] = &protos.JobCheckpoint_Host{
+			Id:        int32(hostID),
+			Hostname:  info.hostname,
+			FailCount: int32(info.failCount),
+		}
+
+		i++
+	}
+
+	return result
+}
+
+func (h *hostSet) fromProto(hosts []*protos.JobCheckpoint_Host) *hostSet {
+	h.byID = make(map[int]*hostInfo)
+	h.byName = make(map[string]int)
+
+	for _, host := range hosts {
+		id := int(host.Id)
+		h.byID[id] = &hostInfo{
+			hostname:  host.Hostname,
+			failCount: int(host.FailCount),
+		}
+
+		h.byName[host.Hostname] = id
+	}
+
+	return h
 }

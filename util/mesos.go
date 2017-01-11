@@ -3,15 +3,18 @@ package util
 import (
 	"fmt"
 	"strings"
+
+	"github.com/pborman/uuid"
 )
 
 func GetMesosTaskID(jobID string, pregelTaskID string) string {
-	return fmt.Sprintf("job=%s:task=%s", jobID, pregelTaskID)
+	r := uuid.NewRandom().String()
+	return fmt.Sprintf("job=%s:task=%s:%s", jobID, pregelTaskID, r)
 }
 
 func ParseMesosTaskID(taskID string) (jobID string, pregelTaskID string, success bool) {
 	splits := strings.Split(taskID, ":")
-	if len(splits) != 2 {
+	if len(splits) != 3 {
 		return "", "", false
 	}
 

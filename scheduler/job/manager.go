@@ -208,9 +208,22 @@ func (m *Manager) SetTaskCompleted(result *protos.ExecTaskResult) {
 		return
 	}
 
-	taskManager.SetTaskCompleted(taskID, result.SuperstepResult)
+	jobCompleted, err := taskManager.SetTaskCompleted(taskID, result.SuperstepResult)
+	if err != nil {
+		m.jobStopperChan <- &jobStopperParams{
+			job:       job,
+			newStatus: pregel.JobFailed,
+		}
+		m.removeRunning(job.ID)
+	}
 
-	//TODO: check if the job finished
+	if jobCompleted {
+		m.jobStopperChan <- &jobStopperParams{
+			job:       job,
+			newStatus: pregel.JobCompleted,
+		}
+		m.removeRunning(job.ID)
+	}
 }
 
 func (m *Manager) SetTaskFailed(jobID string, taskID string) {

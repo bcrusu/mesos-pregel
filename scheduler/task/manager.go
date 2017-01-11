@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bcrusu/mesos-pregel"
 	"github.com/bcrusu/mesos-pregel/aggregator"
 	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/bcrusu/mesos-pregel/store"
@@ -26,12 +27,12 @@ type Manager struct {
 	taskTimeout time.Duration
 
 	mutex               sync.Mutex // guards all below
-	completed           bool
+	jobCompleted        bool
 	totalStats          *Stats
 	superstep           *superstepInfo
 	previousAggregators []*protos.Aggregator
 	waitingByHost       map[int]*util.IntSet // map[HOST_ID]Set<RANGE_ID>
-	tasks               map[string]*taskInfo // map[RANGE_ID]value
+	tasks               map[string]*taskInfo // map[TASK_ID]value
 }
 
 type StartTaskResult struct {
@@ -58,7 +59,7 @@ type superstepInfo struct {
 	completed   *util.IntSet // Set<RANGE_ID>
 }
 
-func NewManager(jobID string, vertexRanges []*store.VertexRangeHosts, taskTimeout time.Duration) (*Manager, error) {
+func NewManager(jobID string, vertexRanges []*store.VertexRangeHosts, taskTimeout time.Duration) *Manager {
 	ranges, hosts := processVertexRanges(vertexRanges)
 
 	aggregators := aggregator.NewSet()
@@ -74,12 +75,58 @@ func NewManager(jobID string, vertexRanges []*store.VertexRangeHosts, taskTimeou
 		hosts:               hosts,
 		waitingByHost:       groupRangesByHost(ranges),
 		tasks:               make(map[string]*taskInfo),
-	}, nil
+	}
 }
 
-func NewManagerFromCheckpoint(checkpoint *protos.JobCheckpoint) (*Manager, error) {
-	//TODO
-	return nil, nil
+func NewManagerFromCheckpoint(job *pregel.Job, checkpoint *protos.JobCheckpoint) *Manager {
+	completedRanges := &util.IntSet{}
+	for _, rangeID := range checkpoint.Superstep.Completed {
+		completedRanges.Add(int(rangeID))
+	}
+
+	allranges := make(map[int]*rangeInfo)
+	waitingRanges := make(map[int]*rangeInfo)
+	for _, r := range checkpoint.Ranges {
+		rangeID := int(r.Id)
+		info := &rangeInfo{
+			vertexRange: r.VertexRange,
+			hosts:       util.ConvertSliceFromInt32ToInt(r.Hosts),
+		}
+
+		allranges[rangeID] = info
+
+		if !completedRanges.Contains(rangeID) {
+			waitingRanges[rangeID] = info
+		}
+	}
+
+	tasks := make(map[string]*taskInfo)
+	for _, task := range checkpoint.Tasks {
+		tasks[task.Id] = &taskInfo{
+			rangeID:   int(task.RangeId),
+			hostID:    int(task.HostId),
+			startTime: time.Unix(task.StartTime, 0),
+		}
+	}
+
+	aggregators, _ := aggregator.NewSetFromMessages(checkpoint.Superstep.Aggregators)
+
+	return &Manager{
+		jobID:       job.ID,
+		taskTimeout: time.Duration(job.TaskTimeout),
+		totalStats:  (&Stats{}).fromProto(checkpoint.TotalStats),
+		superstep: &superstepInfo{
+			number:      int(checkpoint.Superstep.Number),
+			aggregators: aggregators,
+			completed:   completedRanges,
+			stats:       (&Stats{}).fromProto(checkpoint.Superstep.Stats),
+		},
+		previousAggregators: checkpoint.PreviousAggregators,
+		ranges:              allranges,
+		hosts:               (&hostSet{}).fromProto(checkpoint.Hosts),
+		waitingByHost:       groupRangesByHost(waitingRanges),
+		tasks:               tasks,
+	}
 }
 
 func (m *Manager) JobID() string {
@@ -100,7 +147,7 @@ func (m *Manager) StartTask(hostname string, onlyLocal bool) *StartTaskResult {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	if m.completed {
+	if m.jobCompleted {
 		return nil
 	}
 
@@ -125,29 +172,33 @@ func (m *Manager) StartTask(hostname string, onlyLocal bool) *StartTaskResult {
 	return nil
 }
 
-func (m *Manager) SetTaskCompleted(taskID string, result *protos.ExecSuperstepResult) error {
+func (m *Manager) SetTaskCompleted(taskID string, result *protos.ExecSuperstepResult) (jobCompleted bool, err error) {
 	// defensive implementation - Mesos delivers status updates 'at least once'
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
+	if m.jobCompleted {
+		return true, nil
+	}
+
 	_, rangeID, ok := m.validateTaskID(taskID)
 	if !ok {
 		// ignore results from invalid tasks
-		return nil
+		return false, nil
 	}
 
 	if m.superstep.completed.Contains(rangeID) {
 		// ignore duplicate results
-		return nil
+		return false, nil
 	}
 
 	aggregators, err := aggregator.NewSetFromMessages(result.Aggregators)
 	if err != nil {
-		return errors.Wrapf(err, "faild to unmarshal aggregators for task %d", taskID)
+		return false, errors.Wrapf(err, "faild to unmarshal aggregators for task %d", taskID)
 	}
 
 	if err = m.superstep.aggregators.UnionWith(aggregators); err != nil {
-		return errors.Wrapf(err, "faild to merge aggregators for task %d", taskID)
+		return false, errors.Wrapf(err, "faild to merge aggregators for task %d", taskID)
 	}
 
 	m.superstep.stats.add(result.Stats)
@@ -157,8 +208,8 @@ func (m *Manager) SetTaskCompleted(taskID string, result *protos.ExecSuperstepRe
 	m.removeFromWaiting(rangeID)
 	delete(m.tasks, taskID)
 
-	//TODO: advance to next superstep if current finished
-	return nil
+	m.jobCompleted = m.advanceSuperstep()
+	return m.jobCompleted, nil
 }
 
 func (m *Manager) SetTaskFailed(taskID string) {
@@ -189,8 +240,43 @@ func (m *Manager) SetTaskFailed(taskID string) {
 }
 
 func (m *Manager) GetCheckpoint() *protos.JobCheckpoint {
-	//TODO
-	return nil
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	ranges := []*protos.JobCheckpoint_Range{}
+	for rangeID, rangeInfo := range m.ranges {
+		ranges = append(ranges, &protos.JobCheckpoint_Range{
+			Id:          int32(rangeID),
+			VertexRange: rangeInfo.vertexRange,
+			Hosts:       util.ConvertSliceFromIntToInt32(rangeInfo.hosts),
+		})
+	}
+
+	tasks := []*protos.JobCheckpoint_Task{}
+	for taskID, task := range m.tasks {
+		tasks = append(tasks, &protos.JobCheckpoint_Task{
+			Id:        taskID,
+			RangeId:   int32(task.rangeID),
+			HostId:    int32(task.hostID),
+			StartTime: task.startTime.Unix(),
+		})
+	}
+
+	aggregatorsProto, _ := aggregator.ConvertSetToProto(m.superstep.aggregators)
+
+	return &protos.JobCheckpoint{
+		Ranges:              ranges,
+		Hosts:               m.hosts.toProto(),
+		Tasks:               tasks,
+		PreviousAggregators: m.previousAggregators,
+		TotalStats:          m.totalStats.toProto(),
+		Superstep: &protos.JobCheckpoint_Superstep{
+			Number:      int32(m.superstep.number),
+			Aggregators: aggregatorsProto,
+			Completed:   util.ConvertSliceFromIntToInt32(m.superstep.completed.ToArray()),
+			Stats:       m.superstep.stats.toProto(),
+		},
+	}
 }
 
 func (m *Manager) startTaskForHostID(hostID int) *StartTaskResult {
@@ -255,6 +341,15 @@ func (m *Manager) checkTimedOutTasks() {
 			host.failCount++
 		}
 	}
+}
+
+func (m *Manager) advanceSuperstep() (jobCompleted bool) {
+	if m.superstep.completed.Count() != len(m.ranges) {
+		return false
+	}
+
+	//TODO
+	return false
 }
 
 func (m *Manager) removeFromWaiting(rangeID int) {

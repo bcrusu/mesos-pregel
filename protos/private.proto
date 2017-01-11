@@ -31,15 +31,6 @@ message ExecSuperstepParams {
 message ExecSuperstepResult {
     repeated Aggregator aggregators = 1;
     Stats stats = 2;
-
-    message Stats {
-        int64 totalDuration = 1;
-        int32 computedCount = 2;
-        int64 computeDuration = 3;
-        int32 sentMessagesCount = 4;
-        int32 haltedCount = 5;
-        int32 inactiveCount = 6;
-    }
 }
 
 message Aggregator {
@@ -48,14 +39,46 @@ message Aggregator {
     bytes value = 3;
 }
 
+message Stats {
+    int64 totalDuration = 1;
+    int32 computedCount = 2;
+    int64 computeDuration = 3;
+    int32 sentMessagesCount = 4;
+    int32 haltedCount = 5;
+    int32 inactiveCount = 6;
+}
+
 message JobCheckpoint {
-    int32 superstep = 1;
-    repeated Task tasks = 2;
-    repeated Aggregator aggregators = 3;
+    repeated Range ranges = 1;
+    repeated Host hosts = 2;
+    repeated Task tasks = 3;
+    Superstep superstep = 4;
+    repeated Aggregator previousAggregators = 5;
+    Stats totalStats = 6;
+
+    message Range {
+        int32 id = 1;
+        bytes vertexRange = 2;
+        repeated int32 hosts = 3;
+    }
+
+    message Host {
+        int32 id = 1;
+        string hostname = 2;
+        int32 failCount = 3;
+    }
 
     message Task {
-        int32 taskId = 1;
-        bytes vertexRange = 2;
-        repeated string preferredHosts = 3;
+        string id = 1;
+        int32 rangeId = 2;
+        int32 hostId = 3;
+        int64 startTime = 4;
+    }
+
+    message Superstep {
+        int32 number = 1;
+	    repeated Aggregator aggregators = 2;
+        repeated int32 completed = 3;
+	    Stats stats = 4;
     }
 }

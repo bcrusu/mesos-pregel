@@ -13,6 +13,7 @@ import (
 	"github.com/bcrusu/mesos-pregel/store"
 	"github.com/bcrusu/mesos-pregel/util"
 	"github.com/golang/glog"
+	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 )
 
@@ -309,11 +310,6 @@ func (m *Manager) startTaskForHostID(hostID int) *StartTaskResult {
 	}
 }
 
-func (m *Manager) PercentDone() int {
-	//TODO
-	return 0
-}
-
 func (m *Manager) checkTimedOutTasks() {
 	timedOut := make(map[string]*taskInfo)
 	now := time.Now()
@@ -439,12 +435,13 @@ func groupRangesByHost(ranges map[int]*rangeInfo) map[int]*util.IntSet {
 }
 
 func getTaskID(superstep int, rangeID int) string {
-	return fmt.Sprintf("%d/%d", superstep, rangeID)
+	r := uuid.NewRandom().String() // add random token to detect duplicate Mesos status updates
+	return fmt.Sprintf("%d/%d/%s", superstep, rangeID, r)
 }
 
 func parseTaskID(taskID string) (int, int, bool) {
 	splits := strings.Split(taskID, "/")
-	if len(splits) != 2 {
+	if len(splits) != 3 {
 		return 0, 0, false
 	}
 

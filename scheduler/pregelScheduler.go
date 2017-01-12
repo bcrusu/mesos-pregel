@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/bcrusu/mesos-pregel/encoding"
 	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/bcrusu/mesos-pregel/scheduler/job"
-	putil "github.com/bcrusu/mesos-pregel/util"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
 	mesos "github.com/mesos/mesos-go/mesosproto"
@@ -61,7 +63,7 @@ func (scheduler *PregelScheduler) ResourceOffers(driver sched.SchedulerDriver, o
 		// create task info protos
 		var tasks []*mesos.TaskInfo
 		for _, task := range tasksToExecute {
-			mesosTaskID := putil.GetMesosTaskID(task.Parmas.JobId, task.Parmas.TaskId)
+			mesosTaskID := getMesosTaskID(task.Parmas.JobId, task.Parmas.TaskId)
 
 			task, err := scheduler.getTaskInfo(slaveID, mesosTaskID, task)
 			if err != nil {
@@ -86,7 +88,7 @@ func (scheduler *PregelScheduler) ResourceOffers(driver sched.SchedulerDriver, o
 
 func (scheduler *PregelScheduler) StatusUpdate(driver sched.SchedulerDriver, status *mesos.TaskStatus) {
 	mesosTaskID := status.TaskId.GetValue()
-	jobID, taskID, ok := putil.ParseMesosTaskID(mesosTaskID)
+	jobID, taskID, ok := parseMesosTaskID(mesosTaskID)
 
 	// ignore task status having invalid task id
 	if !ok {
@@ -153,15 +155,13 @@ func (scheduler *PregelScheduler) getTaskInfo(slaveID string, taskID string, tas
 }
 
 func getExecutorInfo() *mesos.ExecutorInfo {
-	//TODO: executor cmd & command uri
-	executorCommand := ""
+	executorCommand := "pregelExe"
 
 	return &mesos.ExecutorInfo{
 		ExecutorId: util.NewExecutorID("pregel"),
 		Name:       proto.String("Pregel Executor"),
 		Command: &mesos.CommandInfo{
 			Value: proto.String(executorCommand),
-			Uris:  nil,
 		},
 		Resources: []*mesos.Resource{
 			util.NewScalarResource(resourceNameCPU, executorOverheadCPU),
@@ -194,4 +194,17 @@ func getOfferIDs(offers []*mesos.Offer) []*mesos.OfferID {
 	}
 
 	return result
+}
+
+func getMesosTaskID(jobID string, pregelTaskID string) string {
+	return fmt.Sprintf("%s:%s", jobID, pregelTaskID)
+}
+
+func parseMesosTaskID(taskID string) (jobID string, pregelTaskID string, success bool) {
+	splits := strings.Split(taskID, ":")
+	if len(splits) != 2 {
+		return "", "", false
+	}
+
+	return splits[0], splits[1], true
 }

@@ -120,7 +120,7 @@ func (m *Manager) GetJobStatus(request *protos.JobIdRequest) *protos.GetJobStatu
 	var percentDone int
 	if taskManager, ok := m.runningTaskManagers[jobID]; ok {
 		superstep = taskManager.Superstep()
-		percentDone = taskManager.PercentDone()
+		percentDone = -1 //TODO: add stats values
 	}
 
 	return &protos.GetJobStatusReply{

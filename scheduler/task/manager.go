@@ -208,7 +208,7 @@ func (m *Manager) SetTaskCompleted(taskID string, result *protos.ExecSuperstepRe
 	m.removeFromWaiting(rangeID)
 	delete(m.tasks, taskID)
 
-	m.jobCompleted = m.advanceSuperstep()
+	m.advanceSuperstep()
 	return m.jobCompleted, nil
 }
 
@@ -344,11 +344,36 @@ func (m *Manager) checkTimedOutTasks() {
 }
 
 func (m *Manager) advanceSuperstep() (jobCompleted bool) {
-	if m.superstep.completed.Count() != len(m.ranges) {
+	if m.jobCompleted {
+		return true
+	}
+
+	current := m.superstep
+	if current.completed.Count() != len(m.ranges) {
 		return false
 	}
 
-	//TODO
+	// mark as completed when all computed vertices in the current superstep voted to halt
+	if current.stats.ComputedCount == current.stats.HaltedCount {
+		m.jobCompleted = true
+		return true
+	}
+
+	m.superstep = &superstepInfo{
+		number:      current.number + 1,
+		completed:   &util.IntSet{},
+		stats:       &Stats{},
+		aggregators: current.aggregators,
+	}
+
+	aggregatorsProto, _ := aggregator.ConvertSetToProto(current.aggregators)
+	m.previousAggregators = aggregatorsProto
+
+	// add all ranges to waiting list
+	m.waitingByHost = groupRangesByHost(m.ranges)
+	// invalidate tasks from past superstep
+	m.tasks = make(map[string]*taskInfo)
+
 	return false
 }
 

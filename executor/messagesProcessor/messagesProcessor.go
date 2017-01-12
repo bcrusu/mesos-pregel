@@ -68,32 +68,42 @@ func (proc *MessagesProcessor) Process(messages map[string]interface{}, haltedVe
 	// process results and gather statistics
 	var err error
 	stopped := false
+	var wg sync.WaitGroup
 
 	var inactiveCount int
 	var computedCount int
 	var computeDuration time.Duration
 
-	for result := range resultChan {
-		// stop on first error
-		select {
-		case err = <-errorChan:
+	go func() {
+		for _ = range inactiveChan {
+			inactiveCount++
+		}
+	}()
+
+	go func() {
+		for e := range errorChan {
+			// stop on first error
 			if !stopped {
 				close(stopChan)
 				stopped = true
+				err = e
 			}
-		default:
 		}
+	}()
 
-		// count inactive
-		select {
-		case <-inactiveChan:
-			inactiveCount++
-		default:
+	go func() {
+		for result := range resultChan {
+			computedCount++
+			computeDuration += result.computeDuration
 		}
+		wg.Done()
+	}()
 
-		computedCount++
-		computeDuration += result.computeDuration
-	}
+	// wait resultChan processing to complete
+	wg.Add(1)
+	wg.Wait()
+	close(inactiveChan)
+	close(errorChan)
 
 	if err != nil {
 		return nil, err

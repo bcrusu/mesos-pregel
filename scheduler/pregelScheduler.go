@@ -16,7 +16,7 @@ import (
 
 const (
 	resourceNameCPU     = "cpus"
-	resourceNameMEM     = "mems"
+	resourceNameMEM     = "mem"
 	executorOverheadCPU = 0.01 // executor CPU overhead
 	executorOverheadMEM = 32.0 // executor MEM overhead
 )
@@ -53,7 +53,7 @@ func (scheduler *PregelScheduler) Disconnected(sched.SchedulerDriver) {
 }
 
 func (scheduler *PregelScheduler) ResourceOffers(driver sched.SchedulerDriver, offers []*mesos.Offer) {
-	offersBySlave := getOffersBySlave(offers)
+	offersBySlave := groupOffersBySlave(offers)
 
 	for slaveID, slaveOffers := range offersBySlave {
 		resourceOffer := newResourcePool(slaveOffers)
@@ -170,7 +170,7 @@ func getExecutorInfo() *mesos.ExecutorInfo {
 	}
 }
 
-func getOffersBySlave(offers []*mesos.Offer) map[string][]*mesos.Offer {
+func groupOffersBySlave(offers []*mesos.Offer) map[string][]*mesos.Offer {
 	result := make(map[string][]*mesos.Offer)
 
 	for _, offer := range offers {

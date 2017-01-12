@@ -90,7 +90,7 @@ func getJobStore() (store.JobStore, error) {
 	switch *JobStore {
 	case "cassandra":
 		hosts := strings.Split(*CassandraHosts, ",")
-		return cassandra.NewJobStore(hosts, *CassandraKeyspace), nil
+		return cassandra.NewJobStore(hosts, *CassandraKeyspace, *CassandraReplicationFactor), nil
 	default:
 		return nil, fmt.Errorf("unknown job store '%s'", *JobStore)
 	}

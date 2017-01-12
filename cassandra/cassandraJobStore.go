@@ -15,14 +15,19 @@ const (
 )
 
 type cassandraJobStore struct {
-	hosts    []string
-	keyspace string
-	cluster  *gocql.ClusterConfig
-	session  *gocql.Session
+	hosts             []string
+	keyspace          string
+	replicationFactor int
+	cluster           *gocql.ClusterConfig
+	session           *gocql.Session
 }
 
-func NewJobStore(hosts []string, keyspace string) store.JobStore {
-	return &cassandraJobStore{hosts: hosts, keyspace: keyspace}
+func NewJobStore(hosts []string, keyspace string, replicationFactor int) store.JobStore {
+	return &cassandraJobStore{
+		hosts:             hosts,
+		keyspace:          keyspace,
+		replicationFactor: replicationFactor,
+	}
 }
 
 func (store *cassandraJobStore) Connect() error {
@@ -48,7 +53,7 @@ func (store *cassandraJobStore) Close() {
 }
 
 func (store *cassandraJobStore) Init() error {
-	if err := store.ensureTables(); err != nil {
+	if err := store.ensureSchema(); err != nil {
 		return err
 	}
 
@@ -142,14 +147,18 @@ func (store *cassandraJobStore) fullTableName(table string) string {
 	return GetFullTableName(store.keyspace, table)
 }
 
-func (store *cassandraJobStore) ensureTables() error {
-	cql := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, label text, creationTime timestamp, status int, store text, 
-store_params blob, algorithm text, algorithm_params blob, task_cpu double, task_mem double, task_vertices int, task_timeout int, 
-task_max_retry_count int, result blob, checkpoint blob, PRIMARY KEY(id));`,
-		store.fullTableName(jobsTableName))
+func (store *cassandraJobStore) ensureSchema() error {
+	statements := []string{
+		fmt.Sprintf(`CREATE KEYSPACE IF NOT EXISTS "%s" WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : %d }`, store.keyspace, store.replicationFactor),
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s(id text, label text, creationTime timestamp, status int, store text, 
+store_params blob, algorithm text, algorithm_params blob, task_cpu double, task_mem double, task_vertices int, 
+task_timeout int, result blob, checkpoint blob, PRIMARY KEY(id));`, store.fullTableName(jobsTableName)),
+	}
 
-	if err := store.session.Query(cql).Exec(); err != nil {
-		return errors.Wrap(err, "error creating job table")
+	for _, cql := range statements {
+		if err := store.session.Query(cql).Exec(); err != nil {
+			return errors.Wrap(err, "error creating schema")
+		}
 	}
 
 	return nil

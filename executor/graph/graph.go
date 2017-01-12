@@ -7,18 +7,34 @@ type Graph struct {
 }
 
 type vertex struct {
-	value interface{}
-	edges map[string]interface{}
+	value        interface{}
+	mutableValue interface{}
+	edges        map[string]*edge
+}
+
+type edge struct {
+	value        interface{}
+	mutableValue interface{}
 }
 
 func NewGraph(capacity int) *Graph {
 	return &Graph{vertices: make(map[string]*vertex, capacity)}
 }
 
+func (g *Graph) setVertexMutableValue(id string, value interface{}) {
+	v, ok := g.vertices[id]
+	if !ok {
+		v = &vertex{edges: make(map[string]*edge)}
+		g.vertices[id] = v
+	}
+
+	v.mutableValue = value
+}
+
 func (g *Graph) setVertexValue(id string, value interface{}) {
 	v, ok := g.vertices[id]
 	if !ok {
-		v = &vertex{edges: make(map[string]interface{})}
+		v = &vertex{edges: make(map[string]*edge)}
 		g.vertices[id] = v
 	}
 
@@ -28,11 +44,21 @@ func (g *Graph) setVertexValue(id string, value interface{}) {
 func (g *Graph) setEdgeValue(from string, to string, value interface{}) {
 	v, ok := g.vertices[from]
 	if !ok {
-		v = &vertex{edges: make(map[string]interface{})}
+		v = &vertex{edges: make(map[string]*edge)}
 		g.vertices[from] = v
 	}
 
-	v.edges[to] = value
+	v.edges[to].value = value
+}
+
+func (g *Graph) setEdgeMutableValue(from string, to string, value interface{}) {
+	v, ok := g.vertices[from]
+	if !ok {
+		v = &vertex{edges: make(map[string]*edge)}
+		g.vertices[from] = v
+	}
+
+	v.edges[to].mutableValue = value
 }
 
 func (g *Graph) removeVertex(id string) {
@@ -66,6 +92,15 @@ func (g *Graph) VertexValue(id string) (interface{}, bool) {
 	return v.value, true
 }
 
+func (g *Graph) VertexMutableValue(id string) (interface{}, bool) {
+	v, ok := g.vertices[id]
+	if !ok {
+		return nil, false
+	}
+
+	return v.mutableValue, true
+}
+
 func (g *Graph) HasVertex(id string) bool {
 	_, ok := g.VertexValue(id)
 	return ok
@@ -77,7 +112,16 @@ func (g *Graph) EdgeValue(from string, to string) (interface{}, bool) {
 		return nil, false
 	}
 
-	return v.edges[to], true
+	return v.edges[to].value, true
+}
+
+func (g *Graph) EdgeMutableValue(from string, to string) (interface{}, bool) {
+	v, ok := g.vertices[from]
+	if !ok {
+		return nil, false
+	}
+
+	return v.edges[to].mutableValue, true
 }
 
 func (g *Graph) HasEdge(from string, to string) bool {

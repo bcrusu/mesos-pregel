@@ -34,10 +34,18 @@ func (algo *shortestPathAlgorithm) VertexMessageEncoder() encoding.Encoder {
 }
 
 func (algo *shortestPathAlgorithm) VertexValueEncoder() encoding.Encoder {
-	return encoding.Int32ValueEncoder()
+	return encoding.Coordinate2DValueEncoder()
 }
 
 func (algo *shortestPathAlgorithm) EdgeValueEncoder() encoding.Encoder {
+	return encoding.Int32ValueEncoder()
+}
+
+func (algo *shortestPathAlgorithm) VertexMutableValueEncoder() encoding.Encoder {
+	return encoding.Int32ValueEncoder()
+}
+
+func (algo *shortestPathAlgorithm) EdgeMutableValueEncoder() encoding.Encoder {
 	return encoding.Int32ValueEncoder()
 }
 

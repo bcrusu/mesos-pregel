@@ -17,7 +17,7 @@ func applyGraphOperations(graph *Graph, vertexOps []*pregel.VertexOperation, edg
 		to := operation.To
 
 		if ok := graph.HasEdge(from, to); !ok {
-			if err := algorithm.Handlers().OnMissingEdge(from, to); err != nil {
+			if _, err := algorithm.Handlers().OnMissingEdge(from, to); err != nil {
 				return err
 			}
 		} else {
@@ -34,7 +34,7 @@ func applyGraphOperations(graph *Graph, vertexOps []*pregel.VertexOperation, edg
 		vertexID := operation.ID
 
 		if ok := graph.HasVertex(vertexID); !ok {
-			if err := algorithm.Handlers().OnMissingVertex(vertexID); err != nil {
+			if _, err := algorithm.Handlers().OnMissingVertex(vertexID); err != nil {
 				return err
 			}
 		} else {
@@ -95,18 +95,21 @@ func applyGraphOperations(graph *Graph, vertexOps []*pregel.VertexOperation, edg
 
 		vertexID := operation.ID
 
-		value, err := algorithm.VertexValueEncoder().Unmarshal(operation.Value)
+		value, err := algorithm.VertexMutableValueEncoder().Unmarshal(operation.Value)
 		if err != nil {
 			return errors.Wrapf(err, "unmarshal failed - vertex: %s", vertexID)
 		}
 
 		if ok := graph.HasVertex(vertexID); !ok {
-			if err = algorithm.Handlers().OnMissingVertex(vertexID); err != nil {
+			initialValue, err := algorithm.Handlers().OnMissingVertex(vertexID)
+			if err != nil {
 				return err
 			}
+
+			graph.setVertexValue(vertexID, initialValue)
 		}
 
-		graph.setVertexValue(vertexID, value)
+		graph.setVertexMutableValue(vertexID, value)
 	}
 
 	// edge value mutations
@@ -118,18 +121,21 @@ func applyGraphOperations(graph *Graph, vertexOps []*pregel.VertexOperation, edg
 		from := operation.From
 		to := operation.To
 
-		value, err := algorithm.EdgeValueEncoder().Unmarshal(operation.Value)
+		value, err := algorithm.EdgeMutableValueEncoder().Unmarshal(operation.Value)
 		if err != nil {
 			return errors.Wrapf(err, "unmarshal failed - edge from %s to %s", from, to)
 		}
 
 		if ok := graph.HasEdge(from, to); !ok {
-			if err = algorithm.Handlers().OnMissingEdge(from, to); err != nil {
+			initialValue, err := algorithm.Handlers().OnMissingEdge(from, to)
+			if err != nil {
 				return err
 			}
+
+			graph.setEdgeValue(from, to, initialValue)
 		}
 
-		graph.setEdgeValue(from, to, value)
+		graph.setEdgeMutableValue(from, to, value)
 	}
 
 	return nil

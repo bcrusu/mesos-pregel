@@ -1,13 +1,14 @@
 package algorithm
 
 type EdgeContext struct {
-	from  *VertexContext
-	To    string
-	Value interface{}
+	from         *VertexContext
+	To           string
+	Value        interface{}
+	MutableValue interface{}
 }
 
-func NewEdgeContext(from *VertexContext, to string, value interface{}) *EdgeContext {
-	return &EdgeContext{from: from, To: to, Value: value}
+func NewEdgeContext(from *VertexContext, to string, value interface{}, mutableValue interface{}) *EdgeContext {
+	return &EdgeContext{from: from, To: to, Value: value, MutableValue: mutableValue}
 }
 
 func (c *EdgeContext) SetValue(value interface{}) {

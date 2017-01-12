@@ -5,17 +5,24 @@ import (
 )
 
 type VertexContext struct {
-	id          string
-	Edges       []*EdgeContext
-	Value       interface{}
-	Superstep   int
-	Aggregators *aggregator.AggregatorSet
-	op          ContextOperations
+	id           string
+	Edges        []*EdgeContext
+	Value        interface{}
+	MutableValue interface{}
+	Superstep    int
+	Aggregators  *aggregator.AggregatorSet
+	op           ContextOperations
 }
 
-func NewVertexContext(id string, superstep int, value interface{},
+func NewVertexContext(id string, superstep int, value interface{}, mutableValue interface{},
 	operations ContextOperations, aggregators *aggregator.AggregatorSet) *VertexContext {
-	return &VertexContext{id: id, Superstep: superstep, Value: value, op: operations, Aggregators: aggregators}
+	return &VertexContext{
+		id:           id,
+		Superstep:    superstep,
+		Value:        value,
+		MutableValue: mutableValue,
+		op:           operations,
+		Aggregators:  aggregators}
 }
 
 func (c *VertexContext) ID() string {

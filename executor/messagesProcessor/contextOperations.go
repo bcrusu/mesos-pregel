@@ -149,19 +149,39 @@ func (op *contextOperations) GetEntities(jobId string, superstep int) (*ProcessR
 		if err != nil {
 			return nil, errors.Wrapf(err, "marshal failed - addedVertices: %s", id)
 		}
-		v = append(v, &pregel.VertexOperation{ID: id, JobID: jobId, Superstep: superstep, Type: pregel.VertexAdded, Value: bytes})
+
+		v = append(v, &pregel.VertexOperation{
+			ID:        id,
+			JobID:     jobId,
+			Superstep: superstep,
+			Type:      pregel.VertexAdded,
+			Value:     bytes,
+		})
 	}
 
 	for id := range op.removedVertices {
-		v = append(v, &pregel.VertexOperation{ID: id, JobID: jobId, Superstep: superstep, Type: pregel.VertexRemoved, Value: nil})
+		v = append(v, &pregel.VertexOperation{
+			ID:        id,
+			JobID:     jobId,
+			Superstep: superstep,
+			Type:      pregel.VertexRemoved,
+			Value:     nil,
+		})
 	}
 
 	for id, value := range op.changedVertexValues {
-		bytes, err := op.algorithm.VertexValueEncoder().Marshal(value)
+		bytes, err := op.algorithm.VertexMutableValueEncoder().Marshal(value)
 		if err != nil {
 			return nil, errors.Wrapf(err, "marshal failed - changedVertexValues: %s", id)
 		}
-		v = append(v, &pregel.VertexOperation{ID: id, JobID: jobId, Superstep: superstep, Type: pregel.VertexValueChanged, Value: bytes})
+
+		v = append(v, &pregel.VertexOperation{
+			ID:        id,
+			JobID:     jobId,
+			Superstep: superstep,
+			Type:      pregel.VertexValueChanged,
+			Value:     bytes,
+		})
 	}
 
 	for edge, value := range op.addedEdges {
@@ -169,19 +189,42 @@ func (op *contextOperations) GetEntities(jobId string, superstep int) (*ProcessR
 		if err != nil {
 			return nil, errors.Wrapf(err, "marshal failed - addedEdges: %+v", edge)
 		}
-		e = append(e, &pregel.EdgeOperation{From: edge.from, To: edge.to, JobID: jobId, Superstep: superstep, Type: pregel.EdgeAdded, Value: bytes})
+
+		e = append(e, &pregel.EdgeOperation{
+			From:      edge.from,
+			To:        edge.to,
+			JobID:     jobId,
+			Superstep: superstep,
+			Type:      pregel.EdgeAdded,
+			Value:     bytes,
+		})
 	}
 
 	for edge := range op.removedEdges {
-		e = append(e, &pregel.EdgeOperation{From: edge.from, To: edge.to, JobID: jobId, Superstep: superstep, Type: pregel.EdgeRemoved, Value: nil})
+		e = append(e, &pregel.EdgeOperation{
+			From:      edge.from,
+			To:        edge.to,
+			JobID:     jobId,
+			Superstep: superstep,
+			Type:      pregel.EdgeRemoved,
+			Value:     nil,
+		})
 	}
 
 	for edge, value := range op.changedEdgeValues {
-		bytes, err := op.algorithm.EdgeValueEncoder().Marshal(value)
+		bytes, err := op.algorithm.EdgeMutableValueEncoder().Marshal(value)
 		if err != nil {
 			return nil, errors.Wrapf(err, "marshal failed - changedEdgeValues: %+v", edge)
 		}
-		e = append(e, &pregel.EdgeOperation{From: edge.from, To: edge.to, JobID: jobId, Superstep: superstep, Type: pregel.EdgeValueChanged, Value: bytes})
+
+		e = append(e, &pregel.EdgeOperation{
+			From:      edge.from,
+			To:        edge.to,
+			JobID:     jobId,
+			Superstep: superstep,
+			Type:      pregel.EdgeValueChanged,
+			Value:     bytes,
+		})
 	}
 
 	for id, message := range op.vertexMessages {
@@ -189,11 +232,21 @@ func (op *contextOperations) GetEntities(jobId string, superstep int) (*ProcessR
 		if err != nil {
 			return nil, errors.Wrapf(err, "marshal failed - vertexMessages: %s", id)
 		}
-		m = append(m, &pregel.VertexMessage{To: id, JobID: jobId, Superstep: superstep, Value: bytes})
+
+		m = append(m, &pregel.VertexMessage{
+			To:        id,
+			JobID:     jobId,
+			Superstep: superstep,
+			Value:     bytes,
+		})
 	}
 
 	for id := range op.haltedVertices {
-		h = append(h, &pregel.VertexHalted{ID: id, JobID: jobId, Superstep: superstep})
+		h = append(h, &pregel.VertexHalted{
+			ID:        id,
+			JobID:     jobId,
+			Superstep: superstep,
+		})
 	}
 
 	return &ProcessResultEntities{m, v, h, e}, nil

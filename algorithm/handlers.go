@@ -12,9 +12,9 @@ type Handlers struct {
 }
 
 type DuplicateVertexFunc func(id string, value1 interface{}, value2 interface{}) (finalValue interface{}, err error)
-type MissingVertexFunc func(id string) error
+type MissingVertexFunc func(id string) (initalValue interface{}, err error)
 type DuplicateEdgeFunc func(from string, to string, value1 interface{}, value2 interface{}) (finalValue interface{}, err error)
-type MissingEdgeFunc func(from string, to string) error
+type MissingEdgeFunc func(from string, to string) (initalValue interface{}, err error)
 
 func DefaultHandlers() *Handlers {
 	return &Handlers{onDuplicateVertex, onMissingVertex, onDuplicateEdge, onMissingEdge}
@@ -25,9 +25,9 @@ func onDuplicateVertex(id string, value1 interface{}, value2 interface{}) (inter
 	return value1, nil
 }
 
-func onMissingVertex(id string) error {
+func onMissingVertex(id string) (initalValue interface{}, err error) {
 	glog.Infof("running default onMissingVertex handler; vertex %s", id)
-	return nil
+	return nil, nil
 }
 
 func onDuplicateEdge(from string, to string, value1 interface{}, value2 interface{}) (interface{}, error) {
@@ -35,7 +35,7 @@ func onDuplicateEdge(from string, to string, value1 interface{}, value2 interfac
 	return value1, nil
 }
 
-func onMissingEdge(from string, to string) error {
+func onMissingEdge(from string, to string) (initalValue interface{}, err error) {
 	glog.Infof("running default onMissingEdge handler; edge from %s to %s", from, to)
-	return nil
+	return nil, nil
 }

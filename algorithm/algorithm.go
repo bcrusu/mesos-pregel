@@ -14,6 +14,8 @@ type Algorithm interface {
 	VertexMessageEncoder() encoding.Encoder
 	VertexValueEncoder() encoding.Encoder
 	EdgeValueEncoder() encoding.Encoder
+	VertexMutableValueEncoder() encoding.Encoder
+	EdgeMutableValueEncoder() encoding.Encoder
 	ResultEncoder() encoding.Encoder
 
 	Handlers() *Handlers

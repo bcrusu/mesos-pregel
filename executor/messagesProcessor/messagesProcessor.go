@@ -1,6 +1,7 @@
 package messagesProcessor
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -129,14 +130,16 @@ func (proc *MessagesProcessor) Process(messages map[string]interface{}, haltedVe
 func (proc *MessagesProcessor) createVertexContext(id string, operations *contextOperations) *algorithm.VertexContext {
 	graph := proc.graph
 
-	vertexValue, _ := graph.VertexValue(id)
-	vertexContext := algorithm.NewVertexContext(id, proc.superstep, vertexValue, operations, proc.aggregators)
+	value, _ := graph.VertexValue(id)
+	mutableValue, _ := graph.VertexMutableValue(id)
+	vertexContext := algorithm.NewVertexContext(id, proc.superstep, value, mutableValue, operations, proc.aggregators)
 
 	edges := graph.EdgesFrom(id)
 	vertexContext.Edges = make([]*algorithm.EdgeContext, len(edges))
 	for i, to := range edges {
-		edgeValue, _ := graph.EdgeValue(id, to)
-		vertexContext.Edges[i] = algorithm.NewEdgeContext(vertexContext, to, edgeValue)
+		value, _ := graph.EdgeValue(id, to)
+		mutableValue, _ := graph.EdgeMutableValue(id, to)
+		vertexContext.Edges[i] = algorithm.NewEdgeContext(vertexContext, to, value, mutableValue)
 	}
 
 	return vertexContext
@@ -172,10 +175,9 @@ func (proc *MessagesProcessor) getComputeRequestChan(messages map[string]interfa
 			}
 
 			if !proc.graph.HasVertex(id) {
-				if err := proc.algorithm.Handlers().OnMissingVertex(id); err != nil {
-					errorChan <- err
-					continue
-				}
+				// vertices must be created explicitly in the previous superstep
+				errorChan <- fmt.Errorf("graph does not contain vertex %s", id)
+				continue
 			}
 
 			context := proc.createVertexContext(id, operations)

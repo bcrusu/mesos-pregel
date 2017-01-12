@@ -76,7 +76,7 @@ func parseEdge(text string) (edge *pregel.Edge, success bool) {
 		return nil, false
 	}
 
-	valueBytes, err := encoding.Int32ValueEncoder().Marshal(&protos.Int32Value{Value: int32(value)})
+	valueBytes, err := encoding.Int64ValueEncoder().Marshal(&protos.Int64Value{Value: int64(value)})
 	if err != nil {
 		panic("failed to marshal edge value")
 	}

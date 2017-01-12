@@ -9,13 +9,13 @@ var (
 	boolValueEncoder         = NewProtobufEncoder(func() proto.Message { return new(protos.BoolValue) })
 	int32ValueEncoder        = NewProtobufEncoder(func() proto.Message { return new(protos.Int32Value) })
 	int64ValueEncoder        = NewProtobufEncoder(func() proto.Message { return new(protos.Int64Value) })
-	string64ValueEncoder     = NewProtobufEncoder(func() proto.Message { return new(protos.StringValue) })
+	stringValueEncoder       = NewProtobufEncoder(func() proto.Message { return new(protos.StringValue) })
 	stringListValueEncoder   = NewProtobufEncoder(func() proto.Message { return new(protos.StringListValue) })
 	coordinate2DValueEncoder = NewProtobufEncoder(func() proto.Message { return new(protos.Coordinate2DValue) })
 )
 
 func BoolValueEncoder() Encoder {
-	return int32ValueEncoder
+	return boolValueEncoder
 }
 
 func Int32ValueEncoder() Encoder {
@@ -23,11 +23,11 @@ func Int32ValueEncoder() Encoder {
 }
 
 func Int64ValueEncoder() Encoder {
-	return int32ValueEncoder
+	return int64ValueEncoder
 }
 
 func StringValueEncoder() Encoder {
-	return string64ValueEncoder
+	return stringValueEncoder
 }
 
 func StringListValueEncoder() Encoder {

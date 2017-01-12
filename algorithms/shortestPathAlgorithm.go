@@ -1,6 +1,8 @@
 package algorithms
 
 import (
+	"math"
+
 	"github.com/bcrusu/mesos-pregel/aggregator"
 	"github.com/bcrusu/mesos-pregel/algorithm"
 	"github.com/bcrusu/mesos-pregel/encoding"
@@ -13,16 +15,54 @@ type shortestPathAlgorithm struct {
 }
 
 func (algo *shortestPathAlgorithm) Compute(context *algorithm.VertexContext, msg interface{}) error {
-	//value := context.Value.(*protos.Int32Value)
-	//message := msg.(*protos.ShortestPathMessage)
+	sendMessages := func(currentPathLength int64) {
+		for _, edge := range context.Edges {
+			edgeValue := edge.Value.(*protos.Int64Value)
+			context.SendMessageTo(edge.To, &protos.ShortestPathAlgorithmMessage{
+				PathLength: currentPathLength + edgeValue.Value,
+			})
+		}
+	}
 
-	//TODO
+	getCurrentPathLength := func() int64 {
+		if context.MutableValue == nil {
+			return math.MaxInt64
+		}
+
+		return (context.MutableValue.(*protos.Int64Value)).Value
+	}
+
+	if msg == nil {
+		if context.ID() == algo.params.From {
+			sendMessages(0)
+		}
+	} else {
+		currentPathLength := getCurrentPathLength()
+		msgPathLength := msg.(*protos.ShortestPathAlgorithmMessage).PathLength
+
+		if msgPathLength < currentPathLength {
+			context.SetValue(&protos.Int64Value{Value: msgPathLength})
+
+			if context.ID() != algo.params.To {
+				sendMessages(msgPathLength)
+			} else {
+				context.Aggregators.Add(aggregator.MinInt, "pathLength", msgPathLength)
+			}
+		}
+	}
+
+	context.VoteToHalt()
 	return nil
 }
 
 func (algo *shortestPathAlgorithm) GetResult(aggregators *aggregator.AggregatorSet) interface{} {
-	//TODO
-	return nil
+	result := &protos.ShortestPathAlgorithmResult{PathLength: -1}
+
+	if pathLength, ok := aggregators.GetValue("pathLength"); ok {
+		result.PathLength = pathLength.(int64)
+	}
+
+	return result
 }
 
 func (algo *shortestPathAlgorithm) VertexMessageCombiner() algorithm.VertexMessageCombiner {
@@ -38,15 +78,15 @@ func (algo *shortestPathAlgorithm) VertexValueEncoder() encoding.Encoder {
 }
 
 func (algo *shortestPathAlgorithm) EdgeValueEncoder() encoding.Encoder {
-	return encoding.Int32ValueEncoder()
+	return encoding.Int64ValueEncoder()
 }
 
 func (algo *shortestPathAlgorithm) VertexMutableValueEncoder() encoding.Encoder {
-	return encoding.Int32ValueEncoder()
+	return encoding.Int64ValueEncoder()
 }
 
 func (algo *shortestPathAlgorithm) EdgeMutableValueEncoder() encoding.Encoder {
-	return encoding.Int32ValueEncoder()
+	return encoding.Int64ValueEncoder()
 }
 
 func (algo *shortestPathAlgorithm) ResultEncoder() encoding.Encoder {

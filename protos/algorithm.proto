@@ -8,9 +8,9 @@ message ShortestPathAlgorithmParams {
 }
 
 message ShortestPathAlgorithmResult {
-    int32 pathLength = 1;
+    int64 pathLength = 1;
 }
 
 message ShortestPathAlgorithmMessage {
-    int32 pathLength = 1;
+    int64 pathLength = 1;
 }

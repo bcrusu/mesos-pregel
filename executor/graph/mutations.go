@@ -1,13 +1,12 @@
-package main
+package graph
 
 import (
 	"github.com/bcrusu/mesos-pregel"
 	"github.com/bcrusu/mesos-pregel/algorithm"
-	"github.com/bcrusu/mesos-pregel/executor/graph"
 	"github.com/pkg/errors"
 )
 
-func applyGraphOperations(graph *graph.Graph, vertexOps []*pregel.VertexOperation, edgeOps []*pregel.EdgeOperation, algorithm algorithm.Algorithm) error {
+func applyGraphOperations(graph *Graph, vertexOps []*pregel.VertexOperation, edgeOps []*pregel.EdgeOperation, algorithm algorithm.Algorithm) error {
 	// edge removals
 	for _, operation := range edgeOps {
 		if operation.Type != pregel.EdgeRemoved {
@@ -22,7 +21,7 @@ func applyGraphOperations(graph *graph.Graph, vertexOps []*pregel.VertexOperatio
 				return err
 			}
 		} else {
-			graph.RemoveEdge(from, to)
+			graph.removeEdge(from, to)
 		}
 	}
 
@@ -39,7 +38,7 @@ func applyGraphOperations(graph *graph.Graph, vertexOps []*pregel.VertexOperatio
 				return err
 			}
 		} else {
-			graph.RemoveVertex(vertexID)
+			graph.removeVertex(vertexID)
 		}
 	}
 
@@ -62,7 +61,7 @@ func applyGraphOperations(graph *graph.Graph, vertexOps []*pregel.VertexOperatio
 			}
 		}
 
-		graph.SetVertexValue(vertexID, value)
+		graph.setVertexValue(vertexID, value)
 	}
 
 	// edge additions
@@ -85,7 +84,7 @@ func applyGraphOperations(graph *graph.Graph, vertexOps []*pregel.VertexOperatio
 			}
 		}
 
-		graph.SetEdgeValue(from, to, value)
+		graph.setEdgeValue(from, to, value)
 	}
 
 	// vertex value mutations
@@ -107,7 +106,7 @@ func applyGraphOperations(graph *graph.Graph, vertexOps []*pregel.VertexOperatio
 			}
 		}
 
-		graph.SetVertexValue(vertexID, value)
+		graph.setVertexValue(vertexID, value)
 	}
 
 	// edge value mutations
@@ -130,7 +129,7 @@ func applyGraphOperations(graph *graph.Graph, vertexOps []*pregel.VertexOperatio
 			}
 		}
 
-		graph.SetEdgeValue(from, to, value)
+		graph.setEdgeValue(from, to, value)
 	}
 
 	return nil

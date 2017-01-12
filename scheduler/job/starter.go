@@ -89,11 +89,7 @@ func newJobStarter(jobStore store.JobStore) *jobStarter {
 			return nil, err
 		}
 
-		manager, err := task.NewManager(job.ID, vertexRanges, time.Duration(job.TaskTimeout))
-		if err != nil {
-			return nil, err
-		}
-
+		manager := task.NewManager(job.ID, vertexRanges, time.Duration(job.TaskTimeout))
 		return manager, nil
 	}
 
@@ -110,7 +106,7 @@ func newJobStarter(jobStore store.JobStore) *jobStarter {
 		var taskManager *task.Manager
 
 		if checkpoint != nil {
-			taskManager, err = task.NewManagerFromCheckpoint(checkpoint)
+			taskManager = task.NewManagerFromCheckpoint(job, checkpoint)
 		} else {
 			taskManager, err = startJob(job)
 			if err != nil {

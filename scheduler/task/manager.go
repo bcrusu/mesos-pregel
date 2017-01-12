@@ -43,10 +43,10 @@ type StartTaskResult struct {
 type rangeInfo struct {
 	vertexRange store.VertexRange
 	hosts       []int // List<HOST_ID>
+	//TODO: record last host the range completed on
 }
 
 type taskInfo struct {
-	//TODO(nice to have): group multiple small ranges into groups to be scheduled together in the same task
 	rangeID   int
 	hostID    int
 	startTime time.Time
@@ -302,9 +302,9 @@ func (m *Manager) startTaskForHostID(hostID int) *StartTaskResult {
 	return &StartTaskResult{
 		TaskID: taskID,
 		SuperstepParams: &protos.ExecSuperstepParams{
-			Superstep:    int32(m.superstep.number),
-			VertexRanges: convertVertexRangesToProto([]store.VertexRange{rangeInfo.vertexRange}),
-			Aggregators:  m.previousAggregators,
+			Superstep:   int32(m.superstep.number),
+			VertexRange: []byte(rangeInfo.vertexRange),
+			Aggregators: m.previousAggregators,
 		},
 	}
 }
@@ -410,14 +410,6 @@ func groupRangesByHost(ranges map[int]*rangeInfo) map[int]*util.IntSet {
 		}
 	}
 
-	return result
-}
-
-func convertVertexRangesToProto(vranges []store.VertexRange) [][]byte {
-	result := make([][]byte, len(vranges))
-	for i, vrange := range vranges {
-		result[i] = []byte(vrange)
-	}
 	return result
 }
 

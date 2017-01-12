@@ -24,7 +24,7 @@ message ExecTaskResult {
 
 message ExecSuperstepParams {
     int32 superstep = 1;
-    repeated bytes vertexRanges = 2;
+    bytes vertexRange = 2;
     repeated Aggregator aggregators = 3;    
 }
 

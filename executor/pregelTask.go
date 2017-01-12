@@ -1,7 +1,6 @@
 package main
 
 import (
-	"sync"
 	"time"
 
 	"github.com/bcrusu/mesos-pregel/aggregator"
@@ -14,17 +13,13 @@ import (
 )
 
 type PregelTask struct {
-	ID        int32
 	jobID     string
 	store     store.GraphStore
 	algorithm algorithm.Algorithm
-	mutex     sync.Mutex
-
-	currentSuperstep int
-	graph            *graph.Graph
+	graph     *graph.Graph
 }
 
-func NewPregelTask(params protos.ExecTaskParams) (*PregelTask, error) {
+func NewPregelTask(params *protos.ExecTaskParams, graph *graph.Graph) (*PregelTask, error) {
 	store, err := store.New(params.Store, params.StoreParams)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to initialize store: %v", params.Store)
@@ -36,23 +31,17 @@ func NewPregelTask(params protos.ExecTaskParams) (*PregelTask, error) {
 	}
 
 	return &PregelTask{
-		ID:        params.TaskId,
 		jobID:     params.JobId,
 		store:     store,
-		algorithm: algorithm}, nil
+		algorithm: algorithm,
+		graph:     graph,
+	}, nil
 }
 
 func (task *PregelTask) ExecSuperstep(params *protos.ExecSuperstepParams) (*protos.ExecSuperstepResult, error) {
-	task.mutex.Lock()
-	defer task.mutex.Unlock()
-
 	startTime := time.Now()
 	superstep := int(params.Superstep)
 	prevSuperstep := superstep - 1
-
-	if task.currentSuperstep >= superstep {
-		return nil, errors.Errorf("cannot execute past superstep - current superstep: %d; asked to execute %d", task.currentSuperstep, superstep)
-	}
 
 	aggregatorSet, err := aggregator.NewSetFromMessages(params.Aggregators)
 	if err != nil {
@@ -64,21 +53,14 @@ func (task *PregelTask) ExecSuperstep(params *protos.ExecSuperstepParams) (*prot
 	}
 	defer task.store.Close()
 
-	vranges := make([]store.VertexRange, len(params.VertexRanges))
-	for i, vrange := range params.VertexRanges {
-		vranges[i] = store.VertexRange(vrange)
-	}
+	vrange := store.VertexRange(params.VertexRange)
 
-	if err := task.loadSuperstep(prevSuperstep, vranges); err != nil {
-		return nil, err
-	}
-
-	messages, err := task.loadVertexMessages(prevSuperstep, vranges)
+	messages, err := task.loadVertexMessages(prevSuperstep, vrange)
 	if err != nil {
 		return nil, err
 	}
 
-	halted, err := task.loadHaltedVertices(prevSuperstep, vranges)
+	halted, err := task.loadHaltedVertices(prevSuperstep, vrange)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +85,7 @@ func (task *PregelTask) ExecSuperstep(params *protos.ExecSuperstepParams) (*prot
 
 	return &protos.ExecSuperstepResult{
 		Aggregators: aggregators,
-		Stats: &protos.ExecSuperstepResult_Stats{
+		Stats: &protos.Stats{
 			TotalDuration:     int64(elapsed),
 			ComputedCount:     int32(processResult.Stats.ComputedCount),
 			ComputeDuration:   int64(processResult.Stats.ComputeDuration),
@@ -114,90 +96,8 @@ func (task *PregelTask) ExecSuperstep(params *protos.ExecSuperstepParams) (*prot
 	}, nil
 }
 
-func (task *PregelTask) loadSuperstep(superstep int, vranges []store.VertexRange) error {
-	if superstep < task.currentSuperstep {
-		return errors.Errorf("cannot load past superstep - current superstep: %d; asked to load %d", task.currentSuperstep, superstep)
-	}
-
-	if task.graph == nil {
-		if err := task.loadGraph(vranges); err != nil {
-			return err
-		}
-	}
-
-	if task.currentSuperstep < superstep {
-		if err := task.fastForwardToSuperstep(superstep, vranges); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (task *PregelTask) loadGraph(vranges []store.VertexRange) error {
-	// load vertices
-	vertices, err := task.store.LoadVertices(vranges)
-	if err != nil {
-		return errors.Wrap(err, "failed to load graph vertices")
-	}
-
-	graph := graph.NewGraph(len(vertices))
-
-	for _, vertex := range vertices {
-		value, err := task.algorithm.VertexValueEncoder().Unmarshal(vertex.Value)
-		if err != nil {
-			return errors.Wrapf(err, "unmarshal failed - vertex: %s", vertex.ID)
-		}
-
-		graph.SetVertexValue(vertex.ID, value)
-	}
-
-	// load edges
-	edges, err := task.store.LoadEdges(vranges)
-	if err != nil {
-		return errors.Wrap(err, "failed to load graph edges")
-	}
-
-	for _, edge := range edges {
-		value, err := task.algorithm.VertexValueEncoder().Unmarshal(edge.Value)
-		if err != nil {
-			return errors.Wrapf(err, "unmarshal failed - edge: from=%s to=%s", edge.From, edge.To)
-		}
-
-		graph.SetEdgeValue(edge.From, edge.To, value)
-	}
-
-	task.graph = graph
-	return nil
-}
-
-func (task *PregelTask) fastForwardToSuperstep(toSuperstep int, vranges []store.VertexRange) error {
-	graph := task.graph.Clone()
-
-	// apply the superstep diffs
-	for superstep := task.currentSuperstep + 1; superstep <= toSuperstep; superstep++ {
-		vertexOps, err := task.store.LoadVertexOperations(task.jobID, superstep, vranges)
-		if err != nil {
-			return errors.Wrapf(err, "failed to load vertex operations for superstep %d", superstep)
-		}
-
-		edgeOps, err := task.store.LoadEdgeOperations(task.jobID, superstep, vranges)
-		if err != nil {
-			return errors.Wrapf(err, "failed to load edge operations for superstep %d", superstep)
-		}
-
-		if err = applyGraphOperations(graph, vertexOps, edgeOps, task.algorithm); err != nil {
-			return err
-		}
-	}
-
-	task.graph = graph
-	task.currentSuperstep = toSuperstep
-	return nil
-}
-
-func (task *PregelTask) loadVertexMessages(superstep int, vranges []store.VertexRange) (map[string]interface{}, error) {
-	messages, err := task.store.LoadVertexMessages(task.jobID, superstep, vranges)
+func (task *PregelTask) loadVertexMessages(superstep int, vrange store.VertexRange) (map[string]interface{}, error) {
+	messages, err := task.store.LoadVertexMessages(task.jobID, superstep, vrange)
 	if err != nil {
 		return nil, err
 	}
@@ -219,8 +119,8 @@ func (task *PregelTask) loadVertexMessages(superstep int, vranges []store.Vertex
 	return result, nil
 }
 
-func (task *PregelTask) loadHaltedVertices(superstep int, vranges []store.VertexRange) (map[string]bool, error) {
-	halted, err := task.store.LoadHaltedVertices(task.jobID, superstep, vranges)
+func (task *PregelTask) loadHaltedVertices(superstep int, vrange store.VertexRange) (map[string]bool, error) {
+	halted, err := task.store.LoadHaltedVertices(task.jobID, superstep, vrange)
 	if err != nil {
 		return nil, err
 	}

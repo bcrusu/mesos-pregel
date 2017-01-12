@@ -1,12 +1,13 @@
 package main
 
 import (
-	"strconv"
 	"sync"
 	"time"
 
 	"github.com/bcrusu/mesos-pregel/encoding"
+	"github.com/bcrusu/mesos-pregel/executor/graph"
 	"github.com/bcrusu/mesos-pregel/protos"
+	"github.com/bcrusu/mesos-pregel/store"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
 	exec "github.com/mesos/mesos-go/executor"
@@ -15,20 +16,20 @@ import (
 )
 
 const (
-	taskCacheExpiration      = 10 * time.Minute
-	taskCacheCleanupInterval = 7 * time.Minute
+	cacheExpiration      = 10 * time.Minute
+	cacheCleanupInterval = 7 * time.Minute
 )
 
 type PregelExecutor struct {
 	execTaskParamsEncoder encoding.Encoder
 	execTaskResultEncoder encoding.Encoder
 	mutex                 sync.Mutex
-	taskCache             *cache.Cache
+	graphPoolCache        *cache.Cache
 }
 
 func NewPregelExecutor() *PregelExecutor {
 	return &PregelExecutor{
-		taskCache:             cache.New(taskCacheExpiration, taskCacheCleanupInterval),
+		graphPoolCache:        cache.New(cacheExpiration, cacheCleanupInterval),
 		execTaskParamsEncoder: encoding.NewProtobufEncoder(func() proto.Message { return new(protos.ExecTaskParams) }),
 		execTaskResultEncoder: encoding.NewProtobufEncoder(func() proto.Message { return new(protos.ExecTaskResult) }),
 	}
@@ -84,16 +85,24 @@ func (executor *PregelExecutor) processLaunchTask(driver exec.ExecutorDriver, ta
 	taskID := taskParams.TaskId
 	superstep := taskParams.SuperstepParams.Superstep
 
-	task, err := executor.getPregelTask(*taskParams)
+	graph, err := executor.getGraph(taskParams)
 	if err != nil {
-		glog.Errorf("job %s - failed to initialize task %d; error: %v", jobID, taskID, err)
+		glog.Errorf("job %s - failed to initialize graph for task %s; error: %v", jobID, taskID, err)
+		executor.sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_FAILED, nil)
+		return
+	}
+	defer executor.releaseGraph(taskParams, graph)
+
+	task, err := NewPregelTask(taskParams, graph)
+	if err != nil {
+		glog.Errorf("job %s - failed to initialize task %s; error: %v", jobID, taskID, err)
 		executor.sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_FAILED, nil)
 		return
 	}
 
 	superstepResult, err := task.ExecSuperstep(taskParams.SuperstepParams)
 	if err != nil {
-		glog.Errorf("job %s - failed to execute superstep %d for task %d; error %v", jobID, superstep, taskID, err)
+		glog.Errorf("job %s - failed to execute superstep %d for task %s; error %v", jobID, superstep, taskID, err)
 		executor.sendStatusUpdate(driver, taskInfo.TaskId, mesos.TaskState_TASK_FAILED, nil)
 		return
 	}
@@ -117,7 +126,7 @@ func (executor *PregelExecutor) sendStatusUpdate(driver exec.ExecutorDriver, tas
 	if taskResult != nil {
 		data, err := executor.execTaskResultEncoder.Marshal(taskResult)
 		if err != nil {
-			glog.Errorf("job %s - failed to marshal result for task %d", taskResult.JobId, taskResult.TaskId)
+			glog.Errorf("job %s - failed to marshal result for task %s", taskResult.JobId, taskResult.TaskId)
 			return
 		}
 
@@ -129,22 +138,42 @@ func (executor *PregelExecutor) sendStatusUpdate(driver exec.ExecutorDriver, tas
 	}
 }
 
-func (executor *PregelExecutor) getPregelTask(params protos.ExecTaskParams) (*PregelTask, error) {
-	executor.mutex.Lock()
-	defer executor.mutex.Unlock()
-
-	//TODO: cache only the graph
-	cacheKey := params.JobId + ":" + strconv.Itoa(int(params.TaskId))
-
-	if task, found := executor.taskCache.Get(cacheKey); found {
-		return task.(*PregelTask), nil
-	}
-
-	task, err := NewPregelTask(params)
+func (executor *PregelExecutor) getGraph(params *protos.ExecTaskParams) (*graph.Graph, error) {
+	graphPool, err := executor.getGraphPool(params)
 	if err != nil {
 		return nil, err
 	}
 
-	executor.taskCache.Set(cacheKey, task, cache.DefaultExpiration)
-	return task, nil
+	superstep := int(params.SuperstepParams.Superstep)
+	vrange := store.VertexRange(params.SuperstepParams.VertexRange)
+	return graphPool.Get(superstep, vrange)
+}
+
+func (executor *PregelExecutor) releaseGraph(params *protos.ExecTaskParams, graph *graph.Graph) {
+	graphPool, err := executor.getGraphPool(params)
+	if err != nil {
+		glog.Errorf("job %s - failed to return graph to pool; error=%v", params.JobId, err)
+		return
+	}
+
+	graphPool.Release(graph)
+}
+
+func (executor *PregelExecutor) getGraphPool(params *protos.ExecTaskParams) (*graph.Pool, error) {
+	executor.mutex.Lock()
+	defer executor.mutex.Unlock()
+
+	cacheKey := params.JobId
+
+	if pool, found := executor.graphPoolCache.Get(cacheKey); found {
+		return pool.(*graph.Pool), nil
+	}
+
+	pool, err := graph.NewPool(params)
+	if err != nil {
+		return nil, err
+	}
+
+	executor.graphPoolCache.Set(cacheKey, pool, cache.DefaultExpiration)
+	return pool, nil
 }

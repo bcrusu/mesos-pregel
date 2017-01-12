@@ -1,7 +1,9 @@
 package graph
 
 type Graph struct {
-	vertices map[string]*vertex
+	key       string
+	superstep int
+	vertices  map[string]*vertex
 }
 
 type vertex struct {
@@ -13,7 +15,7 @@ func NewGraph(capacity int) *Graph {
 	return &Graph{vertices: make(map[string]*vertex, capacity)}
 }
 
-func (g *Graph) SetVertexValue(id string, value interface{}) {
+func (g *Graph) setVertexValue(id string, value interface{}) {
 	v, ok := g.vertices[id]
 	if !ok {
 		v = &vertex{edges: make(map[string]interface{})}
@@ -23,7 +25,7 @@ func (g *Graph) SetVertexValue(id string, value interface{}) {
 	v.value = value
 }
 
-func (g *Graph) SetEdgeValue(from string, to string, value interface{}) {
+func (g *Graph) setEdgeValue(from string, to string, value interface{}) {
 	v, ok := g.vertices[from]
 	if !ok {
 		v = &vertex{edges: make(map[string]interface{})}
@@ -33,7 +35,7 @@ func (g *Graph) SetEdgeValue(from string, to string, value interface{}) {
 	v.edges[to] = value
 }
 
-func (g *Graph) RemoveVertex(id string) {
+func (g *Graph) removeVertex(id string) {
 	_, ok := g.vertices[id]
 	if !ok {
 		return
@@ -46,7 +48,7 @@ func (g *Graph) RemoveVertex(id string) {
 	}
 }
 
-func (g *Graph) RemoveEdge(from string, to string) {
+func (g *Graph) removeEdge(from string, to string) {
 	v, ok := g.vertices[from]
 	if !ok {
 		return
@@ -81,24 +83,6 @@ func (g *Graph) EdgeValue(from string, to string) (interface{}, bool) {
 func (g *Graph) HasEdge(from string, to string) bool {
 	_, ok := g.EdgeValue(from, to)
 	return ok
-}
-
-func (g *Graph) Clone() *Graph {
-	vertices := make(map[string]*vertex)
-	for k, v := range g.vertices {
-		vertices[k] = v.Clone()
-	}
-
-	return &Graph{vertices}
-}
-
-func (v *vertex) Clone() *vertex {
-	edges := make(map[string]interface{})
-	for k, v := range v.edges {
-		edges[k] = v
-	}
-
-	return &vertex{v.value, edges}
 }
 
 func (g *Graph) Vertices() []string {

@@ -33,10 +33,25 @@
             "env": {},
             "args": [
                 "-mesos.master=127.0.100.254:5050",
-                "-job.store=cassandra",
+                "-job.store=Cassandra",
                 "-cassandra.hosts=127.0.100.1,127.0.100.2",
                 "-cassandra.keyspace=pregelJobs",
                 "-cassandra.replication_factor=3"
+            ],
+            "showLog": true
+        },
+        {
+            "name": "CLI",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "remotePath": "",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}/cli",
+            "env": {},
+            "args": [
+                "--job.store=Cassandra"
             ],
             "showLog": true
         }

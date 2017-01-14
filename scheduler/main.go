@@ -88,7 +88,7 @@ func runDriver(jobManager *job.Manager) error {
 
 func getJobStore() (store.JobStore, error) {
 	switch *JobStore {
-	case "cassandra":
+	case "Cassandra":
 		hosts := strings.Split(*CassandraHosts, ",")
 		return cassandra.NewJobStore(hosts, *CassandraKeyspace, *CassandraReplicationFactor), nil
 	default:

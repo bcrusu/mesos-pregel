@@ -4,3 +4,5 @@
 /executor/executor
 /scheduler/debug
 /scheduler/scheduler
+/cli/debug
+/cli/cli

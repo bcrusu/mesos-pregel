@@ -22,8 +22,12 @@ func (s *service) CancelJob(context context.Context, request *protos.JobIdReques
 	return s.jobManager.CancelJob(request), nil
 }
 
-func (s *service) GetJobStatus(context context.Context, request *protos.JobIdRequest) (*protos.GetJobStatusReply, error) {
-	return s.jobManager.GetJobStatus(request), nil
+func (s *service) GetJobs(context context.Context, request *protos.EmptyRequest) (*protos.GetJobsReply, error) {
+	return s.jobManager.GetJobs(), nil
+}
+
+func (s *service) GetJobStats(context context.Context, request *protos.JobIdRequest) (*protos.GetJobStatsReply, error) {
+	return s.jobManager.GetJobStats(request), nil
 }
 
 func (s *service) GetJobResult(context context.Context, request *protos.JobIdRequest) (*protos.GetJobResultReply, error) {

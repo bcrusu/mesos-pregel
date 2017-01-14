@@ -8,16 +8,16 @@ import (
 	"google.golang.org/grpc"
 )
 
-type APIClient struct {
+type Client struct {
 	protos.ServiceClient
 	conn *grpc.ClientConn
 }
 
-func New() *APIClient {
-	return &APIClient{}
+func New() *Client {
+	return &Client{}
 }
 
-func (c *APIClient) Dial(address string) error {
+func (c *Client) Dial(address string) error {
 	if !strings.HasPrefix(address, "localhost:") {
 		// security not implemented atm.
 		panic("CLI tool supports only local connections")
@@ -33,7 +33,7 @@ func (c *APIClient) Dial(address string) error {
 	return nil
 }
 
-func (c *APIClient) Close() error {
+func (c *Client) Close() error {
 	if err := c.conn.Close(); err != nil {
 		return err
 	}

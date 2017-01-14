@@ -106,28 +106,30 @@ func (m *Manager) CreateJob(request *protos.CreateJobRequest) *protos.CreateJobR
 	return &protos.CreateJobReply{JobId: id, Status: protos.CallStatus_OK}
 }
 
-func (m *Manager) GetJobStatus(request *protos.JobIdRequest) *protos.GetJobStatusReply {
+func (m *Manager) GetJobs() *protos.GetJobsReply {
+	//TODO
+	return nil
+}
+
+func (m *Manager) GetJobStats(request *protos.JobIdRequest) *protos.GetJobStatsReply {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
 	jobID := request.JobId
 	job, ok := m.jobs[jobID]
 	if !ok {
-		return &protos.GetJobStatusReply{Status: protos.CallStatus_ERROR_INVALID_JOB}
+		return &protos.GetJobStatsReply{Status: protos.CallStatus_ERROR_INVALID_JOB}
 	}
 
 	var superstep int
-	var percentDone int
 	if taskManager, ok := m.runningTaskManagers[jobID]; ok {
 		superstep = taskManager.Superstep()
-		percentDone = -1 //TODO: add stats values
 	}
 
-	return &protos.GetJobStatusReply{
-		Status:      protos.CallStatus_OK,
-		JobStatus:   convertJobStatusToProto(job.Status),
-		Superstep:   int32(superstep),
-		PercentDone: int32(percentDone),
+	return &protos.GetJobStatsReply{
+		Status:    protos.CallStatus_OK,
+		Job:       convertJobToProto(job),
+		Superstep: int32(superstep),
 	}
 }
 
@@ -345,6 +347,15 @@ func (m *Manager) initFromStore() error {
 func (m *Manager) removeRunning(jobID string) {
 	m.running.Remove(jobID)
 	delete(m.runningTaskManagers, jobID)
+}
+
+func convertJobToProto(job *pregel.Job) *protos.Job {
+	return &protos.Job{
+		Id:           job.ID,
+		Label:        job.Label,
+		Status:       convertJobStatusToProto(job.Status),
+		CreationTime: job.CreationTime.Unix(),
+	}
 }
 
 func convertJobStatusToProto(status pregel.JobStatus) protos.JobStatus {

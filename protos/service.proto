@@ -5,8 +5,12 @@ package protos;
 service Service {
   rpc CreateJob (CreateJobRequest) returns (CreateJobReply) {}
   rpc CancelJob (JobIdRequest) returns (SimpleCallReply) {}
-  rpc GetJobStatus (JobIdRequest) returns (GetJobStatusReply) {}
+  rpc GetJobs (EmptyRequest) returns (GetJobsReply) {}
+  rpc GetJobStats (JobIdRequest) returns (GetJobStatsReply) {}
   rpc GetJobResult  (JobIdRequest) returns (GetJobResultReply) {}
+}
+
+message EmptyRequest {
 }
 
 message JobIdRequest {
@@ -37,17 +41,29 @@ message CreateJobReply {
     string jobId = 2;
 }
 
-message GetJobStatusReply {
+message GetJobStatsReply {
     CallStatus status = 1;
-    JobStatus jobStatus = 2;
+    Job job = 2;
     int32 superstep = 3;
-    int32 percentDone = 4;
 }
 
 message GetJobResultReply {
     CallStatus status = 1;
     string jobId = 2;
-    bytes result = 3;
+    string algorithm = 3;
+    bytes result = 4;
+}
+
+message GetJobsReply {
+    CallStatus status = 1;
+    repeated Job jobs = 2; 
+}
+
+message Job {
+    string id = 1;
+    string label = 2;
+    int64 creationTime = 3;
+    JobStatus status = 4;    
 }
 
 enum JobStatus {

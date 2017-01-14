@@ -36,7 +36,7 @@ var listCmd = &cobra.Command{
 
 func printJobs(reply *protos.GetJobsReply) {
 	if len(reply.Jobs) == 0 {
-		fmt.Println(`No jobs found. Use the "job start" command to create a new job.`)
+		fmt.Println(`No jobs found. Use the "start" command to create a new job.`)
 		return
 	}
 

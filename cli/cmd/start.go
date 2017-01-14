@@ -14,10 +14,10 @@ import (
 
 var (
 	jobLabel     = startCmd.PersistentFlags().StringP("label", "l", "", "Job label")
-	taskCPU      = startCmd.PersistentFlags().Float64P("taskCPU", "cpu", 0.1, "Total CPU used by a single Pregel task")
-	taskMEM      = startCmd.PersistentFlags().Float64P("taskMEM", "mem", 64, "Total memory used by a single Pregel task")
-	taskVertices = startCmd.PersistentFlags().Int32P("taskVertices", "vertices", 10000, "The number of graph vertices processed by a single Pregel task")
-	taskTimeout  = startCmd.PersistentFlags().DurationP("taskTimeout", "timeout", 30*time.Second, "The maximum duration to wait for a Pregel task to complete before retrying to execute it")
+	taskCPU      = startCmd.PersistentFlags().Float64P("taskCPU", "c", 0.1, "Total CPU used by a single Pregel task")
+	taskMEM      = startCmd.PersistentFlags().Float64P("taskMEM", "m", 64, "Total memory used by a single Pregel task")
+	taskVertices = startCmd.PersistentFlags().Int32P("taskVertices", "v", 10000, "The number of graph vertices processed by a single Pregel task")
+	taskTimeout  = startCmd.PersistentFlags().DurationP("taskTimeout", "t", 30*time.Second, "The maximum duration to wait for a Pregel task to complete before retrying to execute it")
 
 	shortestPathFrom = startShortestPathCmd.Flags().StringP("from", "f", "", "Source Vertex ID")
 	shortestPathTo   = startShortestPathCmd.Flags().StringP("to", "t", "", "Destination Vertex ID")

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/bcrusu/mesos-pregel/algorithms"
 	"github.com/bcrusu/mesos-pregel/cli/api"
 	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/gogo/protobuf/proto"
@@ -19,13 +20,15 @@ var (
 	taskVertices = startCmd.PersistentFlags().Int32P("taskVertices", "v", 10000, "The number of graph vertices processed by a single Pregel task")
 	taskTimeout  = startCmd.PersistentFlags().DurationP("taskTimeout", "t", 30*time.Second, "The maximum duration to wait for a Pregel task to complete before retrying to execute it")
 
-	shortestPathFrom = startShortestPathCmd.Flags().StringP("from", "f", "", "Source Vertex ID")
-	shortestPathTo   = startShortestPathCmd.Flags().StringP("to", "t", "", "Destination Vertex ID")
+	shortestPathFrom = startShortestPathAlgorithmCmd.Flags().StringP("from", "f", "", "Source Vertex ID")
+	shortestPathTo   = startShortestPathAlgorithmCmd.Flags().StringP("to", "t", "", "Destination Vertex ID")
 )
 
 func init() {
-	startCmd.AddCommand(startShortestPathCmd)
-	startShortestPathCmd.RunE = startShortestPathCmdRunE // break dependency loop
+	startCmd.AddCommand(startShortestPathAlgorithmCmd)
+	startShortestPathAlgorithmCmd.RunE = startShortestPathAlgorithmCmdRunE // break dependency loop
+
+	startCmd.AddCommand(startCountAlgorithmCmd)
 }
 
 var startCmd = &cobra.Command{
@@ -33,9 +36,17 @@ var startCmd = &cobra.Command{
 	Short: "Starts a new job that executes the selected algorithm.",
 }
 
-var startShortestPathCmd = &cobra.Command{
+var startShortestPathAlgorithmCmd = &cobra.Command{
 	Use:   "shortestPath",
 	Short: "Finds the shortest path from source to destination vertices.",
+}
+
+var startCountAlgorithmCmd = &cobra.Command{
+	Use:   "count",
+	Short: "Counts the number of vertices and edges in the graph.",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return createJob(algorithms.Count, nil)
+	},
 }
 
 func createJob(algorithm string, algorithmParams []byte) error {
@@ -72,7 +83,7 @@ func createJob(algorithm string, algorithmParams []byte) error {
 	})
 }
 
-func startShortestPathCmdRunE(cmd *cobra.Command, args []string) error {
+func startShortestPathAlgorithmCmdRunE(cmd *cobra.Command, args []string) error {
 	params := &protos.ShortestPathAlgorithmParams{
 		From: *shortestPathFrom,
 		To:   *shortestPathTo,
@@ -83,5 +94,5 @@ func startShortestPathCmdRunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return createJob("ShortestPath", bytes)
+	return createJob(algorithms.ShortestPath, bytes)
 }

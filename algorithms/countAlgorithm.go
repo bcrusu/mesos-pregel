@@ -1,0 +1,78 @@
+package algorithms
+
+import (
+	"github.com/bcrusu/mesos-pregel/aggregator"
+	"github.com/bcrusu/mesos-pregel/algorithm"
+	"github.com/bcrusu/mesos-pregel/encoding"
+	"github.com/bcrusu/mesos-pregel/protos"
+	"github.com/gogo/protobuf/proto"
+)
+
+// Simple algorithm that counts the number of vertices and edges in the graph
+type countAlgorithm struct {
+}
+
+func (algo *countAlgorithm) Compute(context *algorithm.VertexContext, msg interface{}) error {
+	context.Aggregators.Add(aggregator.SumInt, "vertices", 1)
+	context.Aggregators.Add(aggregator.SumInt, "edges", len(context.Edges))
+
+	context.VoteToHalt()
+	return nil
+}
+
+func (algo *countAlgorithm) GetResult(aggregators *aggregator.AggregatorSet) interface{} {
+	result := &protos.CountAlgorithmResult{}
+
+	if c, ok := aggregators.GetValue("vertices"); ok {
+		result.Vertices = c.(int64)
+	}
+
+	if c, ok := aggregators.GetValue("edges"); ok {
+		result.Edges = c.(int64)
+	}
+
+	return result
+}
+
+func (algo *countAlgorithm) VertexMessageCombiner() algorithm.VertexMessageCombiner {
+	return nil
+}
+
+func (algo *countAlgorithm) VertexMessageEncoder() encoding.Encoder {
+	return encoding.NullEncoder()
+}
+
+func (algo *countAlgorithm) VertexValueEncoder() encoding.Encoder {
+	return encoding.NullEncoder()
+}
+
+func (algo *countAlgorithm) EdgeValueEncoder() encoding.Encoder {
+	return encoding.NullEncoder()
+}
+
+func (algo *countAlgorithm) VertexMutableValueEncoder() encoding.Encoder {
+	return encoding.NullEncoder()
+}
+
+func (algo *countAlgorithm) EdgeMutableValueEncoder() encoding.Encoder {
+	return encoding.NullEncoder()
+}
+
+func (algo *countAlgorithm) ResultEncoder() encoding.Encoder {
+	return encoding.NewProtobufEncoder(func() proto.Message { return new(protos.CountAlgorithmResult) })
+}
+
+func (algo *countAlgorithm) Handlers() *algorithm.Handlers {
+	return algorithm.DefaultHandlers()
+}
+
+type countAlgorithmFactory struct {
+}
+
+func (f *countAlgorithmFactory) Create(params interface{}) (algorithm.Algorithm, error) {
+	return &countAlgorithm{}, nil
+}
+
+func (f *countAlgorithmFactory) ParamsEncoder() encoding.Encoder {
+	return encoding.NullEncoder()
+}

@@ -37,7 +37,8 @@ func init() {
 }
 
 var PregelRootCmd = &cobra.Command{
-	Use: "pregel",
+	Use:          "pregel",
+	SilenceUsage: true,
 }
 
 var jobCmd = &cobra.Command{

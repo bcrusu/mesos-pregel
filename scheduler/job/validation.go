@@ -26,8 +26,8 @@ func validateCreateJobRequest(r *protos.CreateJobRequest) bool {
 		return false
 	}
 
-	if r.Algorithm == "" || r.AlgorithmParams == nil {
-		glog.Warningf("CreateJobRequest - job %s - invalid algorithm parameters", r.Label)
+	if r.Algorithm == "" {
+		glog.Warningf("CreateJobRequest - job %s - invalid algorithm", r.Label)
 		return false
 	}
 

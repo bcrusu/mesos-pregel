@@ -27,7 +27,11 @@ func (s *APIServer) ServeAsync(port int) error {
 	}
 
 	s.server = s.getGrpcServer()
-	go s.server.Serve(listener)
+	go func() {
+		if err := s.server.Serve(listener); err != nil {
+			fmt.Printf("stopped serving API; error=%v\n", err)
+		}
+	}()
 
 	return nil
 }

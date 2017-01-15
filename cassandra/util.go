@@ -18,18 +18,17 @@ func GetFullTableName(keyspace string, table string) string {
 	return fmt.Sprintf(`"%s"."%s"`, keyspace, table)
 }
 
-type CreateScanDestFunc func() []interface{}
-type CreateEntityFunc func(dest []interface{}) interface{}
+type CreateEntityFunc func() (entity interface{}, dest []interface{})
 
-func ExecuteSelect(session *gocql.Session, cql string, createScanDest CreateScanDestFunc, createEntity CreateEntityFunc, params ...interface{}) ([]interface{}, error) {
+func ExecuteSelect(session *gocql.Session, cql string, createEntity CreateEntityFunc, params ...interface{}) ([]interface{}, error) {
 	iter := session.Query(cql, params...).Iter()
 
 	result := make([]interface{}, 0, 1000)
 
-	dest := createScanDest()
-	for iter.Scan(dest) {
-		entity := createEntity(dest)
+	entity, dest := createEntity()
+	for iter.Scan(dest...) {
 		result = append(result, entity)
+		entity, dest = createEntity()
 	}
 
 	if err := iter.Close(); err != nil {

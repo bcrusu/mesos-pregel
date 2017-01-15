@@ -1,8 +1,6 @@
 package api
 
 import (
-	"strings"
-
 	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -18,10 +16,10 @@ func New() *Client {
 }
 
 func (c *Client) Dial(address string) error {
-	if !strings.HasPrefix(address, "localhost:") {
-		// security not implemented atm.
-		panic("CLI tool supports only local connections")
-	}
+	// if !strings.HasPrefix(address, "localhost:") {
+	// 	// security not implemented atm.
+	// 	panic("CLI tool supports only local connections")
+	// }
 
 	conn, err := grpc.Dial(address, grpc.WithInsecure())
 	if err != nil {

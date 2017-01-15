@@ -108,20 +108,18 @@ func (cstore *cassandraGraphStore) GetVertexRanges(verticesPerRange int) ([]*sto
 func (cstore *cassandraGraphStore) LoadVertices(vrange store.VertexRange) ([]*pregel.Vertex, error) {
 	cql := fmt.Sprintf(`SELECT id, value FROM %s WHERE %s;`, cstore.fullTableName(cstore.params.VerticesTable), tokenFilterPlaceholder)
 
-	createScanDest := func() []interface{} {
-		return []interface{}{new(string), new([]byte)}
+	createEntity := func() (interface{}, []interface{}) {
+		e := &pregel.Vertex{}
+		dest := []interface{}{&e.ID, &e.Value}
+		return e, dest
 	}
 
-	createEntity := func(dest []interface{}) interface{} {
-		return &pregel.Vertex{ID: dest[0].(string), Value: dest[1].([]byte)}
-	}
-
-	entities, err := cstore.executeSelectForTokenRange(cql, vrange, `id`, createScanDest, createEntity)
+	entities, err := cstore.executeSelectForTokenRange(cql, vrange, `id`, createEntity)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]*pregel.Vertex, 0, len(entities))
+	result := make([]*pregel.Vertex, len(entities))
 	for i, e := range entities {
 		result[i] = e.(*pregel.Vertex)
 	}
@@ -155,20 +153,18 @@ func (cstore *cassandraGraphStore) SaveVertices(vertices []*pregel.Vertex) error
 func (cstore *cassandraGraphStore) LoadEdges(vrange store.VertexRange) ([]*pregel.Edge, error) {
 	cql := fmt.Sprintf(`SELECT "from", "to", value FROM %s WHERE %s;`, cstore.fullTableName(cstore.params.EdgesTable), tokenFilterPlaceholder)
 
-	createScanDest := func() []interface{} {
-		return []interface{}{new(string), new(string), new([]byte)}
+	createEntity := func() (interface{}, []interface{}) {
+		e := &pregel.Edge{}
+		dest := []interface{}{&e.From, &e.To, &e.Value}
+		return e, dest
 	}
 
-	createEntity := func(dest []interface{}) interface{} {
-		return &pregel.Edge{From: dest[0].(string), To: dest[1].(string), Value: dest[2].([]byte)}
-	}
-
-	entities, err := cstore.executeSelectForTokenRange(cql, vrange, `"from"`, createScanDest, createEntity)
+	entities, err := cstore.executeSelectForTokenRange(cql, vrange, `"from"`, createEntity)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]*pregel.Edge, 0, len(entities))
+	result := make([]*pregel.Edge, len(entities))
 	for i, e := range entities {
 		result[i] = e.(*pregel.Edge)
 	}
@@ -204,20 +200,18 @@ func (cstore *cassandraGraphStore) LoadVertexMessages(jobID string, superstep in
 	cql := fmt.Sprintf(`SELECT "to", value FROM %s WHERE job_id=? AND superstep=? AND %s;`, cstore.fullTableName(vertexMessagesTableName), tokenFilterPlaceholder)
 	params := []interface{}{jobID, superstep}
 
-	createScanDest := func() []interface{} {
-		return []interface{}{new(string), new([]byte)}
+	createEntity := func() (interface{}, []interface{}) {
+		e := &pregel.VertexMessage{JobID: jobID, Superstep: superstep}
+		dest := []interface{}{&e.To, &e.Value}
+		return e, dest
 	}
 
-	createEntity := func(dest []interface{}) interface{} {
-		return &pregel.VertexMessage{To: dest[0].(string), Value: dest[1].([]byte), JobID: jobID, Superstep: superstep}
-	}
-
-	entities, err := cstore.executeSelectForTokenRange(cql, vrange, `id`, createScanDest, createEntity, params...)
+	entities, err := cstore.executeSelectForTokenRange(cql, vrange, `id`, createEntity, params...)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]*pregel.VertexMessage, 0, len(entities))
+	result := make([]*pregel.VertexMessage, len(entities))
 	for i, e := range entities {
 		result[i] = e.(*pregel.VertexMessage)
 	}
@@ -254,21 +248,18 @@ func (cstore *cassandraGraphStore) LoadVertexOperations(jobID string, superstep 
 	cql := fmt.Sprintf(`SELECT id, type, value FROM %s WHERE job_id=? AND superstep=? AND %s;`, cstore.fullTableName(vertexOperationsTableName), tokenFilterPlaceholder)
 	params := []interface{}{jobID, superstep}
 
-	createScanDest := func() []interface{} {
-		return []interface{}{new(string), new(string), new(pregel.VertexOperationType), new([]byte)}
+	createEntity := func() (interface{}, []interface{}) {
+		e := &pregel.VertexOperation{JobID: jobID, Superstep: superstep}
+		dest := []interface{}{&e.ID, &e.Type, &e.Value}
+		return e, dest
 	}
 
-	createEntity := func(dest []interface{}) interface{} {
-		return &pregel.VertexOperation{ID: dest[0].(string), JobID: jobID, Superstep: superstep,
-			Type: dest[1].(pregel.VertexOperationType), Value: dest[2].([]byte)}
-	}
-
-	entities, err := cstore.executeSelectForTokenRange(cql, vrange, `id`, createScanDest, createEntity, params...)
+	entities, err := cstore.executeSelectForTokenRange(cql, vrange, `id`, createEntity, params...)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]*pregel.VertexOperation, 0, len(entities))
+	result := make([]*pregel.VertexOperation, len(entities))
 	for i, e := range entities {
 		result[i] = e.(*pregel.VertexOperation)
 	}
@@ -305,20 +296,18 @@ func (cstore *cassandraGraphStore) LoadHaltedVertices(jobID string, superstep in
 	cql := fmt.Sprintf(`SELECT id FROM %s WHERE job_id=? AND superstep=? AND %s;`, cstore.fullTableName(haltedVerticesTableName), tokenFilterPlaceholder)
 	params := []interface{}{jobID, superstep}
 
-	createScanDest := func() []interface{} {
-		return []interface{}{new(string)}
+	createEntity := func() (interface{}, []interface{}) {
+		var e string
+		dest := []interface{}{&e}
+		return e, dest
 	}
 
-	createEntity := func(dest []interface{}) interface{} {
-		return dest[0].(string)
-	}
-
-	entities, err := cstore.executeSelectForTokenRange(cql, vrange, `id`, createScanDest, createEntity, params...)
+	entities, err := cstore.executeSelectForTokenRange(cql, vrange, `id`, createEntity, params...)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]string, 0, len(entities))
+	result := make([]string, len(entities))
 	for i, e := range entities {
 		result[i] = e.(string)
 	}
@@ -354,21 +343,18 @@ func (cstore *cassandraGraphStore) LoadEdgeOperations(jobID string, superstep in
 	cql := fmt.Sprintf(`SELECT "from", "to", type, value FROM %s WHERE job_id=? AND superstep=? AND %s;`, cstore.fullTableName(edgeOperationsTableName), tokenFilterPlaceholder)
 	params := []interface{}{jobID, superstep}
 
-	createScanDest := func() []interface{} {
-		return []interface{}{new(string), new(string), new(pregel.EdgeOperationType), new([]byte)}
+	createEntity := func() (interface{}, []interface{}) {
+		e := &pregel.EdgeOperation{JobID: jobID, Superstep: superstep}
+		dest := []interface{}{&e.From, &e.To, &e.Type, &e.Value}
+		return e, dest
 	}
 
-	createEntity := func(dest []interface{}) interface{} {
-		return &pregel.EdgeOperation{From: dest[0].(string), To: dest[1].(string), JobID: jobID, Superstep: superstep,
-			Type: dest[2].(pregel.EdgeOperationType), Value: dest[3].([]byte)}
-	}
-
-	entities, err := cstore.executeSelectForTokenRange(cql, vrange, `"from"`, createScanDest, createEntity, params...)
+	entities, err := cstore.executeSelectForTokenRange(cql, vrange, `"from"`, createEntity, params...)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]*pregel.EdgeOperation, 0, len(entities))
+	result := make([]*pregel.EdgeOperation, len(entities))
 	for i, e := range entities {
 		result[i] = e.(*pregel.EdgeOperation)
 	}
@@ -459,7 +445,7 @@ func (cstore *cassandraGraphStore) parseTokenRange(vrange store.VertexRange, pri
 }
 
 func (cstore *cassandraGraphStore) executeSelectForTokenRange(cql string, vrange store.VertexRange, primaryKey string,
-	createScanDest CreateScanDestFunc, createEntity CreateEntityFunc, params ...interface{}) ([]interface{}, error) {
+	createEntity CreateEntityFunc, params ...interface{}) ([]interface{}, error) {
 	result := []interface{}{}
 
 	tokenFilters, err := cstore.parseTokenRange(vrange, primaryKey)
@@ -471,7 +457,7 @@ func (cstore *cassandraGraphStore) executeSelectForTokenRange(cql string, vrange
 		finalCql := strings.Replace(cql, tokenFilterPlaceholder, tokenFilter.cql, 1)
 		finalParams := append(params, tokenFilter.params...)
 
-		entities, err := ExecuteSelect(cstore.session, finalCql, createScanDest, createEntity, finalParams...)
+		entities, err := ExecuteSelect(cstore.session, finalCql, createEntity, finalParams...)
 		if err != nil {
 			return nil, err
 		}

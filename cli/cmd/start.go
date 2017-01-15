@@ -49,7 +49,16 @@ var startCountAlgorithmCmd = &cobra.Command{
 	},
 }
 
-func createJob(algorithm string, algorithmParams []byte) error {
+func createJob(algorithm string, algorithmParams proto.Message) error {
+	var algorithmParamsBytes []byte
+
+	if algorithmParams != nil {
+		var err error
+		if algorithmParamsBytes, err = proto.Marshal(algorithmParams); err != nil {
+			return err
+		}
+	}
+
 	store, storeParams, err := processStoreFlags()
 	if err != nil {
 		return err
@@ -58,7 +67,7 @@ func createJob(algorithm string, algorithmParams []byte) error {
 	request := &protos.CreateJobRequest{
 		Label:           *jobLabel,
 		Algorithm:       algorithm,
-		AlgorithmParams: algorithmParams,
+		AlgorithmParams: algorithmParamsBytes,
 		Store:           store,
 		StoreParams:     storeParams,
 		TaskCPU:         *taskCPU,
@@ -84,15 +93,8 @@ func createJob(algorithm string, algorithmParams []byte) error {
 }
 
 func startShortestPathAlgorithmCmdRunE(cmd *cobra.Command, args []string) error {
-	params := &protos.ShortestPathAlgorithmParams{
+	return createJob(algorithms.ShortestPath, &protos.ShortestPathAlgorithmParams{
 		From: *shortestPathFrom,
 		To:   *shortestPathTo,
-	}
-
-	bytes, err := proto.Marshal(params)
-	if err != nil {
-		return err
-	}
-
-	return createJob(algorithms.ShortestPath, bytes)
+	})
 }

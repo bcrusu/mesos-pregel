@@ -107,8 +107,18 @@ func (m *Manager) CreateJob(request *protos.CreateJobRequest) *protos.CreateJobR
 }
 
 func (m *Manager) GetJobs() *protos.GetJobsReply {
-	//TODO
-	return nil
+	jobs := make([]*protos.Job, len(m.jobs))
+
+	i := 0
+	for _, job := range m.jobs {
+		jobs[i] = convertJobToProto(job)
+		i++
+	}
+
+	return &protos.GetJobsReply{
+		Status: protos.CallStatus_OK,
+		Jobs:   jobs,
+	}
 }
 
 func (m *Manager) GetJobStats(request *protos.JobIdRequest) *protos.GetJobStatsReply {

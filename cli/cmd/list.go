@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/bcrusu/mesos-pregel/cli/api"
@@ -35,10 +36,13 @@ var listCmd = &cobra.Command{
 }
 
 func printJobs(reply *protos.GetJobsReply) {
-	if len(reply.Jobs) == 0 {
+	jobs := reply.Jobs
+	if len(jobs) == 0 {
 		fmt.Println(`No jobs found. Use the "start" command to create a new job.`)
 		return
 	}
+
+	sortJobsByCreationTime(jobs)
 
 	layout := "%s\t\t\t%s\t\t%s\t\t%s\n"
 
@@ -60,4 +64,25 @@ func getJobStatusName(status protos.JobStatus) string {
 	}
 
 	return name
+}
+
+func sortJobsByCreationTime(jobs []*protos.Job) {
+	sorter := &jobSorterByCreationTime{jobs}
+	sort.Sort(sorter)
+}
+
+type jobSorterByCreationTime struct {
+	jobs []*protos.Job
+}
+
+func (s *jobSorterByCreationTime) Len() int {
+	return len(s.jobs)
+}
+
+func (s *jobSorterByCreationTime) Less(i, j int) bool {
+	return s.jobs[i].CreationTime < s.jobs[j].CreationTime
+}
+
+func (s *jobSorterByCreationTime) Swap(i, j int) {
+	s.jobs[i], s.jobs[j] = s.jobs[j], s.jobs[i]
 }

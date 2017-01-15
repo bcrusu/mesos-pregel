@@ -32,6 +32,7 @@
             "program": "${workspaceRoot}/scheduler",
             "env": {},
             "args": [
+                "-logtostderr=true",
                 "-mesos.master=127.0.100.254:5050",
                 "-job.store=Cassandra",
                 "-cassandra.hosts=127.0.100.1,127.0.100.2",
@@ -51,7 +52,7 @@
             "program": "${workspaceRoot}/cli",
             "env": {},
             "args": [
-                "--job.store=Cassandra"
+                ""
             ],
             "showLog": true
         }

@@ -32,7 +32,7 @@ func NewJobStore(hosts []string, keyspace string, replicationFactor int) store.J
 
 func (store *cassandraJobStore) Connect() error {
 	cluster := gocql.NewCluster(store.hosts...)
-	cluster.Timeout = 5 * time.Second
+	cluster.Timeout = 10 * time.Second
 
 	session, err := cluster.CreateSession()
 	if err != nil {
@@ -67,7 +67,7 @@ task_cpu, task_mem, task_vertices, task_timeout FROM %s;`, store.fullTableName(j
 	create := func() (interface{}, []interface{}) {
 		job := &pregel.Job{}
 		dest := []interface{}{&job.ID, &job.Status, &job.Store, &job.StoreParams, &job.Algorithm, &job.AlgorithmParams,
-			&job.Label, &job.CreationTime, &job.TaskCPU, &job.TaskMEM, &job.TaskVertices, &job.TaskTimeout}
+			&job.Label, &job.CreationTime, &job.TaskCPU, &job.TaskMEM, &job.TaskVertices, &job.TaskTimeoutSec}
 
 		return job, dest
 	}
@@ -89,7 +89,7 @@ func (store *cassandraJobStore) Save(job *pregel.Job) error {
 	cql := fmt.Sprintf(`INSERT INTO %s (id, label, creationTime, status, store, store_params, algorithm, algorithm_params, 
 task_cpu, task_mem, task_vertices, task_timeout) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`, store.fullTableName(jobsTableName))
 	args := []interface{}{job.ID, job.Label, job.CreationTime, job.Status, job.Store, job.StoreParams, job.Algorithm, job.AlgorithmParams,
-		job.TaskCPU, job.TaskMEM, job.TaskVertices, job.TaskTimeout}
+		job.TaskCPU, job.TaskMEM, job.TaskVertices, job.TaskTimeoutSec}
 	query := store.session.Query(cql, args...)
 
 	return query.Exec()

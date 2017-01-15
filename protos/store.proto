@@ -9,7 +9,7 @@ message CassandraStoreParams {
     string verticesTable = 4;
     string edgesTable = 5;
     BatchOptions batchOptions = 6;
-    int64 timeout = 7;
+    int32 timeoutSec = 7;
 
     message BatchOptions {
         int32 MaxSize = 1;

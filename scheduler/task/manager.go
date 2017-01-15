@@ -60,7 +60,7 @@ type superstepInfo struct {
 	completed   *util.IntSet // Set<RANGE_ID>
 }
 
-func NewManager(jobID string, vertexRanges []*store.VertexRangeHosts, taskTimeout time.Duration) *Manager {
+func NewManager(jobID string, vertexRanges []*store.VertexRangeHosts, taskTimeoutSec int) *Manager {
 	ranges, hosts := processVertexRanges(vertexRanges)
 
 	aggregators := aggregator.NewSet()
@@ -68,7 +68,7 @@ func NewManager(jobID string, vertexRanges []*store.VertexRangeHosts, taskTimeou
 
 	return &Manager{
 		jobID:               jobID,
-		taskTimeout:         time.Duration(taskTimeout),
+		taskTimeout:         time.Duration(taskTimeoutSec) * time.Second,
 		totalStats:          &Stats{},
 		superstep:           newSuperstepInfo(1, aggregators),
 		previousAggregators: aggregatorsProto,
@@ -114,7 +114,7 @@ func NewManagerFromCheckpoint(job *pregel.Job, checkpoint *protos.JobCheckpoint)
 
 	return &Manager{
 		jobID:       job.ID,
-		taskTimeout: time.Duration(job.TaskTimeout),
+		taskTimeout: time.Duration(job.TaskTimeoutSec) * time.Second,
 		totalStats:  (&Stats{}).fromProto(checkpoint.TotalStats),
 		superstep: &superstepInfo{
 			number:      int(checkpoint.Superstep.Number),

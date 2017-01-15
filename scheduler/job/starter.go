@@ -2,7 +2,6 @@ package job
 
 import (
 	"sync"
-	"time"
 
 	"github.com/bcrusu/mesos-pregel"
 	"github.com/bcrusu/mesos-pregel/encoding"
@@ -89,7 +88,7 @@ func newJobStarter(jobStore store.JobStore) *jobStarter {
 			return nil, err
 		}
 
-		manager := task.NewManager(job.ID, vertexRanges, time.Duration(job.TaskTimeout))
+		manager := task.NewManager(job.ID, vertexRanges, job.TaskTimeoutSec)
 		return manager, nil
 	}
 

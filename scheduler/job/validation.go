@@ -1,18 +1,16 @@
 package job
 
 import (
-	"time"
-
 	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/golang/glog"
 )
 
 const (
-	minTaskCPU      = 0.05
-	minTaskMEM      = 32.0
-	minTaskVertices = 1000
-	minTaskTimeout  = time.Second
-	maxTaskTimeout  = 10 * time.Minute
+	minTaskCPU        = 0.05
+	minTaskMEM        = 32.0
+	minTaskVertices   = 1000
+	minTaskTimeoutSec = 10
+	maxTaskTimeoutSec = 10 * 60 // 10 min
 )
 
 func validateCreateJobRequest(r *protos.CreateJobRequest) bool {
@@ -46,7 +44,7 @@ func validateCreateJobRequest(r *protos.CreateJobRequest) bool {
 		return false
 	}
 
-	if time.Duration(r.TaskTimeout) < minTaskTimeout || time.Duration(r.TaskTimeout) > maxTaskTimeout {
+	if r.TaskTimeoutSec < minTaskTimeoutSec || r.TaskTimeoutSec > maxTaskTimeoutSec {
 		glog.Warningf("CreateJobRequest - job %s - invalid taks timeout value", r.Label)
 		return false
 	}

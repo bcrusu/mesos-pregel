@@ -37,7 +37,7 @@ type tokenFilter struct {
 
 func (cstore *cassandraGraphStore) Connect() error {
 	cluster := gocql.NewCluster(cstore.params.Hosts...)
-	cluster.Timeout = time.Duration(cstore.params.Timeout)
+	cluster.Timeout = time.Duration(cstore.params.TimeoutSec) * time.Second
 
 	session, err := cluster.CreateSession()
 	if err != nil {

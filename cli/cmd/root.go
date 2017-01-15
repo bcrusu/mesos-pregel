@@ -90,3 +90,12 @@ func useAPI(action func(client *api.Client) error) error {
 
 	return action(client)
 }
+
+func getCallStatusName(status protos.CallStatus) string {
+	name, ok := protos.CallStatus_name[int32(status)]
+	if !ok {
+		return "unknown"
+	}
+
+	return name
+}

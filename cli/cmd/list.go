@@ -29,7 +29,7 @@ var listCmd = &cobra.Command{
 				printJobs(reply)
 				return nil
 			default:
-				return errors.Errorf("API call failed with status %d", reply.Status)
+				return errors.Errorf("API call failed with status %d", getCallStatusName(reply.Status))
 			}
 		})
 	},

@@ -14,7 +14,7 @@ type Job struct {
 	TaskCPU         float64
 	TaskMEM         float64
 	TaskVertices    int
-	TaskTimeout     int
+	TaskTimeoutSec  int
 }
 
 type JobStatus int

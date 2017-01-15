@@ -89,7 +89,7 @@ func (m *Manager) CreateJob(request *protos.CreateJobRequest) *protos.CreateJobR
 		TaskCPU:         request.TaskCPU,
 		TaskMEM:         request.TaskMEM,
 		TaskVertices:    int(request.TaskVertices),
-		TaskTimeout:     int(request.TaskTimeout),
+		TaskTimeoutSec:  int(request.TaskTimeoutSec),
 	}
 
 	err := m.jobStore.Save(job)

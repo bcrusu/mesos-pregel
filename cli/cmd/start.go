@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/bcrusu/mesos-pregel/algorithms"
 	"github.com/bcrusu/mesos-pregel/cli/api"
@@ -18,7 +17,7 @@ var (
 	taskCPU      = startCmd.PersistentFlags().Float64P("taskCPU", "c", 0.1, "Total CPU used by a single Pregel task")
 	taskMEM      = startCmd.PersistentFlags().Float64P("taskMEM", "m", 64, "Total memory used by a single Pregel task")
 	taskVertices = startCmd.PersistentFlags().Int32P("taskVertices", "v", 10000, "The number of graph vertices processed by a single Pregel task")
-	taskTimeout  = startCmd.PersistentFlags().DurationP("taskTimeout", "t", 30*time.Second, "The maximum duration to wait for a Pregel task to complete before retrying to execute it")
+	taskTimeout  = startCmd.PersistentFlags().Int32P("taskTimeout", "t", 30, "The maximum duration in seconds to wait for a Pregel task to complete before retrying to execute it")
 
 	shortestPathFrom = startShortestPathAlgorithmCmd.Flags().StringP("from", "f", "", "Source Vertex ID")
 	shortestPathTo   = startShortestPathAlgorithmCmd.Flags().StringP("to", "t", "", "Destination Vertex ID")
@@ -73,7 +72,7 @@ func createJob(algorithm string, algorithmParams proto.Message) error {
 		TaskCPU:         *taskCPU,
 		TaskMEM:         *taskMEM,
 		TaskVertices:    *taskVertices,
-		TaskTimeout:     (*taskTimeout).Nanoseconds(),
+		TaskTimeoutSec:  int32(*taskTimeout),
 	}
 
 	return useAPI(func(client *api.Client) error {
@@ -87,7 +86,7 @@ func createJob(algorithm string, algorithmParams proto.Message) error {
 			fmt.Printf("Job created successfully. ID: %s\n", reply.JobId)
 			return nil
 		default:
-			return errors.Errorf("API call failed with status %d", reply.Status)
+			return errors.Errorf("API call failed with status %d", getCallStatusName(reply.Status))
 		}
 	})
 }

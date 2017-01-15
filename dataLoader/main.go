@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/bcrusu/mesos-pregel"
 	_ "github.com/bcrusu/mesos-pregel/cassandra" // register Cassandra store
@@ -165,7 +164,7 @@ func getStoreParams() []byte {
 			ReplicationFactor: int32(*CassandraReplicationFactor),
 			VerticesTable:     *CassandraVerticesTable,
 			EdgesTable:        *CassandraEdgesTable,
-			Timeout:           int64(time.Minute),
+			TimeoutSec:        60,
 			BatchOptions: &protos.CassandraStoreParams_BatchOptions{
 				MaxSize:  2000,
 				MaxBytes: 30 * 1024,

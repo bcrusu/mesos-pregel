@@ -33,7 +33,7 @@ message CreateJobRequest {
     double taskCPU = 6;
 	double taskMEM = 7;
 	int32 taskVertices = 8;
-	int64 taskTimeout = 9;
+	int32 taskTimeoutSec = 9;
 }
 
 message CreateJobReply {

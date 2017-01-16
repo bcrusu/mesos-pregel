@@ -8,6 +8,7 @@ import (
 type Algorithm interface {
 	Compute(context *VertexContext, message interface{}) error
 	GetResult(aggregators *aggregator.AggregatorSet) interface{}
+	GetResultDisplayValue(result interface{}) string
 
 	VertexMessageCombiner() VertexMessageCombiner
 

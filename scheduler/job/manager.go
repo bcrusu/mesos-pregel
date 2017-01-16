@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/bcrusu/mesos-pregel"
+	"github.com/bcrusu/mesos-pregel/algorithm"
 	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/bcrusu/mesos-pregel/scheduler/task"
 	"github.com/bcrusu/mesos-pregel/store"
@@ -143,8 +144,39 @@ func (m *Manager) GetJobStats(request *protos.JobIdRequest) *protos.GetJobStatsR
 }
 
 func (m *Manager) GetJobResult(request *protos.JobIdRequest) *protos.GetJobResultReply {
-	//TODO
-	return nil
+	// check that the job exists and has completed
+	m.mutex.RLock()
+	jobID := request.JobId
+	job, ok := m.jobs[jobID]
+	if !ok || job.Status != pregel.JobCompleted {
+		return &protos.GetJobResultReply{Status: protos.CallStatus_ERROR_INVALID_JOB}
+	}
+	m.mutex.RUnlock()
+
+	resultBytes, err := m.jobStore.LoadResult(job.ID)
+	if err != nil {
+		return &protos.GetJobResultReply{Status: protos.CallStatus_INTERNAL_ERROR}
+	}
+
+	algorithm, err := algorithm.New(job.Algorithm, job.AlgorithmParams)
+	if err != nil {
+		glog.Errorf("job %s - failed to initialize algorithm; error=%v", jobID, err)
+		return &protos.GetJobResultReply{Status: protos.CallStatus_INTERNAL_ERROR}
+	}
+
+	result, err := algorithm.ResultEncoder().Unmarshal(resultBytes)
+	if err != nil {
+		glog.Errorf("job %s - failed to unmarshal result; error=%v", jobID, err)
+		return &protos.GetJobResultReply{Status: protos.CallStatus_INTERNAL_ERROR}
+	}
+
+	displayValue := algorithm.GetResultDisplayValue(result)
+
+	return &protos.GetJobResultReply{
+		Status:       protos.CallStatus_OK,
+		Value:        resultBytes,
+		DisplayValue: displayValue,
+	}
 }
 
 func (m *Manager) GetTasksToExecute(host string, resources Resources) []*TaskToExecute {

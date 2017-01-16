@@ -49,9 +49,8 @@ message GetJobStatsReply {
 
 message GetJobResultReply {
     CallStatus status = 1;
-    string jobId = 2;
-    string algorithm = 3;
-    bytes result = 4;
+    bytes value = 2;
+    string displayValue = 3;
 }
 
 message GetJobsReply {

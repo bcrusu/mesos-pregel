@@ -1,6 +1,7 @@
 package algorithms
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/bcrusu/mesos-pregel/aggregator"
@@ -63,6 +64,11 @@ func (algo *shortestPathAlgorithm) GetResult(aggregators *aggregator.AggregatorS
 	}
 
 	return result
+}
+
+func (algo *shortestPathAlgorithm) GetResultDisplayValue(result interface{}) string {
+	r := result.(*protos.ShortestPathAlgorithmResult)
+	return fmt.Sprintf("path length from '%s' to '%s'=%d", algo.params.From, algo.params.To, r.PathLength)
 }
 
 func (algo *shortestPathAlgorithm) VertexMessageCombiner() algorithm.VertexMessageCombiner {

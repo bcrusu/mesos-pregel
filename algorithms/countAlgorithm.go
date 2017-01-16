@@ -1,6 +1,8 @@
 package algorithms
 
 import (
+	"fmt"
+
 	"github.com/bcrusu/mesos-pregel/aggregator"
 	"github.com/bcrusu/mesos-pregel/algorithm"
 	"github.com/bcrusu/mesos-pregel/encoding"
@@ -32,6 +34,11 @@ func (algo *countAlgorithm) GetResult(aggregators *aggregator.AggregatorSet) int
 	}
 
 	return result
+}
+
+func (algo *countAlgorithm) GetResultDisplayValue(result interface{}) string {
+	r := result.(*protos.CountAlgorithmResult)
+	return fmt.Sprintf("vertices count=%d; edges count=%d", r.Vertices, r.Edges)
 }
 
 func (algo *countAlgorithm) VertexMessageCombiner() algorithm.VertexMessageCombiner {

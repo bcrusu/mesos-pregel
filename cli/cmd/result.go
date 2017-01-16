@@ -34,6 +34,5 @@ var resultCmd = &cobra.Command{
 }
 
 func printJobResult(reply *protos.GetJobResultReply) {
-	fmt.Printf("Job: %s\n", reply.JobId)
-	//TODO: format and print actual result
+	fmt.Println(reply.DisplayValue)
 }

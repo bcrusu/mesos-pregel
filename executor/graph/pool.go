@@ -10,11 +10,12 @@ import (
 )
 
 type Pool struct {
-	jobID     string
-	store     store.GraphStore
-	algorithm algorithm.Algorithm
-	mutex     sync.Mutex
-	graphs    map[string]*Graph
+	jobID          string
+	store          store.GraphStore
+	storeConnected bool
+	algorithm      algorithm.Algorithm
+	mutex          sync.Mutex
+	graphs         map[string]*Graph
 }
 
 func NewPool(params *protos.ExecTaskParams) (*Pool, error) {
@@ -46,6 +47,10 @@ func (p *Pool) Get(superstep int, vrange store.VertexRange) (*Graph, error) {
 	}
 	p.mutex.Unlock()
 
+	if err := p.connectGraphStore(); err != nil {
+		return nil, err
+	}
+
 	if graph == nil {
 		var err error
 		if graph, err = p.loadGraph(vrange); err != nil {
@@ -65,6 +70,15 @@ func (p *Pool) Release(graph *Graph) {
 	p.mutex.Lock()
 	p.graphs[graph.key] = graph
 	p.mutex.Unlock()
+}
+
+func (p *Pool) Close() {
+	if !p.storeConnected {
+		return
+	}
+
+	p.store.Close()
+	p.storeConnected = false
 }
 
 func (p *Pool) loadGraph(vrange store.VertexRange) (*Graph, error) {
@@ -123,6 +137,20 @@ func (p *Pool) fastForwardToSuperstep(graph *Graph, to int, vrange store.VertexR
 		graph.superstep = superstep
 	}
 
+	return nil
+}
+
+func (p *Pool) connectGraphStore() error {
+	if p.storeConnected {
+		return nil
+	}
+
+	err := p.store.Connect()
+	if err != nil {
+		return err
+	}
+
+	p.storeConnected = true
 	return nil
 }
 

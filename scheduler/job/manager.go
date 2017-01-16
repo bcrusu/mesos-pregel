@@ -12,10 +12,6 @@ import (
 	"github.com/pborman/uuid"
 )
 
-const (
-	maxRunningJobs = 10
-)
-
 type Manager struct {
 	jobStore            store.JobStore
 	stopChan            chan struct{}
@@ -45,6 +41,7 @@ func NewManager(jobStore store.JobStore) (*Manager, error) {
 		jobStore:            jobStore,
 		jobs:                make(map[string]*pregel.Job),
 		running:             &jobQueue{},
+		waiting:             &jobQueue{},
 		runningTaskManagers: make(map[string]*task.Manager),
 		jobStarter:          newJobStarter(jobStore),
 	}
@@ -67,6 +64,8 @@ func NewManager(jobStore store.JobStore) (*Manager, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	result.startWaitingJobsWatcher(result.stopChan)
 
 	return result, nil
 }
@@ -305,10 +304,9 @@ func (m *Manager) startWaitingJobsWatcher(stopChan chan struct{}) {
 		defer m.mutex.Unlock()
 
 		started := []string{}
-		count := maxRunningJobs - m.running.Count()
 
 		var jobID string
-		for iter := m.waiting.Iter(&jobID); count > 0 && iter.Next(); count-- {
+		for iter := m.waiting.Iter(&jobID); iter.Next(); {
 			m.jobStarter.input <- m.jobs[jobID]
 			started = append(started, jobID)
 		}

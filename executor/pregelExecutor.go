@@ -28,8 +28,11 @@ type PregelExecutor struct {
 }
 
 func NewPregelExecutor() *PregelExecutor {
+	graphPoolCache := cache.New(cacheExpiration, cacheCleanupInterval)
+	graphPoolCache.OnEvicted(onGraphPoolEvicted)
+
 	return &PregelExecutor{
-		graphPoolCache:        cache.New(cacheExpiration, cacheCleanupInterval),
+		graphPoolCache:        graphPoolCache,
 		execTaskParamsEncoder: encoding.NewProtobufEncoder(func() proto.Message { return new(protos.ExecTaskParams) }),
 		execTaskResultEncoder: encoding.NewProtobufEncoder(func() proto.Message { return new(protos.ExecTaskResult) }),
 	}
@@ -144,9 +147,9 @@ func (executor *PregelExecutor) getGraph(params *protos.ExecTaskParams) (*graph.
 		return nil, err
 	}
 
-	superstep := int(params.SuperstepParams.Superstep)
+	prevSuperstep := int(params.SuperstepParams.Superstep) - 1
 	vrange := store.VertexRange(params.SuperstepParams.VertexRange)
-	return graphPool.Get(superstep, vrange)
+	return graphPool.Get(prevSuperstep, vrange)
 }
 
 func (executor *PregelExecutor) releaseGraph(params *protos.ExecTaskParams, graph *graph.Graph) {
@@ -176,4 +179,9 @@ func (executor *PregelExecutor) getGraphPool(params *protos.ExecTaskParams) (*gr
 
 	executor.graphPoolCache.Set(cacheKey, pool, cache.DefaultExpiration)
 	return pool, nil
+}
+
+func onGraphPoolEvicted(key string, value interface{}) {
+	pool := value.(*graph.Pool)
+	pool.Close()
 }

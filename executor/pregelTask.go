@@ -135,19 +135,19 @@ func (task *PregelTask) loadHaltedVertices(superstep int, vrange store.VertexRan
 
 func (task *PregelTask) saveEntities(entities *messagesProcessor.ProcessResultEntities) error {
 	if err := task.store.SaveVertexMessages(entities.VertexMessages); err != nil {
-		return err
+		return errors.Wrapf(err, "failed to save vertex messages")
 	}
 
 	if err := task.store.SaveHaltedVertices(entities.HaltedVertices); err != nil {
-		return err
+		return errors.Wrapf(err, "failed to save halted vertices")
 	}
 
 	if err := task.store.SaveVertexOperations(entities.VertexOperations); err != nil {
-		return err
+		return errors.Wrapf(err, "failed to save vertex operations")
 	}
 
 	if err := task.store.SaveEdgeOperations(entities.EdgeOperations); err != nil {
-		return err
+		return errors.Wrapf(err, "failed to save edge operations")
 	}
 
 	return nil

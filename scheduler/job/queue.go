@@ -69,5 +69,5 @@ func (q *jobQueue) getIndex(jobID string) (int, bool) {
 		}
 	}
 
-	return 0, false
+	return -1, false
 }

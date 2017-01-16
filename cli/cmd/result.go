@@ -27,7 +27,7 @@ var resultCmd = &cobra.Command{
 				printJobResult(reply)
 				return nil
 			default:
-				return errors.Errorf("API call failed with status %d", getCallStatusName(reply.Status))
+				return errors.Errorf("API call failed with status %s", getCallStatusName(reply.Status))
 			}
 		})
 	},

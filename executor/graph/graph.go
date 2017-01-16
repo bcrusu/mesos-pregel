@@ -22,43 +22,23 @@ func NewGraph(capacity int) *Graph {
 }
 
 func (g *Graph) setVertexMutableValue(id string, value interface{}) {
-	v, ok := g.vertices[id]
-	if !ok {
-		v = &vertex{edges: make(map[string]*edge)}
-		g.vertices[id] = v
-	}
-
+	v := g.ensureVertex(id)
 	v.mutableValue = value
 }
 
 func (g *Graph) setVertexValue(id string, value interface{}) {
-	v, ok := g.vertices[id]
-	if !ok {
-		v = &vertex{edges: make(map[string]*edge)}
-		g.vertices[id] = v
-	}
-
+	v := g.ensureVertex(id)
 	v.value = value
 }
 
 func (g *Graph) setEdgeValue(from string, to string, value interface{}) {
-	v, ok := g.vertices[from]
-	if !ok {
-		v = &vertex{edges: make(map[string]*edge)}
-		g.vertices[from] = v
-	}
-
-	v.edges[to].value = value
+	e := g.ensureEdge(from, to)
+	e.value = value
 }
 
 func (g *Graph) setEdgeMutableValue(from string, to string, value interface{}) {
-	v, ok := g.vertices[from]
-	if !ok {
-		v = &vertex{edges: make(map[string]*edge)}
-		g.vertices[from] = v
-	}
-
-	v.edges[to].mutableValue = value
+	e := g.ensureEdge(from, to)
+	e.mutableValue = value
 }
 
 func (g *Graph) removeVertex(id string) {
@@ -112,7 +92,12 @@ func (g *Graph) EdgeValue(from string, to string) (interface{}, bool) {
 		return nil, false
 	}
 
-	return v.edges[to].value, true
+	e, ok := v.edges[to]
+	if !ok {
+		return nil, false
+	}
+
+	return e.value, true
 }
 
 func (g *Graph) EdgeMutableValue(from string, to string) (interface{}, bool) {
@@ -121,7 +106,12 @@ func (g *Graph) EdgeMutableValue(from string, to string) (interface{}, bool) {
 		return nil, false
 	}
 
-	return v.edges[to].mutableValue, true
+	e, ok := v.edges[to]
+	if !ok {
+		return nil, false
+	}
+
+	return e.mutableValue, true
 }
 
 func (g *Graph) HasEdge(from string, to string) bool {
@@ -154,4 +144,26 @@ func (g *Graph) EdgesFrom(id string) []string {
 	}
 
 	return result
+}
+
+func (g *Graph) ensureVertex(id string) *vertex {
+	v, ok := g.vertices[id]
+	if !ok {
+		v = &vertex{edges: make(map[string]*edge)}
+		g.vertices[id] = v
+	}
+
+	return v
+}
+
+func (g *Graph) ensureEdge(from string, to string) *edge {
+	v := g.ensureVertex(from)
+
+	e, ok := v.edges[to]
+	if !ok {
+		e = &edge{}
+		v.edges[to] = e
+	}
+
+	return e
 }

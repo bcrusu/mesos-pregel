@@ -197,7 +197,7 @@ func (cstore *cassandraGraphStore) SaveEdges(edges []*pregel.Edge) error {
 }
 
 func (cstore *cassandraGraphStore) LoadVertexMessages(jobID string, superstep int, vrange store.VertexRange) ([]*pregel.VertexMessage, error) {
-	cql := fmt.Sprintf(`SELECT "to", value FROM %s WHERE job_id=? AND superstep=? AND %s;`, cstore.fullTableName(vertexMessagesTableName), tokenFilterPlaceholder)
+	cql := fmt.Sprintf(`SELECT "to", value FROM %s WHERE job_id=? AND superstep=? AND %s ALLOW FILTERING;`, cstore.fullTableName(vertexMessagesTableName), tokenFilterPlaceholder)
 	params := []interface{}{jobID, superstep}
 
 	createEntity := func() (interface{}, []interface{}) {
@@ -206,7 +206,7 @@ func (cstore *cassandraGraphStore) LoadVertexMessages(jobID string, superstep in
 		return e, dest
 	}
 
-	entities, err := cstore.executeSelectForTokenRange(cql, vrange, `id`, createEntity, params...)
+	entities, err := cstore.executeSelectForTokenRange(cql, vrange, `"to"`, createEntity, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +245,7 @@ func (cstore *cassandraGraphStore) SaveVertexMessages(messages []*pregel.VertexM
 }
 
 func (cstore *cassandraGraphStore) LoadVertexOperations(jobID string, superstep int, vrange store.VertexRange) ([]*pregel.VertexOperation, error) {
-	cql := fmt.Sprintf(`SELECT id, type, value FROM %s WHERE job_id=? AND superstep=? AND %s;`, cstore.fullTableName(vertexOperationsTableName), tokenFilterPlaceholder)
+	cql := fmt.Sprintf(`SELECT id, type, value FROM %s WHERE job_id=? AND superstep=? AND %s ALLOW FILTERING;`, cstore.fullTableName(vertexOperationsTableName), tokenFilterPlaceholder)
 	params := []interface{}{jobID, superstep}
 
 	createEntity := func() (interface{}, []interface{}) {
@@ -293,7 +293,7 @@ func (cstore *cassandraGraphStore) SaveVertexOperations(operations []*pregel.Ver
 }
 
 func (cstore *cassandraGraphStore) LoadHaltedVertices(jobID string, superstep int, vrange store.VertexRange) ([]string, error) {
-	cql := fmt.Sprintf(`SELECT id FROM %s WHERE job_id=? AND superstep=? AND %s;`, cstore.fullTableName(haltedVerticesTableName), tokenFilterPlaceholder)
+	cql := fmt.Sprintf(`SELECT id FROM %s WHERE job_id=? AND superstep=? AND %s ALLOW FILTERING;`, cstore.fullTableName(haltedVerticesTableName), tokenFilterPlaceholder)
 	params := []interface{}{jobID, superstep}
 
 	createEntity := func() (interface{}, []interface{}) {
@@ -316,7 +316,7 @@ func (cstore *cassandraGraphStore) LoadHaltedVertices(jobID string, superstep in
 }
 
 func (cstore *cassandraGraphStore) SaveHaltedVertices(halted []*pregel.VertexHalted) error {
-	cql := fmt.Sprintf(`INSERT INTO %s (id, job_id, superstep) VALUES(?, ?, ?);`, cstore.fullTableName(vertexMessagesTableName))
+	cql := fmt.Sprintf(`INSERT INTO %s (id, job_id, superstep) VALUES(?, ?, ?);`, cstore.fullTableName(haltedVerticesTableName))
 
 	items := make([]interface{}, len(halted))
 	for i, v := range halted {
@@ -340,7 +340,7 @@ func (cstore *cassandraGraphStore) SaveHaltedVertices(halted []*pregel.VertexHal
 }
 
 func (cstore *cassandraGraphStore) LoadEdgeOperations(jobID string, superstep int, vrange store.VertexRange) ([]*pregel.EdgeOperation, error) {
-	cql := fmt.Sprintf(`SELECT "from", "to", type, value FROM %s WHERE job_id=? AND superstep=? AND %s;`, cstore.fullTableName(edgeOperationsTableName), tokenFilterPlaceholder)
+	cql := fmt.Sprintf(`SELECT "from", "to", type, value FROM %s WHERE job_id=? AND superstep=? AND %s ALLOW FILTERING;`, cstore.fullTableName(edgeOperationsTableName), tokenFilterPlaceholder)
 	params := []interface{}{jobID, superstep}
 
 	createEntity := func() (interface{}, []interface{}) {

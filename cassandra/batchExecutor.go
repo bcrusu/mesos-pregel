@@ -19,6 +19,10 @@ func NewBatchExecutor(session *gocql.Session, maxSize int, maxBytes int) *BatchE
 }
 
 func (exe *BatchExecutor) Execute(cql string, items []interface{}, getItemSize ItemSizeFunc, getItemArgs ItemArgsFunc) error {
+	if len(items) == 0 {
+		return nil
+	}
+
 	batches := exe.createBatches(cql, items, getItemSize, getItemArgs)
 	return exe.executeBatches(batches)
 }

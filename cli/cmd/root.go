@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/bcrusu/mesos-pregel/cli/api"
 	"github.com/bcrusu/mesos-pregel/protos"
@@ -58,7 +57,7 @@ func processStoreFlags() (store string, storeParams []byte, err error) {
 			ReplicationFactor: int32(*cassandraReplicationFactor),
 			VerticesTable:     *cassandraVerticesTable,
 			EdgesTable:        *cassandraEdgesTable,
-			Timeout:           int64(time.Minute),
+			TimeoutSec:        60,
 			BatchOptions: &protos.CassandraStoreParams_BatchOptions{
 				MaxSize:  int32(*cassandraWriteBatchMaxSize),
 				MaxBytes: int32(*cassandraWriteBatchMaxBytes),

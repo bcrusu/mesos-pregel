@@ -17,8 +17,8 @@ import (
 const (
 	resourceNameCPU     = "cpus"
 	resourceNameMEM     = "mem"
-	executorOverheadCPU = 0.01 // executor CPU overhead
-	executorOverheadMEM = 32.0 // executor MEM overhead
+	executorOverheadCPU = 0.1   // executor CPU overhead
+	executorOverheadMEM = 128.0 // executor MEM overhead
 )
 
 type PregelScheduler struct {

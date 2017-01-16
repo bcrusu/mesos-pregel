@@ -195,11 +195,11 @@ func (m *Manager) SetTaskCompleted(taskID string, result *protos.ExecSuperstepRe
 
 	aggregators, err := aggregator.NewSetFromMessages(result.Aggregators)
 	if err != nil {
-		return false, errors.Wrapf(err, "faild to unmarshal aggregators for task %d", taskID)
+		return false, errors.Wrapf(err, "failed to unmarshal aggregators for task %s", taskID)
 	}
 
 	if err = m.superstep.aggregators.UnionWith(aggregators); err != nil {
-		return false, errors.Wrapf(err, "faild to merge aggregators for task %d", taskID)
+		return false, errors.Wrapf(err, "failed to merge aggregators for task %s", taskID)
 	}
 
 	m.superstep.stats.add(result.Stats)
@@ -224,7 +224,7 @@ func (m *Manager) SetTaskFailed(taskID string) {
 		return
 	}
 
-	glog.Infof("job %s - task %d failed", m.jobID, taskID)
+	glog.Infof("job %s - task %s failed", m.jobID, taskID)
 
 	m.addToWaiting(rangeID)
 
@@ -321,9 +321,9 @@ func (m *Manager) checkTimedOutTasks() {
 		}
 
 		if hostname, ok := m.hosts.GetHostname(task.hostID); ok {
-			glog.Infof("job %s - task %d timed out on host %s", m.jobID, taskID, hostname)
+			glog.Infof("job %s - task %s timed out on host %s", m.jobID, taskID, hostname)
 		} else {
-			glog.Infof("job %s - task %d timed out", m.jobID, taskID)
+			glog.Infof("job %s - task %s timed out", m.jobID, taskID)
 		}
 
 		timedOut[taskID] = task
@@ -390,17 +390,17 @@ func (m *Manager) addToWaiting(rangeID int) {
 func (m *Manager) validateTaskID(taskID string) (superstep int, rangeID int, ok bool) {
 	superstep, rangeID, ok = parseTaskID(taskID)
 	if !ok {
-		glog.Warningf("job %s - ignoring malformed task %d", m.jobID, taskID)
+		glog.Warningf("job %s - ignoring malformed task %s", m.jobID, taskID)
 		return 0, 0, false
 	}
 
 	if superstep != m.superstep.number {
-		glog.Warningf("job %s, superstep %d - ignoring task %d from past superstep %d", m.jobID, m.superstep.number, taskID, superstep)
+		glog.Warningf("job %s, superstep %d - ignoring task %s from past superstep %d", m.jobID, m.superstep.number, taskID, superstep)
 		return 0, 0, false
 	}
 
 	if _, ok := m.ranges[rangeID]; !ok {
-		glog.Warningf("job %s - ignoring task %d for unknown range %d", m.jobID, taskID, rangeID)
+		glog.Warningf("job %s - ignoring task %s for unknown range %d", m.jobID, taskID, rangeID)
 		return 0, 0, false
 	}
 
@@ -436,7 +436,7 @@ func groupRangesByHost(ranges map[int]*rangeInfo) map[int]*util.IntSet {
 
 func getTaskID(superstep int, rangeID int) string {
 	r := uuid.NewRandom().String() // add random token to detect duplicate Mesos status updates
-	return fmt.Sprintf("%d/%d/%s", superstep, rangeID, r)
+	return fmt.Sprintf("%d.%d.%s", superstep, rangeID, r)
 }
 
 func parseTaskID(taskID string) (int, int, bool) {

@@ -76,7 +76,7 @@ func newJobStarter(jobStore store.JobStore) *jobStarter {
 		return jobStore.SaveStatus(jobID, status, nil, checkpointBytes)
 	}
 
-	startJob := func(job *pregel.Job) (*task.Manager, error) {
+	getTaskManager := func(job *pregel.Job) (*task.Manager, error) {
 		graphStore, err := connectGraphStore(job.Store, job.StoreParams)
 		if err != nil {
 			return nil, err
@@ -107,8 +107,8 @@ func newJobStarter(jobStore store.JobStore) *jobStarter {
 		if checkpoint != nil {
 			taskManager = task.NewManagerFromCheckpoint(job, checkpoint)
 		} else {
-			taskManager, err = startJob(job)
-			if err != nil {
+			taskManager, err = getTaskManager(job)
+			if err == nil {
 				checkpoint = taskManager.GetCheckpoint()
 			}
 		}

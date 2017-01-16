@@ -45,6 +45,8 @@ message GetJobStatsReply {
     CallStatus status = 1;
     Job job = 2;
     int32 superstep = 3;
+    Stats currentStats = 4;
+    Stats totalStats = 5;
 }
 
 message GetJobResultReply {
@@ -71,6 +73,15 @@ enum JobStatus {
     Completed = 2;
     Cancelled = 3;
     Failed = 4;
+}
+
+message Stats {
+    int64 totalDuration = 1;
+    int32 computedCount = 2;
+    int64 computeDuration = 3;
+    int32 sentMessagesCount = 4;
+    int32 haltedCount = 5;
+    int32 inactiveCount = 6;
 }
 
 enum CallStatus {        

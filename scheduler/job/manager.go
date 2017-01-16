@@ -131,16 +131,20 @@ func (m *Manager) GetJobStats(request *protos.JobIdRequest) *protos.GetJobStatsR
 		return &protos.GetJobStatsReply{Status: protos.CallStatus_ERROR_INVALID_JOB}
 	}
 
-	var superstep int
-	if taskManager, ok := m.runningTaskManagers[jobID]; ok {
-		superstep = taskManager.Superstep()
+	result := &protos.GetJobStatsReply{
+		Status: protos.CallStatus_OK,
+		Job:    convertJobToProto(job),
 	}
 
-	return &protos.GetJobStatsReply{
-		Status:    protos.CallStatus_OK,
-		Job:       convertJobToProto(job),
-		Superstep: int32(superstep),
+	if taskManager, ok := m.runningTaskManagers[jobID]; ok {
+		result.Superstep = int32(taskManager.Superstep())
+
+		currentStats, totalStats := taskManager.Stats()
+		result.CurrentStats = currentStats
+		result.TotalStats = totalStats
 	}
+
+	return result
 }
 
 func (m *Manager) GetJobResult(request *protos.JobIdRequest) *protos.GetJobResultReply {

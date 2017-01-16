@@ -140,7 +140,15 @@ func (m *Manager) Superstep() int {
 	return m.superstep.number
 }
 
+func (m *Manager) Stats() (current *protos.Stats, total *protos.Stats) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	return m.superstep.stats.toProto(), m.totalStats.toProto()
+}
+
 func (m *Manager) Aggregators() *aggregator.AggregatorSet {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	return m.superstep.aggregators
 }
 

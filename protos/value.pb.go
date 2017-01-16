@@ -2,20 +2,6 @@
 // source: value.proto
 // DO NOT EDIT!
 
-/*
-Package protos is a generated protocol buffer package.
-
-It is generated from these files:
-	value.proto
-
-It has these top-level messages:
-	Int32Value
-	Int64Value
-	StringValue
-	StringListValue
-	BoolValue
-	Coordinate2DValue
-*/
 package protos
 
 import proto "github.com/gogo/protobuf/proto"
@@ -26,12 +12,6 @@ import math "math"
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
-
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the proto package it is being compiled against.
-// A compilation error at this line likely means your copy of the
-// proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
 type Int32Value struct {
 	Value int32 `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`

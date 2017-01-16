@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/bcrusu/mesos-pregel/cli/api"
 	"github.com/bcrusu/mesos-pregel/protos"
@@ -45,5 +46,28 @@ func printJobStats(reply *protos.GetJobStatsReply) {
 
 	fmt.Printf("Superstep: %d\n", reply.Superstep)
 
-	//TODO: add running job statistics to proto
+	totalDuration := time.Duration(reply.CurrentStats.TotalDuration)
+	computeDuration := time.Duration(reply.CurrentStats.ComputeDuration)
+
+	fmt.Printf(`Current superstep:
+TotalDuration=%d (sec)
+ComputedCount=%d
+ComputeDuration=%d (sec)
+SentMessagesCount=%d
+HaltedCount=%d
+InactiveCount=%d
+`, totalDuration.Seconds(), reply.CurrentStats.ComputedCount, computeDuration,
+		reply.CurrentStats.SentMessagesCount, reply.CurrentStats.HaltedCount, reply.CurrentStats.InactiveCount)
+
+	totalDuration = time.Duration(reply.TotalStats.TotalDuration)
+	computeDuration = time.Duration(reply.TotalStats.ComputeDuration)
+
+	fmt.Println()
+
+	fmt.Printf(`Total:
+TotalDuration=%d (sec)
+ComputedCount=%d
+ComputeDuration=%d (sec)
+SentMessagesCount=%d
+`, totalDuration.Seconds(), reply.TotalStats.ComputedCount, computeDuration, reply.TotalStats.SentMessagesCount)
 }

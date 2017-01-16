@@ -7,12 +7,40 @@ Package protos is a generated protocol buffer package.
 
 It is generated from these files:
 	algorithm.proto
+	private.proto
+	service.proto
+	store.proto
+	value.proto
 
 It has these top-level messages:
 	ShortestPathAlgorithmParams
 	ShortestPathAlgorithmResult
 	ShortestPathAlgorithmMessage
 	CountAlgorithmResult
+	ExecTaskParams
+	ExecTaskResult
+	ExecSuperstepParams
+	ExecSuperstepResult
+	Aggregator
+	JobCheckpoint
+	EmptyRequest
+	JobIdRequest
+	SimpleCallReply
+	CreateJobRequest
+	CreateJobReply
+	GetJobStatsReply
+	GetJobResultReply
+	GetJobsReply
+	Job
+	Stats
+	CassandraStoreParams
+	CassandraTokenRange
+	Int32Value
+	Int64Value
+	StringValue
+	StringListValue
+	BoolValue
+	Coordinate2DValue
 */
 package protos
 

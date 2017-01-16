@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package protos;
 
+import "service.proto";
+
 message ExecTaskParams {
     string taskId = 1;
     string jobId = 2;
@@ -37,15 +39,6 @@ message Aggregator {
     string name = 1;
     string id = 2;
     bytes value = 3;
-}
-
-message Stats {
-    int64 totalDuration = 1;
-    int32 computedCount = 2;
-    int64 computeDuration = 3;
-    int32 sentMessagesCount = 4;
-    int32 haltedCount = 5;
-    int32 inactiveCount = 6;
 }
 
 message JobCheckpoint {

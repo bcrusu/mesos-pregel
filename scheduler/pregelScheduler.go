@@ -97,7 +97,7 @@ func (scheduler *PregelScheduler) StatusUpdate(driver sched.SchedulerDriver, sta
 
 	switch status.GetState() {
 	case mesos.TaskState_TASK_FINISHED:
-		taskResult, err := scheduler.execTaskParamsEncoder.Unmarshal(status.Data)
+		taskResult, err := scheduler.execTaskResultEncoder.Unmarshal(status.Data)
 		if err != nil {
 			glog.Errorf("mesos task %s - failed to unmarshal task result; error %v", mesosTaskID, err)
 			scheduler.jobManager.SetTaskFailed(jobID, taskID)
@@ -155,13 +155,19 @@ func (scheduler *PregelScheduler) getTaskInfo(slaveID string, taskID string, tas
 }
 
 func getExecutorInfo() *mesos.ExecutorInfo {
-	executorCommand := "pregelExe"
-
 	return &mesos.ExecutorInfo{
 		ExecutorId: util.NewExecutorID("pregel"),
 		Name:       proto.String("Pregel Executor"),
 		Command: &mesos.CommandInfo{
-			Value: proto.String(executorCommand),
+			Value: proto.String("./pregel-exe"),
+			Uris: []*mesos.CommandInfo_URI{
+				&mesos.CommandInfo_URI{
+					Executable: proto.Bool(true),
+					Extract:    proto.Bool(false),
+					Cache:      proto.Bool(true),
+					Value:      proto.String("./pregel-exe"), // relative to "frameworks_home" mesos-slave command argument
+				},
+			},
 		},
 		Resources: []*mesos.Resource{
 			util.NewScalarResource(resourceNameCPU, executorOverheadCPU),

@@ -51,7 +51,7 @@ func printJobs(reply *protos.GetJobsReply) {
 	for _, job := range reply.Jobs {
 		status := getJobStatusName(job.Status)
 		creationTime := time.Unix(job.CreationTime, 0)
-		creationTimeStr := creationTime.Format("yyyy-MM-dd HH:mm:ss")
+		creationTimeStr := creationTime.String()
 
 		fmt.Printf(layout, job.Label, status, creationTimeStr, job.Id)
 	}

@@ -45,18 +45,19 @@ func printJobStats(reply *protos.GetJobStatsReply) {
 	}
 
 	fmt.Printf("Superstep: %d\n", reply.Superstep)
+	fmt.Println()
 
 	totalDuration := time.Duration(reply.CurrentStats.TotalDuration)
 	computeDuration := time.Duration(reply.CurrentStats.ComputeDuration)
 
 	fmt.Printf(`Current superstep:
-TotalDuration=%d (sec)
+TotalDuration=%.2f (sec)
 ComputedCount=%d
-ComputeDuration=%d (sec)
+ComputeDuration=%.2f (sec)
 SentMessagesCount=%d
 HaltedCount=%d
 InactiveCount=%d
-`, totalDuration.Seconds(), reply.CurrentStats.ComputedCount, computeDuration,
+`, totalDuration.Seconds(), reply.CurrentStats.ComputedCount, computeDuration.Seconds(),
 		reply.CurrentStats.SentMessagesCount, reply.CurrentStats.HaltedCount, reply.CurrentStats.InactiveCount)
 
 	totalDuration = time.Duration(reply.TotalStats.TotalDuration)
@@ -65,9 +66,9 @@ InactiveCount=%d
 	fmt.Println()
 
 	fmt.Printf(`Total:
-TotalDuration=%d (sec)
+TotalDuration=%.2f (sec)
 ComputedCount=%d
-ComputeDuration=%d (sec)
+ComputeDuration=%.2f (sec)
 SentMessagesCount=%d
-`, totalDuration.Seconds(), reply.TotalStats.ComputedCount, computeDuration, reply.TotalStats.SentMessagesCount)
+`, totalDuration.Seconds(), reply.TotalStats.ComputedCount, computeDuration.Seconds(), reply.TotalStats.SentMessagesCount)
 }

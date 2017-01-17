@@ -1,5 +1,7 @@
 #!/bin/bash
 
+SCRIPTDIR=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
+
 MESOS_WORK_DIR_ROOT=/tmp/mesos
 MESOS_CLUSTER_DIR=$MESOS_WORK_DIR_ROOT/clusters/pregel
 MESOS_FRAMEWORKS_HOME=$MESOS_WORK_DIR_ROOT/frameworks
@@ -9,6 +11,8 @@ start_cluster() {
 		echo "Creating cluster work dir: $MESOS_CLUSTER_DIR ..."
 		mkdir -p $MESOS_CLUSTER_DIR
 	fi
+
+	copy_files
 
 	# add libmesos.so to LD load path
 	export LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
@@ -25,6 +29,20 @@ start_cluster() {
 
 	mesos-slave --master=127.0.100.254:5050 --ip=127.0.100.2 --port=5051 --resources="cpus:2;mem:512" --attributes=name:slave2 --quiet \
 		--frameworks_home=${MESOS_FRAMEWORKS_HOME} --log_dir=${MESOS_CLUSTER_DIR}/slave2/logs --work_dir=${MESOS_CLUSTER_DIR}/slave2/data &
+}
+
+copy_files() {
+	if [ ! -f "$SCRIPTDIR/../executor/executor" ]; then
+		echo "Could not find executor binary ..."
+		exit 1
+	fi
+
+	if [ ! -d "$MESOS_FRAMEWORKS_HOME" ]; then
+		echo "Creating frameworks dir: $MESOS_FRAMEWORKS_HOME ..."
+		mkdir "$MESOS_FRAMEWORKS_HOME"
+	fi
+
+	cp "$SCRIPTDIR/../executor/executor" "$MESOS_FRAMEWORKS_HOME/pregel-exe"
 }
 
 stop_cluster() {

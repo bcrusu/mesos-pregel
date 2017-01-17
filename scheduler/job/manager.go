@@ -266,8 +266,9 @@ func (m *Manager) SetTaskCompleted(result *protos.ExecTaskResult) {
 
 	if jobCompleted {
 		m.jobStopperChan <- &jobStopperParams{
-			job:       job,
-			newStatus: pregel.JobCompleted,
+			job:         job,
+			newStatus:   pregel.JobCompleted,
+			taskManager: taskManager,
 		}
 		m.removeRunning(job.ID)
 	}

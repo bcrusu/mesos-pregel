@@ -363,12 +363,7 @@ func (m *Manager) advanceSuperstep() (jobCompleted bool) {
 		return true
 	}
 
-	m.superstep = &superstepInfo{
-		number:      current.number + 1,
-		completed:   &util.IntSet{},
-		stats:       &Stats{},
-		aggregators: current.aggregators,
-	}
+	m.superstep = newSuperstepInfo(current.number+1, current.aggregators)
 
 	aggregatorsProto, _ := aggregator.ConvertSetToProto(current.aggregators)
 	m.previousAggregators = aggregatorsProto
@@ -448,7 +443,7 @@ func getTaskID(superstep int, rangeID int) string {
 }
 
 func parseTaskID(taskID string) (int, int, bool) {
-	splits := strings.Split(taskID, "/")
+	splits := strings.Split(taskID, ".")
 	if len(splits) != 3 {
 		return 0, 0, false
 	}

@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/golang/glog"
-	exec "github.com/mesos/mesos-go/executor"
+	exec "github.com/mesos/mesos-go/api/v0/executor"
 	"github.com/pkg/errors"
 
 	_ "github.com/bcrusu/mesos-pregel/aggregator" // register default aggregators

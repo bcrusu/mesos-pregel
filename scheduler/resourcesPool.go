@@ -3,8 +3,8 @@ package main
 import (
 	"math"
 
-	mesos "github.com/mesos/mesos-go/mesosproto"
-	util "github.com/mesos/mesos-go/mesosutil"
+	mesos "github.com/mesos/mesos-go/api/v0/mesosproto"
+	util "github.com/mesos/mesos-go/api/v0/mesosutil"
 )
 
 type resourcesPool struct {

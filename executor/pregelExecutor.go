@@ -10,8 +10,8 @@ import (
 	"github.com/bcrusu/mesos-pregel/store"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
-	exec "github.com/mesos/mesos-go/executor"
-	mesos "github.com/mesos/mesos-go/mesosproto"
+	exec "github.com/mesos/mesos-go/api/v0/executor"
+	mesos "github.com/mesos/mesos-go/api/v0/mesosproto"
 	"github.com/patrickmn/go-cache"
 )
 

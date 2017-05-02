@@ -15,8 +15,8 @@ import (
 	"github.com/bcrusu/mesos-pregel/store"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
-	mesos "github.com/mesos/mesos-go/mesosproto"
-	sched "github.com/mesos/mesos-go/scheduler"
+	mesos "github.com/mesos/mesos-go/api/v0/mesosproto"
+	sched "github.com/mesos/mesos-go/api/v0/scheduler"
 	"github.com/pkg/errors"
 )
 

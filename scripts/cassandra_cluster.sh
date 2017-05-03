@@ -1,8 +1,8 @@
 #!/bin/bash
 
-CASSANDRA_VERSION="3.9"
+CASSANDRA_VERSION="3.10"
 CASSANDRA_CLUSTER_NAME="pregel"
-CASSANDRA_NODE_COUNT=2
+CASSANDRA_NODE_COUNT=3
 
 create_cluster() {
 	ccm create $CASSANDRA_CLUSTER_NAME -v $CASSANDRA_VERSION
@@ -11,7 +11,7 @@ create_cluster() {
 
 start_cluster() {
 	ccm switch $CASSANDRA_CLUSTER_NAME
-    ccm start --jvm_arg="-Xms256M -Xmx256M"
+    ccm start --jvm_arg="-Xms512M -Xmx512M"
 }
 
 stop_cluster() {

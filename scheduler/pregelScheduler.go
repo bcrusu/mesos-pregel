@@ -159,7 +159,7 @@ func getExecutorInfo() *mesos.ExecutorInfo {
 		ExecutorId: util.NewExecutorID("pregel"),
 		Name:       proto.String("Pregel Executor"),
 		Command: &mesos.CommandInfo{
-			Value: proto.String("./pregel-exe"),
+			Value: proto.String("./pregel-exe -logtostderr=true"),
 			Uris: []*mesos.CommandInfo_URI{
 				&mesos.CommandInfo_URI{
 					Executable: proto.Bool(true),

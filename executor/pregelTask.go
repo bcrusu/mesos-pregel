@@ -65,7 +65,7 @@ func (task *PregelTask) ExecSuperstep(params *protos.ExecSuperstepParams) (*prot
 		return nil, err
 	}
 
-	processor := messagesProcessor.New(task.jobID, superstep, task.graph, task.algorithm, aggregatorSet)
+	processor := messagesProcessor.New(task.jobID, superstep, task.graph, task.algorithm, aggregatorSet.AsImmutable())
 	processResult, err := processor.Process(messages, halted)
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func (task *PregelTask) ExecSuperstep(params *protos.ExecSuperstepParams) (*prot
 		return nil, err
 	}
 
-	aggregators, err := aggregator.ConvertSetToProto(aggregatorSet)
+	aggregators, err := aggregator.ConvertSetToProto(processResult.Aggregators)
 	if err != nil {
 		return nil, err
 	}

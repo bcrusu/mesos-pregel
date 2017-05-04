@@ -8,6 +8,7 @@ import (
 	"github.com/bcrusu/mesos-pregel/encoding"
 	"github.com/bcrusu/mesos-pregel/protos"
 	"github.com/gogo/protobuf/proto"
+	"github.com/golang/glog"
 )
 
 // Simple algorithm that counts the number of vertices and edges in the graph
@@ -15,14 +16,16 @@ type countAlgorithm struct {
 }
 
 func (algo *countAlgorithm) Compute(context *algorithm.VertexContext, msg interface{}) error {
-	context.Aggregators.Add(aggregator.SumInt, "vertices", 1)
-	context.Aggregators.Add(aggregator.SumInt, "edges", len(context.Edges))
+	glog.Infof("countAlgorithm.Compute: vertexID=%s, edges=%d", context.ID(), len(context.Edges))
+
+	context.SetAggregator("vertices", aggregator.SumInt, 1)
+	context.SetAggregator("edges", aggregator.SumInt, len(context.Edges))
 
 	context.VoteToHalt()
 	return nil
 }
 
-func (algo *countAlgorithm) GetResult(aggregators *aggregator.AggregatorSet) interface{} {
+func (algo *countAlgorithm) GetResult(aggregators *aggregator.ImmutableAggregatorSet) interface{} {
 	result := &protos.CountAlgorithmResult{}
 
 	if c, ok := aggregators.GetValue("vertices"); ok {

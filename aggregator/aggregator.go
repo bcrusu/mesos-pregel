@@ -1,7 +1,7 @@
 package aggregator
 
 type Aggregator interface {
-	Name() string
+	Type() string
 
 	Get() interface{}
 	Set(value interface{}) error

@@ -6,14 +6,14 @@ type AggregatorFactory func() Aggregator
 
 var factories = make(map[string]AggregatorFactory)
 
-func Register(name string, factory AggregatorFactory) {
-	factories[name] = factory
+func Register(aggType string, factory AggregatorFactory) {
+	factories[aggType] = factory
 }
 
-func newAggregator(name string) (Aggregator, error) {
-	factory, ok := factories[name]
+func newAggregator(aggType string) (Aggregator, error) {
+	factory, ok := factories[aggType]
 	if !ok {
-		return nil, fmt.Errorf("unknown aggregator %s", name)
+		return nil, fmt.Errorf("unknown aggregator type %s", aggType)
 	}
 
 	return factory(), nil

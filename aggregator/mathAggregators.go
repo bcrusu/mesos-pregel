@@ -52,7 +52,7 @@ func newMinIntAgg() Aggregator {
 	return &minIntAgg{int64Agg: &int64Agg{value: 0}}
 }
 
-func (agg *minIntAgg) Name() string {
+func (agg *minIntAgg) Type() string {
 	return MinInt
 }
 
@@ -84,7 +84,7 @@ func newMaxIntAgg() Aggregator {
 	return &maxIntAgg{int64Agg: &int64Agg{}}
 }
 
-func (agg *maxIntAgg) Name() string {
+func (agg *maxIntAgg) Type() string {
 	return MaxInt
 }
 
@@ -116,7 +116,7 @@ func newSumIntAgg() Aggregator {
 	return &sumIntAgg{int64Agg: &int64Agg{}}
 }
 
-func (agg *sumIntAgg) Name() string {
+func (agg *sumIntAgg) Type() string {
 	return SumInt
 }
 

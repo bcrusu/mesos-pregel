@@ -7,7 +7,7 @@ import (
 
 type Algorithm interface {
 	Compute(context *VertexContext, message interface{}) error
-	GetResult(aggregators *aggregator.AggregatorSet) interface{}
+	GetResult(aggregators *aggregator.ImmutableAggregatorSet) interface{}
 	GetResultDisplayValue(result interface{}) string
 
 	VertexMessageCombiner() VertexMessageCombiner
@@ -35,4 +35,7 @@ type ContextOperations interface {
 	AddEdge(from string, to string, value interface{})
 	RemoveEdge(from string, to string)
 	SetEdgeValue(from string, to string, value interface{})
+
+	SetAggregator(id string, aggType string, value interface{}) error
+	RemoveAggregator(id string)
 }

@@ -36,7 +36,7 @@ message ExecSuperstepResult {
 }
 
 message Aggregator {
-    string name = 1;
+    string type = 1;
     string id = 2;
     bytes value = 3;
 }

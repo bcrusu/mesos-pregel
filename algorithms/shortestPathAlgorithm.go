@@ -47,7 +47,7 @@ func (algo *shortestPathAlgorithm) Compute(context *algorithm.VertexContext, msg
 			if context.ID() != algo.params.To {
 				sendMessages(msgPathLength)
 			} else {
-				context.Aggregators.Add(aggregator.MinInt, "pathLength", msgPathLength)
+				context.SetAggregator("pathLength", aggregator.MinInt, msgPathLength)
 			}
 		}
 	}
@@ -56,7 +56,7 @@ func (algo *shortestPathAlgorithm) Compute(context *algorithm.VertexContext, msg
 	return nil
 }
 
-func (algo *shortestPathAlgorithm) GetResult(aggregators *aggregator.AggregatorSet) interface{} {
+func (algo *shortestPathAlgorithm) GetResult(aggregators *aggregator.ImmutableAggregatorSet) interface{} {
 	result := &protos.ShortestPathAlgorithmResult{PathLength: -1}
 
 	if pathLength, ok := aggregators.GetValue("pathLength"); ok {

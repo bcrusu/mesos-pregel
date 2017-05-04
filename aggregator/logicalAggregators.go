@@ -52,7 +52,7 @@ func newOrAgg() Aggregator {
 	return &andAgg{boolAgg: &boolAgg{}}
 }
 
-func (agg *orAgg) Name() string {
+func (agg *orAgg) Type() string {
 	return Or
 }
 
@@ -82,7 +82,7 @@ func newAndAgg() Aggregator {
 	return &andAgg{boolAgg: &boolAgg{true}}
 }
 
-func (agg *andAgg) Name() string {
+func (agg *andAgg) Type() string {
 	return And
 }
 

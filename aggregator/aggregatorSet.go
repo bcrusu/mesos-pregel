@@ -33,7 +33,7 @@ func NewSetFromMessages(messages []*protos.Aggregator) (*AggregatorSet, error) {
 			return nil, fmt.Errorf("duplicate aggregator id: %s", id)
 		}
 
-		agg, err := newAggregator(proto.Name)
+		agg, err := newAggregator(proto.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -78,7 +78,7 @@ func (set *AggregatorSet) SetValue(id string, value interface{}) error {
 	return nil
 }
 
-func (set *AggregatorSet) Add(aggName string, id string, value interface{}) error {
+func (set *AggregatorSet) Add(aggType string, id string) error {
 	set.mutex.Lock()
 	defer set.mutex.Unlock()
 
@@ -87,12 +87,7 @@ func (set *AggregatorSet) Add(aggName string, id string, value interface{}) erro
 		return fmt.Errorf("duplicate aggregator id: %s", id)
 	}
 
-	agg, err := newAggregator(aggName)
-	if err != nil {
-		return err
-	}
-
-	err = agg.Set(value)
+	agg, err := newAggregator(aggType)
 	if err != nil {
 		return err
 	}
@@ -148,7 +143,7 @@ func (set *AggregatorSet) UnionWith(other *AggregatorSet) error {
 	for id, secondAgg := range other.aggs {
 		firstAgg, ok := set.aggs[id]
 		if ok {
-			if firstAgg.Name() != secondAgg.Name() {
+			if firstAgg.Type() != secondAgg.Type() {
 				// found incompatible aggregators
 				return fmt.Errorf("union failed - sets contain different aggregator types for id: %s", id)
 			}
@@ -163,6 +158,16 @@ func (set *AggregatorSet) UnionWith(other *AggregatorSet) error {
 	return nil
 }
 
+func (set *AggregatorSet) AsImmutable() *ImmutableAggregatorSet {
+	aggs := make(map[string]Aggregator)
+
+	for id, agg := range set.aggs {
+		aggs[id] = agg.Clone()
+	}
+
+	return &ImmutableAggregatorSet{aggs: aggs}
+}
+
 func ConvertSetToProto(set *AggregatorSet) ([]*protos.Aggregator, error) {
 	set.mutex.RLock()
 	defer set.mutex.RUnlock()
@@ -175,7 +180,7 @@ func ConvertSetToProto(set *AggregatorSet) ([]*protos.Aggregator, error) {
 			return nil, errors.Wrapf(err, "aggregator id: %s", id)
 		}
 
-		result = append(result, &protos.Aggregator{Name: agg.Name(), Id: id, Value: bytes})
+		result = append(result, &protos.Aggregator{Type: agg.Type(), Id: id, Value: bytes})
 	}
 
 	return result, nil

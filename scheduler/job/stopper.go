@@ -29,7 +29,7 @@ func createJobStopper(jobStore store.JobStore) chan *jobStopperParams {
 		}
 
 		aggregators := taskManager.Aggregators()
-		result := algorithm.GetResult(aggregators)
+		result := algorithm.GetResult(aggregators.AsImmutable())
 
 		bytes, err := algorithm.ResultEncoder().Marshal(result)
 		if err != nil {

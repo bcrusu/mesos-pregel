@@ -16,16 +16,17 @@ const (
 )
 
 type MessagesProcessor struct {
-	jobID       string
-	superstep   int
-	graph       *graph.Graph
-	algorithm   algorithm.Algorithm
-	aggregators *aggregator.AggregatorSet
+	jobID                    string
+	superstep                int
+	graph                    *graph.Graph
+	algorithm                algorithm.Algorithm
+	prevSuperstepAggregators *aggregator.ImmutableAggregatorSet
 }
 
 type ProcessResult struct {
-	Stats    *ProcessResultStats
-	Entities *ProcessResultEntities
+	Stats       *ProcessResultStats
+	Entities    *ProcessResultEntities
+	Aggregators *aggregator.AggregatorSet
 }
 
 type ProcessResultStats struct {
@@ -53,8 +54,8 @@ type computeResult struct {
 }
 
 func New(jobID string, superstep int, graph *graph.Graph, algorithm algorithm.Algorithm,
-	aggregators *aggregator.AggregatorSet) *MessagesProcessor {
-	return &MessagesProcessor{jobID, superstep, graph, algorithm, aggregators}
+	prevSuperstepAggregators *aggregator.ImmutableAggregatorSet) *MessagesProcessor {
+	return &MessagesProcessor{jobID, superstep, graph, algorithm, prevSuperstepAggregators}
 }
 
 func (proc *MessagesProcessor) Process(messages map[string]interface{}, haltedVertices map[string]bool) (*ProcessResult, error) {
@@ -123,7 +124,8 @@ func (proc *MessagesProcessor) Process(messages map[string]interface{}, haltedVe
 			HaltedCount:       len(entities.HaltedVertices),
 			InactiveCount:     inactiveCount,
 		},
-		Entities: entities,
+		Entities:    entities,
+		Aggregators: operations.aggregators,
 	}, nil
 }
 
@@ -132,7 +134,7 @@ func (proc *MessagesProcessor) createVertexContext(id string, operations *contex
 
 	value, _ := graph.VertexValue(id)
 	mutableValue, _ := graph.VertexMutableValue(id)
-	vertexContext := algorithm.NewVertexContext(id, proc.superstep, value, mutableValue, operations, proc.aggregators)
+	vertexContext := algorithm.NewVertexContext(id, proc.superstep, value, mutableValue, operations, proc.prevSuperstepAggregators)
 
 	edges := graph.EdgesFrom(id)
 	vertexContext.Edges = make([]*algorithm.EdgeContext, len(edges))

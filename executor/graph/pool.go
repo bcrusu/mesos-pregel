@@ -106,7 +106,7 @@ func (p *Pool) loadGraph(vrange store.VertexRange) (*Graph, error) {
 	}
 
 	for _, edge := range edges {
-		value, err := p.algorithm.VertexValueEncoder().Unmarshal(edge.Value)
+		value, err := p.algorithm.EdgeValueEncoder().Unmarshal(edge.Value)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unmarshal failed - edge: from=%s to=%s", edge.From, edge.To)
 		}

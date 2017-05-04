@@ -27,7 +27,7 @@ start_cluster() {
 
 	sleep 0.2s
 
-	mesos-slave --master=127.0.100.254:5050 --ip=127.0.100.2 --port=5051 --hostname=127.0.100.2254 --resources="cpus:2;mem:512" --attributes=name:slave2 --quiet \
+	mesos-slave --master=127.0.100.254:5050 --ip=127.0.100.2 --port=5051 --hostname=127.0.100.2 --resources="cpus:2;mem:512" --attributes=name:slave2 --quiet \
 		--frameworks_home=${MESOS_FRAMEWORKS_HOME} --log_dir=${MESOS_CLUSTER_DIR}/slave2/logs --work_dir=${MESOS_CLUSTER_DIR}/slave2/data &
 
 	sleep 0.2s

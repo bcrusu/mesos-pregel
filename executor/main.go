@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"os"
 
 	"github.com/golang/glog"
@@ -13,6 +14,9 @@ import (
 )
 
 func main() {
+	flag.Parse()
+
+	glog.Infof("Executor args: %v", os.Args)
 	glog.Info("Running...")
 
 	if err := run(); err != nil {

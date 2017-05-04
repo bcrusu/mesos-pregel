@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/bcrusu/mesos-pregel"
+	"github.com/bcrusu/mesos-pregel/aggregator"
 	"github.com/bcrusu/mesos-pregel/algorithm"
 	"github.com/pkg/errors"
 )
@@ -27,6 +28,8 @@ type contextOperations struct {
 	removedEdgesMutex        sync.Mutex
 	changedEdgeValues        map[edge]interface{}
 	changedEdgeValuesMutex   sync.Mutex
+	aggregators              *aggregator.AggregatorSet
+	aggregatorsMutex         sync.Mutex
 }
 
 type edge struct {
@@ -44,6 +47,7 @@ func newContextOperations(algorithm algorithm.Algorithm, errorChan chan error) *
 	result.addedEdges = make(map[edge]interface{})
 	result.removedEdges = make(map[edge]bool)
 	result.changedEdgeValues = make(map[edge]interface{})
+	result.aggregators = aggregator.NewSet()
 	return result
 }
 
@@ -136,6 +140,26 @@ func (op *contextOperations) SetEdgeValue(from string, to string, value interfac
 	}
 
 	op.changedEdgeValues[edge] = value
+}
+
+func (op *contextOperations) SetAggregator(id string, aggType string, value interface{}) error {
+	op.aggregatorsMutex.Lock()
+	defer op.aggregatorsMutex.Unlock()
+
+	if !op.aggregators.Contains(id) {
+		if err := op.aggregators.Add(id, aggType); err != nil {
+			return err
+		}
+	}
+
+	return op.aggregators.SetValue(id, value)
+}
+
+func (op *contextOperations) RemoveAggregator(id string) {
+	op.aggregatorsMutex.Lock()
+	defer op.aggregatorsMutex.Unlock()
+
+	_ = op.aggregators.Remove(id)
 }
 
 func (op *contextOperations) GetEntities(jobId string, superstep int) (*ProcessResultEntities, error) {

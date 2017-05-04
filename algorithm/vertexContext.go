@@ -5,24 +5,25 @@ import (
 )
 
 type VertexContext struct {
-	id           string
-	Edges        []*EdgeContext
-	Value        interface{}
-	MutableValue interface{}
-	Superstep    int
-	Aggregators  *aggregator.AggregatorSet
-	op           ContextOperations
+	id                       string
+	Edges                    []*EdgeContext
+	Value                    interface{}
+	MutableValue             interface{}
+	Superstep                int
+	PrevSuperstepAggregators *aggregator.ImmutableAggregatorSet
+	op                       ContextOperations
 }
 
 func NewVertexContext(id string, superstep int, value interface{}, mutableValue interface{},
-	operations ContextOperations, aggregators *aggregator.AggregatorSet) *VertexContext {
+	operations ContextOperations, prevSuperstepAggregators *aggregator.ImmutableAggregatorSet) *VertexContext {
 	return &VertexContext{
-		id:           id,
-		Superstep:    superstep,
-		Value:        value,
-		MutableValue: mutableValue,
-		op:           operations,
-		Aggregators:  aggregators}
+		id:                       id,
+		Superstep:                superstep,
+		Value:                    value,
+		MutableValue:             mutableValue,
+		PrevSuperstepAggregators: prevSuperstepAggregators,
+		op: operations,
+	}
 }
 
 func (c *VertexContext) ID() string {
@@ -67,4 +68,12 @@ func (c *VertexContext) RemoveEdge(from string, to string) {
 
 func (c *VertexContext) SetEdgeValue(from string, to string, value interface{}) {
 	c.op.SetEdgeValue(from, to, value)
+}
+
+func (c *VertexContext) SetAggregator(id string, aggType string, value interface{}) error {
+	return c.op.SetAggregator(id, aggType, value)
+}
+
+func (c *VertexContext) RemoveAggregator(id string) {
+	c.op.RemoveAggregator(id)
 }

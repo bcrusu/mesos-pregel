@@ -17,18 +17,23 @@ start_cluster() {
 	# add libmesos.so to LD load path
 	export LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
 
-	mesos-master --cluster=pregel --ip=127.0.100.254 --port=5050 --allocation_interval=1secs --registry=in_memory --quorum=1 --quiet \
+	mesos-master --cluster=pregel --ip=127.0.100.254 --port=5050 --hostname=127.0.100.254 --allocation_interval=1secs --registry=in_memory --quorum=1 --quiet \
 		--log_dir=${MESOS_CLUSTER_DIR}/master/logs --work_dir=${MESOS_CLUSTER_DIR}/master/data &
 
 	sleep 1s
 
-	mesos-slave --master=127.0.100.254:5050 --ip=127.0.100.1 --port=5051 --resources="cpus:2;mem:512" --attributes=name:slave1 --quiet \
+	mesos-slave --master=127.0.100.254:5050 --ip=127.0.100.1 --port=5051 --hostname=127.0.100.1 --resources="cpus:2;mem:512" --attributes=name:slave1 --quiet \
 		--frameworks_home=${MESOS_FRAMEWORKS_HOME} --log_dir=${MESOS_CLUSTER_DIR}/slave1/logs --work_dir=${MESOS_CLUSTER_DIR}/slave1/data &
 
 	sleep 0.2s
 
-	mesos-slave --master=127.0.100.254:5050 --ip=127.0.100.2 --port=5051 --resources="cpus:2;mem:512" --attributes=name:slave2 --quiet \
+	mesos-slave --master=127.0.100.254:5050 --ip=127.0.100.2 --port=5051 --hostname=127.0.100.2254 --resources="cpus:2;mem:512" --attributes=name:slave2 --quiet \
 		--frameworks_home=${MESOS_FRAMEWORKS_HOME} --log_dir=${MESOS_CLUSTER_DIR}/slave2/logs --work_dir=${MESOS_CLUSTER_DIR}/slave2/data &
+
+	sleep 0.2s
+
+	mesos-slave --master=127.0.100.254:5050 --ip=127.0.100.3 --port=5051 --hostname=127.0.100.3 --resources="cpus:2;mem:512" --attributes=name:slave3 --quiet \
+		--frameworks_home=${MESOS_FRAMEWORKS_HOME} --log_dir=${MESOS_CLUSTER_DIR}/slave3/logs --work_dir=${MESOS_CLUSTER_DIR}/slave3/data &
 }
 
 copy_files() {

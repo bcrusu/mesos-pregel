@@ -70,8 +70,8 @@ func (c *VertexContext) SetEdgeValue(from string, to string, value interface{}) 
 	c.op.SetEdgeValue(from, to, value)
 }
 
-func (c *VertexContext) SetAggregator(id string, aggType string, value interface{}) error {
-	return c.op.SetAggregator(id, aggType, value)
+func (c *VertexContext) SetAggregator(id string, aggType string, value interface{}) {
+	c.op.SetAggregator(id, aggType, value)
 }
 
 func (c *VertexContext) RemoveAggregator(id string) {

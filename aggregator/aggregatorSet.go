@@ -78,7 +78,7 @@ func (set *AggregatorSet) SetValue(id string, value interface{}) error {
 	return nil
 }
 
-func (set *AggregatorSet) Add(aggType string, id string) error {
+func (set *AggregatorSet) Add(id string, aggType string) error {
 	set.mutex.Lock()
 	defer set.mutex.Unlock()
 
@@ -121,6 +121,13 @@ func (set *AggregatorSet) Contains(id string) bool {
 	defer set.mutex.RUnlock()
 	_, ok := set.aggs[id]
 	return ok
+}
+
+func (set *AggregatorSet) Size() int {
+	set.mutex.Lock()
+	defer set.mutex.Unlock()
+
+	return len(set.aggs)
 }
 
 func (set *AggregatorSet) Clone() *AggregatorSet {

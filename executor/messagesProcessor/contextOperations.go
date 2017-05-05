@@ -142,24 +142,29 @@ func (op *contextOperations) SetEdgeValue(from string, to string, value interfac
 	op.changedEdgeValues[edge] = value
 }
 
-func (op *contextOperations) SetAggregator(id string, aggType string, value interface{}) error {
+func (op *contextOperations) SetAggregator(id string, aggType string, value interface{}) {
 	op.aggregatorsMutex.Lock()
 	defer op.aggregatorsMutex.Unlock()
 
 	if !op.aggregators.Contains(id) {
 		if err := op.aggregators.Add(id, aggType); err != nil {
-			return err
+			op.errorChan <- err
+			return
 		}
 	}
 
-	return op.aggregators.SetValue(id, value)
+	if err := op.aggregators.SetValue(id, value); err != nil {
+		op.errorChan <- err
+	}
 }
 
 func (op *contextOperations) RemoveAggregator(id string) {
 	op.aggregatorsMutex.Lock()
 	defer op.aggregatorsMutex.Unlock()
 
-	_ = op.aggregators.Remove(id)
+	if err := op.aggregators.Remove(id); err != nil {
+		op.errorChan <- err
+	}
 }
 
 func (op *contextOperations) GetEntities(jobId string, superstep int) (*ProcessResultEntities, error) {

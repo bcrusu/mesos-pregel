@@ -36,6 +36,6 @@ type ContextOperations interface {
 	RemoveEdge(from string, to string)
 	SetEdgeValue(from string, to string, value interface{})
 
-	SetAggregator(id string, aggType string, value interface{}) error
+	SetAggregator(id string, aggType string, value interface{})
 	RemoveAggregator(id string)
 }

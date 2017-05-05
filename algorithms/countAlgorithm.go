@@ -18,8 +18,8 @@ type countAlgorithm struct {
 func (algo *countAlgorithm) Compute(context *algorithm.VertexContext, msg interface{}) error {
 	glog.Infof("countAlgorithm.Compute: vertexID=%s, edges=%d", context.ID(), len(context.Edges))
 
-	context.SetAggregator("vertices", aggregator.SumInt, 1)
-	context.SetAggregator("edges", aggregator.SumInt, len(context.Edges))
+	context.SetAggregator("vertices", aggregator.SumInt, int64(1))
+	context.SetAggregator("edges", aggregator.SumInt, int64(len(context.Edges)))
 
 	context.VoteToHalt()
 	return nil
